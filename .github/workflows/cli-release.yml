@@ -1,11 +1,11 @@
 name: CLI release
-# When packages/cli's version changes on main and isn't on npm yet, build the emulator and the CLI
-# and publish `opencharm` to npm with provenance (npm shows which commit and workflow built it).
-# Auth: npm trusted publishing for this workflow (set up once on npmjs.com), or an NPM_TOKEN secret
-# for the very first publish.
+# Run by hand on main (Actions → CLI release → Run workflow): if packages/cli's version isn't on npm
+# yet, build the emulator and the CLI and publish `opencharm` to npm with provenance (npm shows which
+# commit and workflow built it). Auth: npm trusted publishing for this workflow (set up once on
+# npmjs.com), or an NPM_TOKEN secret for the very first publish.
+# Manual only while the repository is private. At launch, release on every version bump again by
+# adding `push: branches: [main]` under `on:` (the version check already skips published versions).
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 permissions:
