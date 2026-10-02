@@ -87,10 +87,17 @@ If a guard trips:
 
 ## Repository settings (maintainer)
 
-In the repository's GitHub settings, keep these on:
+In the GitHub settings of `opencharm-labs/opencharm` and `opencharm-labs/opencharm-starter`:
 
-- Code security: secret scanning with push protection (blocks a push that contains a key), Dependabot alerts, private vulnerability reporting (`SECURITY.md` points people to it).
-- Branch protection on `main`: pull requests only, and the checks must pass.
+- Pull requests: merge commits only (no squash or rebase, so `main` and `develop` keep one history), and "Automatically delete head branches" off (the head of the release PR is `develop`).
+- Features: Projects off; in the starter, issues off (reports go to this repo) and "Template repository" on.
+- Code security: Dependabot alerts; secret scanning with push protection (blocks a push that contains a key); private vulnerability reporting (`SECURITY.md` points people to it).
+- Actions: the workflow token stays read-only by default; each workflow asks for what it needs.
+- Rulesets for `main` and `develop`: no deletion, no force-push; `main` takes pull requests only, and its checks must pass.
+
+On the free plan, secret scanning, private vulnerability reporting and rulesets only work on public repositories: turn them on the day the repositories go public, together with the release triggers (see "Releasing the CLI").
+
+`.github/dependabot.yml` opens a monthly pull request against `develop` when a GitHub Action has a new version.
 
 ## Licence of contributions
 
