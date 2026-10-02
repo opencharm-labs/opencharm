@@ -1,0 +1,346 @@
+/* The brand: off-white paper with a faint grid, black ink, mono labels, pill buttons. Colour only on
+   the charm itself. */
+:root {
+  --paper: #f6f6f4;
+  --ink: #0a0a0a;
+  --dim: #77756f;
+  --line: rgba(10, 10, 10, 0.12);
+  --signal: #ff5a1f;
+  font-family:
+    "Geist",
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    sans-serif;
+  color: var(--ink);
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  padding: 24px 24px 18px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-position: -1px -1px;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.mono,
+code,
+select,
+input {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+.mono {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+}
+.dim {
+  color: var(--dim);
+}
+header {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+}
+.charm {
+  width: 86px;
+  height: 86px;
+  flex: none;
+}
+h1 {
+  margin: 4px 0 2px;
+  font-size: 28px;
+  letter-spacing: -0.02em;
+}
+.lede {
+  margin: 0;
+  color: #3a3935;
+  font-size: 14px;
+  line-height: 1.4;
+}
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+section {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.grow {
+  flex: 1;
+}
+select,
+input {
+  flex: 1;
+  height: 38px;
+  padding: 0 14px;
+  border: 1.5px solid var(--ink);
+  border-radius: 999px;
+  background: #fff;
+  font-size: 13px;
+  color: var(--ink);
+  outline: none;
+  appearance: none;
+}
+select {
+  min-height: 38px;
+  line-height: 34px;
+  padding-right: 34px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--ink) 50%),
+    linear-gradient(135deg, var(--ink) 50%, transparent 50%);
+  background-position:
+    calc(100% - 20px) 16px,
+    calc(100% - 15px) 16px;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+}
+input:focus,
+select:focus {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+.note {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--dim);
+}
+.note.ok {
+  color: var(--ink);
+}
+.note.bad {
+  color: var(--signal);
+}
+code {
+  font-size: 11.5px;
+  color: var(--ink);
+}
+.pill {
+  height: 38px;
+  padding: 0 16px;
+  border: 1.5px solid var(--ink);
+  border-radius: 999px;
+  background: var(--ink);
+  color: #fff;
+  font:
+    600 13px/1 "Geist",
+    ui-sans-serif,
+    system-ui,
+    sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.pill.ghost {
+  background: #fff;
+  color: var(--ink);
+}
+.pill:active {
+  transform: scale(0.97);
+}
+.switch-row {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+.switch {
+  position: relative;
+  width: 46px;
+  height: 28px;
+  flex: none;
+}
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.switch span {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  border: 1.5px solid var(--ink);
+  background: #fff;
+  transition: background 0.2s;
+  cursor: pointer;
+}
+.switch span::before {
+  content: "";
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  left: 2.5px;
+  top: 2.5px;
+  border-radius: 50%;
+  background: var(--ink);
+  transition: transform 0.2s cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+.switch input:checked + span {
+  background: var(--ink);
+}
+.switch input:checked + span::before {
+  background: #fff;
+  transform: translateX(18px);
+}
+footer {
+  margin-top: auto;
+  display: flex;
+  justify-content: space-between;
+}
+.managed {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+.managed .mono {
+  margin-top: 6px;
+}
+.status-card {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--paper);
+}
+.status-card strong {
+  font-size: 15px;
+}
+.mono-path {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 250px;
+}
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--dim);
+  flex: none;
+}
+.dot.running {
+  background: var(--ink);
+  box-shadow: 0 0 0 3px rgba(10, 10, 10, 0.12);
+}
+.dot.starting {
+  animation: pulse 1s ease-in-out infinite alternate;
+  background: var(--ink);
+}
+.dot.needs {
+  background: var(--signal);
+}
+@keyframes pulse {
+  from {
+    opacity: 0.25;
+  }
+}
+.pill.small {
+  height: 30px;
+  padding: 0 12px;
+  font-size: 12px;
+}
+[hidden] {
+  display: none !important;
+}
+#server-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+details {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+details > section + section,
+details > summary + section {
+  margin-top: 12px;
+}
+summary {
+  cursor: pointer;
+  padding: 4px 2px;
+  color: var(--dim);
+}
+.look > .mono:not(:first-child),
+#say-section .mono {
+  margin-top: 6px;
+}
+#say-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.look > input,
+.look > select {
+  flex: none;
+}
+.row select {
+  min-width: 0;
+}
+.look .switch-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 6px;
+}
+/* The six identity colours as soft squircles; the chosen one gets an ink ring. */
+.swatches {
+  display: flex;
+  gap: 10px;
+}
+.swatch {
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: none;
+  border-radius: 30%;
+  background: var(--c);
+  cursor: pointer;
+}
+.swatch.light {
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+.swatch[aria-checked="true"] {
+  outline: 1.5px solid var(--ink);
+  outline-offset: 3px;
+}
+.swatch:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+.update {
+  border: none;
+  border-radius: 14px;
+  padding: 12px 16px;
+  background: var(--ink);
+  color: #fff;
+  font:
+    600 13px/1.3 "Geist",
+    ui-sans-serif,
+    system-ui,
+    sans-serif;
+  text-align: left;
+  cursor: pointer;
+}

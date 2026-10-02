@@ -1,0 +1,20 @@
+# OpenCharm
+
+> OpenCharm is an open-source body for the AI agent you already run: a face made of typed glyphs, a voice and one key. It runs on a small ESP32-S3 board you build yourself (about $32 of hardware), at the top of your Mac or Windows screen as the desktop charm, or in your browser as an emulator. One agent at a time; the charm holds no API keys, and the microphone is open only while the key is held.
+
+It works with any agent over ACP (Claude Code, Codex, Gemini CLI, goose, Hermes Agent, OpenClaw) or an OpenAI-compatible API; Claude Code is tested end to end. charmd, the charm daemon, runs next to the agent and handles pairing, the PIN and voice. The project sells and ships nothing and comes with no warranty.
+
+Status: the emulator, charmd and the desktop charm (macOS and Windows) work today; the npm package and the device firmware port are coming.
+
+## Docs
+
+- [README](https://github.com/opencharm-labs/opencharm/blob/main/README.md): what it is, status, how to try it, licences, no warranty
+- [OPENCHARM.md](https://github.com/opencharm-labs/opencharm/blob/main/OPENCHARM.md): the product spec, the source of truth
+- [Build guide](https://github.com/opencharm-labs/opencharm/blob/main/docs/build.md): the board, the shell, pairing
+- [Run charmd on a server](https://github.com/opencharm-labs/opencharm/blob/main/docs/deploy.md)
+- [The desktop charm](https://github.com/opencharm-labs/opencharm/blob/main/apps/desktop/README.md)
+
+## Downloads
+
+- [GitHub Releases](https://github.com/opencharm-labs/opencharm/releases): desktop builds for macOS and Windows, built by the repository's CI, with checksums
+- [Source code](https://github.com/opencharm-labs/opencharm)

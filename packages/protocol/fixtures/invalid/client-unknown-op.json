@@ -1,0 +1,8 @@
+{
+  "direction": "client",
+  "message": {
+    "type": "charm",
+    "op": "self_destruct"
+  },
+  "error": "unknown_op"
+}

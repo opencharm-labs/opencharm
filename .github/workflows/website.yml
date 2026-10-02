@@ -1,0 +1,19 @@
+name: Website
+on:
+  pull_request:
+  push:
+    branches: [main, develop]
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  build-and-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - run: npm run build -w @opencharm-labs/web
+      # The production build in the runner's Google Chrome: loads clean, headers, metadata, controls.
+      - run: npm run test:e2e -w @opencharm-labs/web

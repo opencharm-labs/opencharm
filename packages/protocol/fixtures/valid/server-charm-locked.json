@@ -1,0 +1,9 @@
+{
+  "direction": "server",
+  "message": {
+    "type": "charm",
+    "op": "locked",
+    "reason": "wrong_pin",
+    "tries_left": 3
+  }
+}

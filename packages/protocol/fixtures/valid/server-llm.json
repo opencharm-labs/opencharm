@@ -1,0 +1,9 @@
+{
+  "direction": "server",
+  "message": {
+    "session_id": "s1",
+    "type": "llm",
+    "emotion": "happy",
+    "text": "😀"
+  }
+}

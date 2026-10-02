@@ -1,0 +1,16 @@
+name: Bug
+description: Something doesn't work as OPENCHARM.md says it should.
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: Steps, what you expected, what you saw. Include OS, Node version and the command.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Output
+      render: text

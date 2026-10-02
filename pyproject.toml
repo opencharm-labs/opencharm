@@ -1,0 +1,5 @@
+# The only Python config in the repo: ruff for the CAD and icon scripts (tools, not a package).
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+include = ["hardware/**/*.py", "brand/**/*.py"]

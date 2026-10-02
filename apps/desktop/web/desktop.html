@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>OpenCharm</title>
+    <link rel="stylesheet" href="sim.css" />
+    <style>
+      /* Only the panel is drawn: everything around it is the desktop showing through. */
+      html,
+      body,
+      main,
+      .stage {
+        background: transparent !important;
+        background-image: none !important;
+      }
+      html,
+      body {
+        margin: 0;
+        overflow: hidden;
+        user-select: none;
+        -webkit-user-select: none;
+        cursor: default;
+      }
+      /* The emulator page's pieces the desktop charm doesn't show. */
+      header,
+      aside,
+      .key {
+        display: none !important;
+      }
+      main,
+      .stage {
+        margin: 0 !important;
+        padding: 0 !important;
+        display: block !important;
+      }
+      /* Rounded like the charm: soft corners hugging the menu bar when compact, a deep squircle-like
+         curve when the panel opens below the notch. */
+      .charm.notch {
+        margin: 0 !important;
+        box-shadow: none !important;
+        border-radius: 0 0 calc(var(--strip) * 0.5) calc(var(--strip) * 0.5) !important;
+        transition:
+          height 0.28s cubic-bezier(0.2, 0.9, 0.25, 1.1),
+          border-radius 0.28s ease !important;
+      }
+      .charm.notch.open {
+        border-radius: 0 0 30px 30px !important;
+      }
+      .charm.notch::before {
+        display: none; /* the real notch is right there */
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <span id="status"></span>
+        <span id="url"></span>
+      </header>
+      <section class="stage">
+        <div class="charm" id="charm">
+          <canvas id="screen" aria-label="OpenCharm"></canvas>
+          <button class="key" id="key" aria-hidden="true"></button>
+        </div>
+        <aside>
+          <button id="wifi"></button>
+          <button id="shape"></button>
+          <button id="forget"></button>
+        </aside>
+      </section>
+    </main>
+    <script type="module" src="desktop.js"></script>
+  </body>
+</html>

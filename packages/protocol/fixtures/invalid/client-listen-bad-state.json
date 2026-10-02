@@ -1,0 +1,8 @@
+{
+  "direction": "client",
+  "message": {
+    "type": "listen",
+    "state": "shout"
+  },
+  "error": "invalid_fields"
+}

@@ -1,0 +1,15 @@
+{
+  "direction": "client",
+  "message": {
+    "type": "hello",
+    "version": 1,
+    "transport": "websocket",
+    "audio_params": {
+      "format": "pcm",
+      "sample_rate": 16000,
+      "channels": 1,
+      "frame_duration": 60
+    }
+  },
+  "error": "invalid_fields"
+}

@@ -1,0 +1,9 @@
+{
+  "direction": "server",
+  "message": {
+    "session_id": "s1",
+    "type": "tts",
+    "state": "sentence_start",
+    "text": "You have two meetings."
+  }
+}

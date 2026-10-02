@@ -1,0 +1,5 @@
+{
+  "direction": "client",
+  "raw": "{\"type\":\"listen\",",
+  "error": "invalid_json"
+}

@@ -1,0 +1,51 @@
+{
+  "name": "opencharm-monorepo",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "tools/*"
+  ],
+  "scripts": {
+    "prepare": "node -e \"try { require('node:child_process').execFileSync('git', ['config', 'core.hooksPath', '.githooks'], { stdio: 'ignore' }) } catch {}\"",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run py:check",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "dev": "npm run dev -w apps/web",
+    "cli": "tsx packages/cli/src/main.ts",
+    "design:export": "npm run export -w packages/design",
+    "prototype:build": "tsx hardware/prototype/build-prototype.ts",
+    "cad:build": "python3 hardware/cad/gen.py",
+    "icon:build": "python3 brand/build_icon.py",
+    "py:check": "ruff check . && ruff format --check .",
+    "spec:new": "tsx tools/checks/scripts/new-spec.ts",
+    "firmware:test": "cmake -S firmware/core -B firmware/core/build -G Ninja && cmake --build firmware/core/build && ctest --test-dir firmware/core/build --output-on-failure",
+    "firmware:fonts": "tsx firmware/core/fonts/build-fonts.ts",
+    "firmware:format": "clang-format -i firmware/core/include/charm/*.h firmware/core/src/*.cpp firmware/core/src/ui/*.cpp firmware/core/src/ui/*.h firmware/core/tests/*.cpp firmware/core/tests/*.h",
+    "firmware:format:check": "clang-format --dry-run --Werror firmware/core/include/charm/*.h firmware/core/src/*.cpp firmware/core/src/ui/*.cpp firmware/core/src/ui/*.h firmware/core/tests/*.cpp firmware/core/tests/*.h",
+    "firmware:sim": "emcmake cmake -S firmware/sim -B firmware/sim/build -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build firmware/sim/build && tsx firmware/sim/package-sim.ts",
+    "sim": "npm run cli -- sim",
+    "desktop": "npm run dev -w apps/desktop",
+    "desktop:build": "npm run build -w apps/desktop"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "eslint": "^9.39.5",
+    "lv_font_conv": "^1.5.3",
+    "playwright": "^1.63.0",
+    "prettier": "^3.9.9",
+    "prettier-plugin-tailwindcss": "^0.8.1",
+    "tsx": "^4.23.15",
+    "typescript": "~6.0",
+    "typescript-eslint": "^8.70.1",
+    "vitest": "^5.0.2"
+  }
+}

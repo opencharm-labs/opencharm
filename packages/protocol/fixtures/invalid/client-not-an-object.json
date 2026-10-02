@@ -1,0 +1,5 @@
+{
+  "direction": "client",
+  "raw": "[1,2,3]",
+  "error": "invalid_json"
+}

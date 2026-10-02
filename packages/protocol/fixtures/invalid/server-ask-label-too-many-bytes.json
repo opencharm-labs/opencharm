@@ -1,0 +1,11 @@
+{
+  "direction": "server",
+  "message": {
+    "type": "charm",
+    "op": "ask",
+    "id": "q1",
+    "text": "Allow?",
+    "yes": "ÉÉÉÉÉÉÉ"
+  },
+  "error": "invalid_fields"
+}

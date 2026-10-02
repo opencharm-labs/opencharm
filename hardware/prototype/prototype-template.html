@@ -1,0 +1,580 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>OpenCharm Prototype</title>
+<link rel="icon" href="../../brand/icon/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../../brand/icon/favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="../../brand/icon/apple-touch-icon-180.png">
+<meta name="description" content="OpenCharm device and face prototype: the printable shell in 3D, the glyph face lab, agent states and the print plan.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600;700;800&display=swap">
+<script src="../../packages/design/src/charm-face.js"></script>
+<script src="vendor/three.min.js"></script>
+<script>if (!window.THREE) document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"><\/script>');</script>
+<style>
+/* OpenCharm brand tokens (see packages/design/tokens.json). White and black: a technical drawing on paper.
+   Colour lives on the device only; orange (--signal) only means "it needs you". */
+:root{
+  --bg:#F6F6F4;--card:#FFFFFF;--ink:#0A0A0A;--ink-2:#3A3A3A;--mute:#6E6E6E;--faint:#A3A3A3;
+  --grid:rgba(10,10,10,.07);--grid-fine:rgba(10,10,10,.03);--rule:rgba(10,10,10,.22);--dash:rgba(10,10,10,.35);
+  --night:#0A0A0A;--on-night:#EDEDED;--studio:#ECECEA;--studio-dim:#6E6E6E;
+  --sun:#FFD479;--signal:#FF5A1F;
+  --f-sans:'Geist',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --f-mono:'Geist Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{margin:0;background-color:var(--bg);color:var(--ink);font-family:var(--f-sans);font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased;
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px),linear-gradient(var(--grid-fine) 1px,transparent 1px),linear-gradient(90deg,var(--grid-fine) 1px,transparent 1px);
+  background-size:160px 160px,160px 160px,20px 20px,20px 20px;background-position:-1px -1px}
+a{color:var(--ink)}
+:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+.m{font-family:var(--f-mono)}
+h1,h2,h3{margin:0;text-wrap:balance}
+p{margin:0}
+.page{max-width:1240px;margin:0 auto;padding-inline:clamp(16px,4vw,40px);padding-block:28px 80px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:16px;font-size:13px;letter-spacing:.14em;padding-bottom:24px;border-bottom:1px solid var(--rule)}
+.top .brand{display:flex;align-items:center;gap:12px;font-weight:600;letter-spacing:.18em;text-decoration:none}
+.top .brand img{width:32px;height:32px;border-radius:22.37%;display:block;box-shadow:0 0 0 1px rgba(0,0,0,.12)}
+.top nav{display:flex;gap:22px;flex-wrap:wrap}
+.top nav a{text-decoration:none}
+@media (max-width:800px){.top nav{display:none}}
+.tag{display:inline-block;align-self:flex-start;background:var(--ink);color:#fff;font-family:var(--f-mono);font-size:12px;font-weight:600;letter-spacing:.12em;padding:4px 9px;border-radius:3px}
+.lede{font-size:18px;line-height:1.55;color:var(--ink-2);max-width:540px}
+.note{font-family:var(--f-mono);font-size:11px;letter-spacing:.12em;color:var(--mute);line-height:1.7}
+.kick{font-family:var(--f-mono);font-size:12px;letter-spacing:.14em;color:var(--mute)}
+.body{font-size:15px;line-height:1.55;color:var(--ink-2)}
+
+.hero{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:36px;align-items:center;padding-top:40px}
+.hero-copy{display:flex;flex-direction:column;gap:22px}
+h1{font-size:clamp(48px,6.6vw,92px);line-height:.93;letter-spacing:-.05em;font-weight:600}
+.nums{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border-top:1.5px solid var(--ink);border-left:1.5px solid var(--ink);background:var(--card)}
+.nums>div{border-right:1.5px solid var(--ink);border-bottom:1.5px solid var(--ink);padding:14px 16px;display:flex;flex-direction:column;gap:2px}
+.nums b{font-size:26px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.nums span{font-family:var(--f-mono);font-size:11px;letter-spacing:.12em;color:var(--mute)}
+.viewer{display:flex;flex-direction:column;gap:12px;min-width:0}
+.studio{position:relative;background:var(--studio);border-radius:20px;overflow:hidden;aspect-ratio:7/6;border:1px solid var(--rule)}
+.studio canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+.studio canvas:active{cursor:grabbing}
+.studio .lbl{position:absolute;left:16px;top:14px;font-family:var(--f-mono);font-size:11px;letter-spacing:.14em;color:var(--studio-dim);pointer-events:none}
+.studio .lbl.r{left:auto;right:16px}
+.studio .fallback{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px;font-size:15px;color:var(--studio-dim)}
+.ctl{display:flex;flex-wrap:wrap;gap:12px 22px;align-items:flex-end;justify-content:space-between}
+.ctl-k{font-family:var(--f-mono);font-size:10px;letter-spacing:.16em;color:var(--mute);margin-bottom:6px}
+.seg{display:flex;border:1.5px solid var(--ink);border-radius:999px;overflow:hidden;flex-wrap:wrap;background:var(--card)}
+.seg button{cursor:pointer;background:transparent;color:var(--ink);border:none;font-family:var(--f-mono);font-size:11px;letter-spacing:.12em;padding:9px 14px}
+.seg button[aria-pressed="true"]{background:var(--ink);color:#fff;font-weight:600}
+.swatches{display:flex;gap:8px}
+.swatches button{cursor:pointer;width:30px;height:30px;border-radius:30%;border:1.5px solid rgba(0,0,0,.18);padding:0}
+.swatches button[aria-pressed="true"]{outline:2px solid var(--ink);outline-offset:2px}
+@media (max-width:980px){.hero{grid-template-columns:minmax(0,1fr)}.viewer{order:-1}}
+
+.sec{padding-top:clamp(64px,8vw,100px);display:flex;flex-direction:column;gap:28px}
+.sec-h{display:flex;justify-content:space-between;align-items:flex-end;gap:20px 40px;flex-wrap:wrap}
+.sec-h>div{display:flex;flex-direction:column;gap:16px}
+.sec-h h2{font-size:clamp(34px,4.8vw,56px);line-height:1;letter-spacing:-.04em;font-weight:600;max-width:780px}
+
+/* face lab */
+.lab{display:grid;grid-template-columns:minmax(0,380px) minmax(0,1fr);gap:48px;align-items:start}
+.lab-side{display:flex;flex-direction:column;gap:18px;min-width:0}
+.lab-name{font-size:44px;font-weight:600;letter-spacing:-.03em;line-height:1}
+.lab-str{font-family:var(--f-mono);font-size:18px;color:var(--mute);white-space:pre}
+.lib{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:12px 8px}
+.lib button{cursor:pointer;background:transparent;border:none;padding:0;display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--ink-2);font-family:var(--f-mono);font-size:9px;letter-spacing:.1em;min-width:0}
+.lib .t{width:100%;max-width:72px;border-radius:18%;outline:2px solid transparent;outline-offset:3px}
+.lib button[aria-pressed="true"] .t{outline-color:var(--ink)}
+@media (max-width:980px){.lab{grid-template-columns:minmax(0,1fr)}.lab-dev{max-width:360px}}
+@media (max-width:560px){.lib{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.states{border-top:1.5px solid var(--ink)}
+.st-row{display:grid;grid-template-columns:56px 150px minmax(0,1fr) minmax(0,1fr);gap:18px;align-items:center;padding:10px 0;border-bottom:1px dashed var(--rule)}
+.st-row b{font-size:17px}
+.st-row .gl{font-family:var(--f-mono);font-size:12px;color:var(--mute);white-space:pre;display:block}
+.st-row .src{font-family:var(--f-mono);font-size:11px;color:var(--mute);letter-spacing:.06em;line-height:1.6}
+@media (max-width:760px){.st-row{grid-template-columns:56px minmax(0,1fr)}.st-row .body,.st-row .src{grid-column:2}}
+.maker{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:40px;align-items:center}
+.maker-form{display:flex;flex-direction:column;gap:18px}
+.slots{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+.slot{display:flex;flex-direction:column;gap:6px}
+.slot label{font-family:var(--f-mono);font-size:10px;letter-spacing:.16em;color:var(--mute)}
+.slot input{width:84px;height:84px;border-radius:30%;border:none;background:#000;color:#F4F3EE;text-align:center;font-family:var(--f-mono);font-weight:800;font-size:44px;padding:0}
+.picks{display:flex;flex-wrap:wrap;gap:6px}
+.picks button{cursor:pointer;width:40px;height:40px;border-radius:12px;border:1.5px solid var(--ink);background:var(--card);color:var(--ink);font-family:var(--f-mono);font-weight:800;font-size:20px;padding:0}
+.picks button:hover{background:var(--ink);color:#fff}
+.code{background:var(--night);border-radius:14px;color:var(--on-night);font-family:var(--f-mono);font-size:14px;line-height:1.75;padding:18px 22px;white-space:pre;overflow-x:auto}
+@media (max-width:900px){.maker{grid-template-columns:minmax(0,1fr)}.maker-dev{max-width:340px}}
+.three{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px}
+.three>div{display:flex;flex-direction:column;gap:14px}
+.three h3{font-size:24px;font-weight:600;letter-spacing:-.02em}
+@media (max-width:900px){.three{grid-template-columns:minmax(0,1fr);max-width:420px}}
+
+/* device */
+.two{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:32px;align-items:center}
+.draw{border:1.5px dashed var(--dash);padding:18px;overflow-x:auto;background:var(--bg)}
+.draw svg{display:block;width:100%;height:auto;min-width:420px}
+.list{display:flex;flex-direction:column;border-top:1.5px solid var(--ink)}
+.list>div{display:grid;grid-template-columns:130px minmax(0,1fr);gap:16px;padding:13px 0;border-bottom:1px dashed var(--rule)}
+.list b{font-family:var(--f-mono);font-size:12px;letter-spacing:.12em;font-weight:600}
+@media (max-width:900px){.two{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:480px){.list>div{grid-template-columns:minmax(0,1fr);gap:4px}}
+.scroll-x{overflow-x:auto}
+table.parts{border-collapse:collapse;width:100%;min-width:760px;border-top:1.5px solid var(--ink);border-left:1.5px solid var(--ink);background:var(--card)}
+.parts th,.parts td{border-right:1.5px solid var(--ink);border-bottom:1.5px solid var(--ink);padding:13px 16px;text-align:left;vertical-align:top;font-size:15px}
+.parts thead th{font-family:var(--f-mono);font-size:11px;letter-spacing:.14em;color:var(--mute);font-weight:400}
+.parts td.m{font-size:13px}
+.parts td{color:var(--ink-2)}
+.parts td:first-child{color:var(--ink);font-weight:600}
+.steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1.5px solid var(--ink);border-left:1.5px solid var(--ink);background:var(--card)}
+.steps>div{border-right:1.5px solid var(--ink);border-bottom:1.5px solid var(--ink);padding:18px 20px;display:flex;flex-direction:column;gap:6px}
+.steps b{font-family:var(--f-mono);font-size:22px;font-weight:500}
+.steps h3{font-size:18px;font-weight:600}
+@media (max-width:900px){.steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:480px){.steps{grid-template-columns:minmax(0,1fr)}}
+.checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 32px}
+.checks>div{display:grid;grid-template-columns:22px minmax(0,1fr);gap:10px;padding:12px 0;border-bottom:1px dashed var(--rule)}
+.checks i{font-style:normal;font-family:var(--f-mono);font-weight:700;color:var(--ink)}
+@media (max-width:800px){.checks{grid-template-columns:minmax(0,1fr)}}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="top m"><a class="brand" href="https://opencharm.dev"><img src="../../brand/icon/icon.svg" alt="" width="32" height="32">OPENCHARM · PROTOTYPE</a><nav><a href="#device">DEVICE</a><a href="#face">FACE</a><a href="#states">STATES</a><a href="#maker">MAKE A FACE</a><a href="#print">PRINT</a></nav></div>
+
+  <header class="hero" id="device">
+    <div class="hero-copy">
+      <span class="tag">V0.1 · FOR PRINTING</span>
+      <h1>One charm.</h1>
+      <p class="lede">The Waveshare 2.16″ AMOLED board in a printed shell whose outline is the screen’s outline grown 1.75 mm on every side, corner included. Three parts, no supports, a strap that leaves through the seam. The render below is built from the same STL files you print.</p>
+      <div class="nums">
+        <div><b>46.8 × 46.8</b><span>MM · FRONT</span></div>
+        <div><b>22.0</b><span>MM · DEPTH</span></div>
+        <div><b>R 6.45</b><span>CORNER · GLASS R 4.70 + 1.75</span></div>
+        <div><b>3 parts</b><span>PRINTED · NO SUPPORTS</span></div>
+      </div>
+    </div>
+    <div class="viewer">
+      <div class="studio" id="studio"><span class="lbl" id="vLbl">ASSEMBLED</span><span class="lbl r">DRAG TO TURN</span></div>
+      <div class="ctl">
+        <div><div class="ctl-k">VIEW</div><div class="seg" id="views" role="group" aria-label="View">
+          <button type="button" data-v="front" aria-pressed="true">FRONT</button><button type="button" data-v="exploded" aria-pressed="false">EXPLODED</button><button type="button" data-v="back" aria-pressed="false">BACK</button><button type="button" data-v="strap" aria-pressed="false">STRAP</button>
+        </div></div>
+        <div><div class="ctl-k">COLOUR</div><div class="swatches" id="swatches" role="group" aria-label="Colour"></div></div>
+      </div>
+    </div>
+  </header>
+
+  <!-- FACE LAB -->
+  <section class="sec" id="face">
+    <div class="sec-h">
+      <div><span class="tag">FACE · 22 MOODS</span><h2>Typed eyes, in its own colour, on true black.</h2></div>
+      <p class="lede" style="max-width:420px">Pick a mood. The same engine (packages/design/src/charm-face.js) draws the 3D screen above, every tile on this page, and is the reference for the firmware port.</p>
+    </div>
+    <div class="lab">
+      <div class="lab-dev" id="labDev"></div>
+      <div class="lab-side">
+        <div class="lab-name" id="labName">Happy</div>
+        <div class="lab-str" id="labStr"></div>
+        <div class="lib" id="lib" role="group" aria-label="Moods"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-h">
+      <div><span class="tag">LAYOUTS</span><h2>Three screens, one character.</h2></div>
+      <p class="lede" style="max-width:420px">The face never leaves. It talks in one typed line and asks with an orange ring.</p>
+    </div>
+    <div class="three" id="layouts"></div>
+  </section>
+
+  <section class="sec" id="states">
+    <div class="sec-h">
+      <div><span class="tag">AGENT STATES</span><h2>What your agent is doing, in one glance.</h2></div>
+      <p class="lede" style="max-width:420px">The bridge maps agent events to these faces. The mapping is data (packages/design/faces.json), so anyone can change it.</p>
+    </div>
+    <div class="states" id="stateList"></div>
+  </section>
+
+  <section class="sec" id="maker">
+    <div class="sec-h">
+      <div><span class="tag">MAKE A FACE</span><h2>Faces are text. Write one.</h2></div>
+      <p class="lede" style="max-width:420px">Two eyes and an optional mouth, any characters the font has. Share it as a line of text.</p>
+    </div>
+    <div class="maker">
+      <div class="maker-form">
+        <div class="slots">
+          <div class="slot"><label for="fL">LEFT EYE</label><input id="fL" maxlength="2" value="^" autocomplete="off" spellcheck="false"></div>
+          <div class="slot"><label for="fM">MOUTH</label><input id="fM" maxlength="2" value="w" autocomplete="off" spellcheck="false"></div>
+          <div class="slot"><label for="fR">RIGHT EYE</label><input id="fR" maxlength="2" value="^" autocomplete="off" spellcheck="false"></div>
+        </div>
+        <div class="picks" id="picks" role="group" aria-label="Characters to try"></div>
+        <div class="code" id="faceCode"></div>
+      </div>
+      <div class="maker-dev" id="makerDev"></div>
+    </div>
+  </section>
+
+  <!-- DEVICE DETAILS -->
+  <section class="sec">
+    <div class="sec-h">
+      <div><span class="tag">THE RULE</span><h2>Grow the screen. Keep the corner.</h2></div>
+      <p class="lede" style="max-width:420px">Offset the glass outline by 1.75 mm and its corner radius grows by the same 1.75 mm, so the frame is the same width all the way round.</p>
+    </div>
+    <div class="two">
+      <div class="draw"><svg id="ruleSvg" viewBox="0 0 520 490" role="img" aria-label="Front outline to scale: glass 43.30 mm with R4.70 corners, window 41.70 mm, shell 46.80 mm with R6.45 corners"></svg></div>
+      <div class="list">
+        <div><b>GLASS</b><p class="body">43.30 × 43.30 mm, R 4.70, from Waveshare’s drawing (hardware/reference).</p></div>
+        <div><b>ACTIVE AREA</b><p class="body">38.99 × 38.99 mm, 480 × 480 px.</p></div>
+        <div><b>WINDOW</b><p class="body">41.70 mm. A 0.6 mm lip with a 45° bevel holds the glass and hides 0.8 mm of its black border.</p></div>
+        <div><b>WALL</b><p class="body">1.60 mm (four 0.4 mm perimeters) plus 0.15 mm clearance around the glass.</p></div>
+        <div><b>SHELL</b><p class="body">46.80 mm, R 6.45, 22.0 mm deep. Waveshare’s own case is 46 × 46 × 22.5.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-h">
+      <div><span class="tag">THE STRAP</span><h2>No hole. It hangs from the seam.</h2></div>
+      <p class="lede" style="max-width:420px">A phone-charm cord loops round a Ø1.8 mm pin printed inside the back cover and leaves through a 2.6 × 2.2 mm notch at the top centre, so it hangs upright, face forward.</p>
+    </div>
+    <div class="two">
+      <div class="draw"><svg id="strapSvg" viewBox="0 0 520 330" role="img" aria-label="Section through the top edge: the cord goes round a pin in the back cover and exits through a notch between shell and cover"></svg></div>
+      <div class="list">
+        <div><b>WHY THE TOP</b><p class="body">Hung from the centre it stays upright. From a corner it would hang tilted.</p></div>
+        <div><b>THE PIN</b><p class="body">Printed as a short bridge across a 3 mm pocket in the back cover, 1.2 mm of room for the cord. No metal, no glue.</p></div>
+        <div><b>SWAPPING</b><p class="body">Pop the back, slip the loop off the pin, put a new one on.</p></div>
+        <div><b>ON THE DESK</b><p class="body">Two 0.6 mm rails on the bottom so it stands and the speaker slots breathe.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-h">
+      <div><span class="tag">ONE KEY</span><h2>One key you can find without looking.</h2></div>
+      <p class="lede" style="max-width:420px">The board has three buttons on its right edge (PWR, BOOT, GPIO18). One gets a real key in a contrast colour; the other two hide behind pinholes.</p>
+    </div>
+    <div class="list">
+      <div><b>RIGHT</b><p class="body">Key: Ø5.3 mm cap, 0.8 mm proud, captive flange, on the middle button. Pinholes 10 mm above and below, pressed with a SIM tool. Which button is GPIO18 must be checked on the board.</p></div>
+      <div><b>LEFT</b><p class="body">USB-C, 11.2 × 5.8 mm opening, centred 8.6 mm behind the front.</p></div>
+      <div><b>TOP</b><p class="body">Strap notch at the centre, mic pinhole 10 mm right of centre. The microSD slot is covered.</p></div>
+      <div><b>BOTTOM</b><p class="body">Five speaker slots between two desk rails, second mic pinhole 8 mm right of centre.</p></div>
+      <div><b>BACK</b><p class="body">R 2.4 roundover and a 22 mm square name plate, 0.4 mm deep, for a sticker or paint pen.</p></div>
+    </div>
+  </section>
+
+  <section class="sec" id="print">
+    <div class="sec-h">
+      <div><span class="tag">PRINT IT</span><h2>Three parts, one evening.</h2></div>
+      <p class="lede" style="max-width:420px">Files in hardware/stl, generated by hardware/cad/gen.py. Every dimension is a parameter at the top of the script.</p>
+    </div>
+    <div class="scroll-x"><table class="parts">
+      <thead><tr><th scope="col">PART</th><th scope="col">FILE</th><th scope="col">ORIENTATION</th><th scope="col">MATERIAL</th><th scope="col">VOLUME</th></tr></thead>
+      <tbody>
+        <tr><td>Front shell</td><td class="m">opencharm_front_shell.stl</td><td>Face down. The lip is the first three layers.</td><td>Matte PLA or PETG, your colour</td><td class="m">4.8 cm³</td></tr>
+        <tr><td>Back cover</td><td class="m">opencharm_back_cover.stl</td><td>Outside face down, plug and strap pin up.</td><td>Same colour</td><td class="m">8.7 cm³</td></tr>
+        <tr><td>Key</td><td class="m">opencharm_key.stl</td><td>Face down.</td><td>A contrast colour</td><td class="m">0.1 cm³</td></tr>
+      </tbody>
+    </table></div>
+    <p class="note m">0.2 MM LAYERS · 4 PERIMETERS · 20 % GYROID · NO SUPPORTS · NO BRIM · 0.4 MM NOZZLE</p>
+    <div class="steps">
+      <div><b>01</b><h3>Drop in the key</h3><p class="body">From inside the shell, flange against the wall.</p></div>
+      <div><b>02</b><h3>Seat the board</h3><p class="body">Glass first, face down, into the pocket. Side buttons line up with the key and pinholes.</p></div>
+      <div><b>03</b><h3>Plug the battery</h3><p class="body">Into the MX1.25 socket, lying behind the board.</p></div>
+      <div><b>04</b><h3>Loop the strap</h3><p class="body">Around the pin in the back cover, cord out through the gap in its plug.</p></div>
+      <div><b>05</b><h3>Press the back on</h3><p class="body">Friction fit, 0.1 mm per side. Line the cord up with the notch.</p></div>
+      <div><b>06</b><h3>Flash and pair</h3><p class="body">USB-C, flash the firmware, pair with your agent.</p></div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-h">
+      <div><span class="tag">BEFORE THE FIRST PRINT</span><h2>What still needs a board on the bench.</h2></div>
+    </div>
+    <div class="checks">
+      <div><i>?</i><p class="body">Stack depth. The inside is 17.4 mm behind the lip and the back is a 4 mm plate (Waveshare’s own case is 22.5 mm overall). Thin the plate first, then add depth in gen.py.</p></div>
+      <div><i>?</i><p class="body">Which side button is GPIO18. If it isn’t the middle one, move the key.</p></div>
+      <div><i>?</i><p class="body">Key stem length (1.2 mm to start). Trim or lengthen to meet the switch.</p></div>
+      <div><i>?</i><p class="body">What holds the board from behind. v0.1 relies on the battery and the back plug.</p></div>
+      <div><i>?</i><p class="body">Back cover friction fit. Printers vary; FIT in gen.py.</p></div>
+      <div><i>?</i><p class="body">Mic pinhole positions are guesses; the speaker slots follow the drawing’s grille. Check on the board.</p></div>
+      <div><i>?</i><p class="body">Whether a speaker comes in the box. Strong evidence says yes; not confirmed by a packing list.</p></div>
+      <div><i>?</i><p class="body">Battery capacity. Waveshare doesn’t publish the mAh.</p></div>
+    </div>
+    <p class="note m">SOURCE: WAVESHARE ESP32-S3-TOUCH-AMOLED-2.16 2D DRAWING (2026-02-09, APACHE-2.0) · THE INSIDE OF THE 3D VIEW (BOARD, BATTERY) IS PLACEHOLDER</p>
+  </section>
+</div>
+
+<!--STL_DATA-->
+
+<script>
+(function () {
+  'use strict';
+  var CF = window.CharmFace;
+  var reduce = CF.reduceMotion;
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  var colour = CF.COLORS[0];
+  var devices = [], faces = [], colourHooks = [];
+  function dev(host, o) { var d = CF.device(host, Object.assign({ colour: colour }, o || {})); devices.push(d); return d; }
+  function face(host, o) { var f = new CF.Face(host, Object.assign({ colour: colour }, o || {})); faces.push(f); return f; }
+
+  /* ---------- to-scale drawings ---------- */
+  function rrPath(cx, cy, s, r) {
+    var h = s / 2, x0 = cx - h, y0 = cy - h;
+    return 'M' + (x0 + r) + ' ' + y0 + 'H' + (x0 + s - r) + 'A' + r + ' ' + r + ' 0 0 1 ' + (x0 + s) + ' ' + (y0 + r) + 'V' + (y0 + s - r) + 'A' + r + ' ' + r + ' 0 0 1 ' + (x0 + s - r) + ' ' + (y0 + s) + 'H' + (x0 + r) + 'A' + r + ' ' + r + ' 0 0 1 ' + x0 + ' ' + (y0 + s - r) + 'V' + (y0 + r) + 'A' + r + ' ' + r + ' 0 0 1 ' + (x0 + r) + ' ' + y0 + 'Z';
+  }
+  function T(x, y, t, a) { return '<text x="' + x + '" y="' + y + '" fill="#0A0A0A" font-family="Geist Mono,monospace" font-size="12" text-anchor="' + (a || 'start') + '">' + t + '</text>'; }
+  function drawRule() {
+    var K = 8.4, cx = 250, cy = 232, o = '';
+    o += '<path d="' + rrPath(cx, cy, 46.8 * K, 6.45 * K) + '" fill="' + colour.c + '" stroke="#0A0A0A" stroke-width="1.2"/>';
+    o += '<path d="' + rrPath(cx, cy, 43.3 * K, 4.7 * K) + '" fill="none" stroke="#8A8A8A" stroke-width="1.5" stroke-dasharray="4 3"/>';
+    o += '<path d="' + rrPath(cx, cy, 41.7 * K, 3.9 * K) + '" fill="#000"/>';
+    o += '<text x="' + (cx - 60) + '" y="' + (cy + 20) + '" fill="' + colour.g + '" font-family="Geist Mono,monospace" font-weight="800" font-size="64" text-anchor="middle">^</text>';
+    o += '<text x="' + (cx + 60) + '" y="' + (cy + 20) + '" fill="' + colour.g + '" font-family="Geist Mono,monospace" font-weight="800" font-size="64" text-anchor="middle">^</text>';
+    var c1x = cx - 46.8 * K / 2 + 6.45 * K, c1y = cy - 46.8 * K / 2 + 6.45 * K;
+    o += '<circle cx="' + c1x + '" cy="' + c1y + '" r="2.5" fill="#0A0A0A"/><line x1="' + c1x + '" y1="' + c1y + '" x2="' + (c1x - 6.45 * K * .7071) + '" y2="' + (c1y - 6.45 * K * .7071) + '" stroke="#0A0A0A" stroke-width="1.5"/>';
+    o += T(c1x - 40, cy - 46.8 * K / 2 - 8, 'SAME CENTRE, R4.70 → R6.45');
+    var L = cx - 46.8 * K / 2, R = cx + 46.8 * K / 2, B = cy + 46.8 * K / 2;
+    function dim(x1, x2, y, t) { return '<line x1="' + x1 + '" y1="' + y + '" x2="' + x2 + '" y2="' + y + '" stroke="#0A0A0A"/><line x1="' + x1 + '" y1="' + (y - 5) + '" x2="' + x1 + '" y2="' + (y + 5) + '" stroke="#0A0A0A"/><line x1="' + x2 + '" y1="' + (y - 5) + '" x2="' + x2 + '" y2="' + (y + 5) + '" stroke="#0A0A0A"/><rect x="' + ((x1 + x2) / 2 - 58) + '" y="' + (y - 9) + '" width="116" height="18" fill="#F6F6F4"/>' + T((x1 + x2) / 2, y + 4, t, 'middle'); }
+    o += dim(L, R, B + 20, '46.80 · R6.45') + dim(cx - 43.3 * K / 2, cx + 43.3 * K / 2, B + 44, '43.30 · R4.70');
+    $('ruleSvg').innerHTML = o;
+  }
+  function drawStrap() {
+    var o = '', K = 9, zf = 70, top = 120, wall = 1.6 * K;
+    o += '<rect x="' + zf + '" y="' + top + '" width="' + 18 * K + '" height="' + wall + '" fill="' + colour.c + '" stroke="#0A0A0A" stroke-width="1"/>';
+    o += '<rect x="' + zf + '" y="' + top + '" width="' + 0.6 * K + '" height="150" fill="' + colour.c + '" stroke="#0A0A0A" stroke-width="1"/>';
+    o += '<rect x="' + (zf + 0.6 * K) + '" y="' + (top + wall + 2) + '" width="' + 1.4 * K + '" height="140" fill="#000"/>';
+    o += '<rect x="' + (zf + 18 * K) + '" y="' + top + '" width="' + 4 * K + '" height="170" rx="10" fill="' + colour.c + '" stroke="#0A0A0A" stroke-width="1"/>';
+    o += '<rect x="' + (zf + 15.8 * K) + '" y="' + (top + wall + 1) + '" width="' + 2.2 * K + '" height="150" fill="' + colour.c + '" stroke="#0A0A0A" stroke-width="1"/>';
+    o += '<rect x="' + (zf + 15.8 * K) + '" y="' + (top - 2) + '" width="' + 2.2 * K + '" height="' + (wall + 4) + '" fill="#F6F6F4"/>';
+    var px = zf + 18.9 * K, py = top + 3.6 * K + wall;
+    o += '<rect x="' + (zf + 18 * K) + '" y="' + (py - 1.3 * K) + '" width="' + 1.8 * K + '" height="' + 2.6 * K + '" fill="#F6F6F4"/>';
+    o += '<circle cx="' + px + '" cy="' + py + '" r="' + 0.9 * K + '" fill="' + colour.c + '" stroke="#0A0A0A" stroke-width="1"/>';
+    o += '<path d="M' + (px - 3) + ' ' + (py - 0.9 * K - 2) + ' C ' + (px - 30) + ' ' + (py - 10) + ', ' + (zf + 16.9 * K) + ' ' + (top + 20) + ', ' + (zf + 16.9 * K) + ' ' + top + ' L ' + (zf + 16.9 * K) + ' 30" stroke="#0A0A0A" stroke-width="4" fill="none" stroke-linecap="round"/>';
+    o += '<path d="M' + (px + 0.9 * K + 2) + ' ' + py + ' A ' + (0.9 * K + 2) + ' ' + (0.9 * K + 2) + ' 0 1 1 ' + (px - 3) + ' ' + (py - 0.9 * K - 2) + '" stroke="#0A0A0A" stroke-width="4" fill="none"/>';
+    o += T(zf + 16.9 * K + 12, 44, 'STRAP CORD') + T(zf - 10, top - 14, 'FRONT') + T(zf + 23 * K, top + 30, 'BACK') + T(px + 22, py + 4, 'PIN Ø1.8');
+    o += T(zf + 3 * K, top + wall + 26, 'SHELL TOP WALL') + T(zf + 16.9 * K + 12, 78, 'NOTCH 2.6 × 2.2') + T(zf + 2.2 * K, top + 190, 'SECTION THROUGH THE TOP CENTRE · 9:1');
+    $('strapSvg').innerHTML = o;
+  }
+
+  function setColour(c) {
+    colour = c;
+    devices.forEach(function (d) { d.setColour(c); });
+    faces.forEach(function (f) { f.setColour(c); });
+    colourHooks.forEach(function (fn) { fn(c); });
+    drawRule(); drawStrap();
+  }
+
+  function start() {
+    drawRule(); drawStrap();
+    var sw = $('swatches');
+    CF.COLORS.forEach(function (c, i) {
+      var b = document.createElement('button'); b.type = 'button'; b.style.background = c.c; b.setAttribute('aria-label', c.name); b.setAttribute('aria-pressed', i === 0 ? 'true' : 'false');
+      b.addEventListener('click', function () { setColour(c); sw.querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); });
+      sw.appendChild(b);
+    });
+
+    /* ---------- face lab ---------- */
+    var lab = dev($('labDev'), { face: 'happy', tappable: true });
+    lab.face.followIn($('labDev'));
+    var libBtns = {};
+    var picked = 'happy', tapT = null;
+    function pick(k) {
+      picked = k;
+      lab.face.set({ face: k });
+      $('labName').textContent = CF.FACES[k].t; $('labStr').textContent = CF.faceString(CF.FACES[k]);
+      Object.keys(libBtns).forEach(function (x) { libBtns[x].setAttribute('aria-pressed', x === k ? 'true' : 'false'); });
+      if (window.__oc3d) window.__oc3d.face(k);
+    }
+    CF.ORDER.forEach(function (k) {
+      var b = document.createElement('button'); b.type = 'button'; b.setAttribute('aria-pressed', 'false');
+      b.innerHTML = '<div class="t"></div><span>' + CF.FACES[k].t.toUpperCase() + '</span>';
+      $('lib').appendChild(b);
+      var f = face(b.querySelector('.t'), { face: k, idle: false });
+      f.el.setAttribute('aria-hidden', 'true');
+      b.addEventListener('click', function () { pick(k); });
+      libBtns[k] = b;
+    });
+    pick('happy');
+    lab.hit.addEventListener('click', function () { var before = picked; clearTimeout(tapT); lab.face.set({ face: 'cute' }); tapT = setTimeout(function () { if (picked === before) lab.face.set({ face: before }); }, 1500); });
+
+    /* ---------- layouts ---------- */
+    [
+      { t: 'Face', d: 'Most of the time, just the face.', v: { face: 'neutral' } },
+      { t: 'Speech', d: 'Eyes move up, one line types out underneath.', v: { face: 'happy', say: 'Lunch with Sara moved to 1:30.' } },
+      { t: 'Decision', d: 'Orange ring. The key says what it will do.', v: { face: 'ask', say: 'Send it to Sara?', hint: 'HOLD · SEND    PRESS · NO' } }
+    ].forEach(function (l) {
+      var d = document.createElement('div');
+      d.innerHTML = '<div class="t" style="max-width:260px"></div><h3>' + l.t + '</h3><p class="body">' + esc(l.d) + '</p>';
+      $('layouts').appendChild(d);
+      var dv = dev(d.querySelector('.t'), { face: l.v.face });
+      dv.face.set(l.v);
+    });
+
+    /* ---------- agent states ---------- */
+    CF.STATES.forEach(function (s) {
+      var f = CF.FACES[s.face], d = document.createElement('div'); d.className = 'st-row';
+      d.innerHTML = '<div class="t"></div><div><b>' + esc(s.name) + '</b><span class="gl">' + esc(CF.faceString(f)) + '</span></div><p class="body">' + esc(s.when) + '</p><span class="src">' + esc(s.trigger).toUpperCase() + '</span>';
+      $('stateList').appendChild(d);
+      face(d.querySelector('.t'), { face: s.face, idle: false });
+    });
+
+    /* ---------- maker ---------- */
+    var mk = dev($('makerDev'), { face: 'cute' });
+    var fL = $('fL'), fM = $('fM'), fR = $('fR'), last = fL;
+    [fL, fM, fR].forEach(function (i) { i.addEventListener('focus', function () { last = i; }); i.addEventListener('input', upd); });
+    var PICKS = ['^', 'o', 'O', '•', '−', '>', '<', 'x', '@', 'T', '*', '$', '¬', '?', '!', '+', '=', 'u', 'v', 'w', '_', '~', '♥︎', '°', ';', '3'];
+    $('picks').innerHTML = PICKS.map(function (p) { return '<button type="button" aria-label="Use ' + esc(p) + '">' + esc(p) + '</button>'; }).join('');
+    $('picks').querySelectorAll('button').forEach(function (b, i) { b.addEventListener('click', function () { last.value = PICKS[i]; upd(); last.focus(); }); });
+    function upd() {
+      var f = { t: 'Custom', L: fL.value || ' ', R: fR.value || ' ', M: fM.value || '' };
+      mk.face.set({ face: f });
+      $('faceCode').innerHTML = '<span style="color:#7A7A7A"># faces/mine.txt · one face per line</span>\n<span style="color:#FFD479">mine</span>  ' + esc(f.L) + ' ' + esc(f.M || ' ') + ' ' + esc(f.R) + '\n\n<span style="color:#7A7A7A"># or paste it in chat:</span>\n<span style="color:#9BE8B8">(' + esc(f.L) + esc(f.M || '_') + esc(f.R) + ')</span>';
+    }
+    upd();
+
+    start3d();
+  }
+
+  /* ================= 3D: built from the printable STL files ================= */
+  function start3d() {
+    var box = $('studio');
+    var gl = (function () { try { var c = document.createElement('canvas'); return !!(window.THREE && (c.getContext('webgl2') || c.getContext('webgl'))); } catch (e) { return false; } })();
+    if (!gl) { box.insertAdjacentHTML('beforeend', '<div class="fallback">The 3D view needs WebGL (and three.js from vendor/). The rest of the page still works.</div>'); return; }
+    if (THREE.ColorManagement) THREE.ColorManagement.legacyMode = false;
+
+    function parseSTL(buf) {
+      var dv = new DataView(buf), n = dv.getUint32(80, true), pos = new Float32Array(n * 9), o = 84;
+      for (var i = 0; i < n; i++) { o += 12; for (var j = 0; j < 9; j++) { pos[i * 9 + j] = dv.getFloat32(o, true); o += 4; } o += 2; }
+      var fn = new Float32Array(n * 3), key = {}, vid = new Int32Array(n * 3), groups = [];
+      for (var t = 0; t < n; t++) {
+        var a = t * 9, ux = pos[a + 3] - pos[a], uy = pos[a + 4] - pos[a + 1], uz = pos[a + 5] - pos[a + 2], vx = pos[a + 6] - pos[a], vy = pos[a + 7] - pos[a + 1], vz = pos[a + 8] - pos[a + 2];
+        var nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx, l = Math.hypot(nx, ny, nz) || 1;
+        fn[t * 3] = nx / l; fn[t * 3 + 1] = ny / l; fn[t * 3 + 2] = nz / l;
+        for (var c = 0; c < 3; c++) {
+          var p = a + c * 3, k = Math.round(pos[p] * 1000) + ',' + Math.round(pos[p + 1] * 1000) + ',' + Math.round(pos[p + 2] * 1000);
+          if (key[k] == null) { key[k] = groups.length; groups.push([]); }
+          vid[t * 3 + c] = key[k]; groups[key[k]].push(t);
+        }
+      }
+      var nor = new Float32Array(n * 9), COS = Math.cos(35 * Math.PI / 180);
+      for (var t2 = 0; t2 < n; t2++) for (var c2 = 0; c2 < 3; c2++) {
+        var g = groups[vid[t2 * 3 + c2]], sx = 0, sy = 0, sz = 0;
+        for (var q = 0; q < g.length; q++) { var f = g[q], d = fn[f * 3] * fn[t2 * 3] + fn[f * 3 + 1] * fn[t2 * 3 + 1] + fn[f * 3 + 2] * fn[t2 * 3 + 2]; if (d > COS) { sx += fn[f * 3]; sy += fn[f * 3 + 1]; sz += fn[f * 3 + 2]; } }
+        var L2 = Math.hypot(sx, sy, sz) || 1, b = t2 * 9 + c2 * 3; nor[b] = sx / L2; nor[b + 1] = sy / L2; nor[b + 2] = sz / L2;
+      }
+      var geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+      return geo;
+    }
+    function stl(id) {
+      var el = document.getElementById('stl-' + id); if (!el) return null;
+      var bin = atob(el.textContent.trim()), u = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+      return parseSTL(u.buffer);
+    }
+    function rrShape(s, r) {
+      var h = s / 2, sh = new THREE.Shape();
+      sh.moveTo(-h + r, -h); sh.lineTo(h - r, -h); sh.absarc(h - r, -h + r, r, -Math.PI / 2, 0); sh.lineTo(h, h - r); sh.absarc(h - r, h - r, r, 0, Math.PI / 2);
+      sh.lineTo(-h + r, h); sh.absarc(-h + r, h - r, r, Math.PI / 2, Math.PI); sh.lineTo(-h, -h + r); sh.absarc(-h + r, -h + r, r, Math.PI, Math.PI * 1.5); return sh;
+    }
+    function slabGeo(s, r, th) { return new THREE.ExtrudeGeometry(rrShape(s, r), { depth: th, bevelEnabled: false, curveSegments: 16 }); }
+    function normUV(geo) { geo.computeBoundingBox(); var b = geo.boundingBox, uv = geo.attributes.uv, p = geo.attributes.position; for (var i = 0; i < uv.count; i++) uv.setXY(i, (p.getX(i) - b.min.x) / (b.max.x - b.min.x), (p.getY(i) - b.min.y) / (b.max.y - b.min.y)); uv.needsUpdate = true; return geo; }
+
+    /* the screen texture is painted by the same face engine */
+    var fc = document.createElement('canvas'); fc.width = fc.height = 512;
+    var fx = fc.getContext('2d'), faceTex = new THREE.CanvasTexture(fc); faceTex.encoding = THREE.sRGBEncoding; faceTex.anisotropy = 4;
+    var cur = CF.FACES.happy, blink = false, look = { x: 0, y: 0 }, auto = !reduce;
+    function paint(now) { CF.drawGlyphs(fx, 512, 512, { face: cur, colour: colour, blink: blink, look: look, cursorOn: Math.floor(now / 500) % 2 === 0, t: now }); faceTex.needsUpdate = true; }
+
+    var renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.outputEncoding = THREE.sRGBEncoding; renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); renderer.setClearColor(0xECECEA, 1);
+    box.insertBefore(renderer.domElement, box.firstChild);
+    var scene = new THREE.Scene();
+    scene.add(new THREE.HemisphereLight(0xffffff, 0xc8c8c4, .6));
+    var k1 = new THREE.DirectionalLight(0xffffff, 1.0); k1.position.set(-120, 160, 200); scene.add(k1);
+    var k2 = new THREE.DirectionalLight(0xffffff, .45); k2.position.set(160, 60, -160); scene.add(k2);
+    var k3 = new THREE.DirectionalLight(0xffffff, .22); k3.position.set(100, -60, 120); scene.add(k3);
+    var camera = new THREE.PerspectiveCamera(26, 7 / 6, 1, 3000);
+
+    var shellMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(colour.c), roughness: .62, metalness: 0 });
+    var keyMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(colour.key), roughness: .5, metalness: 0 });
+    var dark = new THREE.MeshStandardMaterial({ color: 0x050506, roughness: .15, metalness: .1 });
+
+    /* model space: z = 0 at the face, +z backwards; mirrored so the face points at the camera */
+    var asm = new THREE.Group(); asm.scale.z = -1;
+    var pivot = new THREE.Group(); pivot.add(asm); scene.add(pivot);
+    var parts = {};
+    function add(name, obj, ex) { obj.userData.home = obj.position.clone(); obj.userData.ex = ex; asm.add(obj); parts[name] = obj; }
+
+    var glass = new THREE.Mesh(slabGeo(43.3, 4.7, 1.4), dark); glass.position.z = .6; add('glass', glass, new THREE.Vector3(0, 0, -26));
+    var scr = new THREE.Mesh(normUV(new THREE.ShapeGeometry(rrShape(38.99, 2.2), 12)), new THREE.MeshBasicMaterial({ map: faceTex, side: THREE.DoubleSide }));
+    scr.position.z = .58; add('screen', scr, new THREE.Vector3(0, 0, -26));
+    var pcb = new THREE.Mesh(slabGeo(42, 3, 1.6), new THREE.MeshStandardMaterial({ color: 0x14352A, roughness: .7 })); pcb.position.z = 7.9; add('pcb', pcb, new THREE.Vector3(0, 0, 10));
+    var chip = new THREE.Mesh(new THREE.BoxGeometry(18, 18, 0.9), new THREE.MeshStandardMaterial({ color: 0x8C929E, roughness: .35, metalness: .6 })); chip.position.set(-6, 4, 9.95); add('chip', chip, new THREE.Vector3(0, 0, 10));
+    var batt = new THREE.Mesh(slabGeo(34, 3, 5.5), new THREE.MeshStandardMaterial({ color: 0xBFC4CE, roughness: .35, metalness: .4 })); batt.position.z = 10.6; add('batt', batt, new THREE.Vector3(0, 0, 24));
+    var cord = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0, 19.5, 18.9), new THREE.Vector3(0, 22.6, 17.4), new THREE.Vector3(0, 23.6, 16.9), new THREE.Vector3(1.5, 34, 16.9), new THREE.Vector3(0, 46, 16.9), new THREE.Vector3(-1.5, 34, 16.9), new THREE.Vector3(0, 23.6, 16.9)
+    ]), 80, .55, 8, false), new THREE.MeshStandardMaterial({ color: 0x1E1F22, roughness: .8 }));
+    var ring = new THREE.Mesh(new THREE.TorusGeometry(5, .8, 12, 48), new THREE.MeshStandardMaterial({ color: 0xB8BDC8, roughness: .3, metalness: .8 }));
+    ring.rotation.y = Math.PI / 2; ring.position.set(0, 50.5, 16.9);
+    var strapG = new THREE.Group(); strapG.add(cord); strapG.add(ring); strapG.visible = false; add('strap', strapG, new THREE.Vector3(0, 0, 0));
+
+    var gFront = stl('front'), gBack = stl('back'), gKey = stl('key');
+    if (gFront) add('front', new THREE.Mesh(gFront, shellMat), new THREE.Vector3(0, 0, 0));
+    if (gBack) add('back', new THREE.Mesh(gBack, shellMat), new THREE.Vector3(0, 0, 40));
+    if (gKey) { var km = new THREE.Mesh(gKey, keyMat); km.rotation.y = -Math.PI / 2; km.position.set(24.2, 0, 9.6); add('key', km, new THREE.Vector3(14, 0, 0)); }
+    if (!gFront) box.insertAdjacentHTML('beforeend', '<div class="fallback">Model data is missing from this page. Rebuild it with npm run prototype:build.</div>');
+
+    function size() { var w = box.clientWidth, h = box.clientHeight || w * 6 / 7; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+    if (window.ResizeObserver) new ResizeObserver(size).observe(box); size();
+
+    var mode = 'front', ex = 0, exT = 0, rotY = -.4, rotX = .08, tRotY = -.4, tRotX = .08, dist = 150, tDist = 150, drag = null, turned = false;
+    var VIEW = { front: { y: -.4, x: .08, d: 150, e: 0, s: false, l: 'ASSEMBLED' }, exploded: { y: -.85, x: .18, d: 250, e: 1, s: false, l: 'EXPLODED · INSIDE IS PLACEHOLDER' }, back: { y: 2.55, x: .12, d: 150, e: 0, s: true, l: 'BACK' }, strap: { y: -.25, x: .05, d: 215, e: 0, s: true, l: 'ON A STRAP' } };
+    $('views').querySelectorAll('button').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var v = VIEW[b.dataset.v]; mode = b.dataset.v; tRotY = v.y; tRotX = v.x; tDist = v.d; exT = v.e; parts.strap.visible = v.s; turned = false;
+        $('vLbl').textContent = v.l;
+        $('views').querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+      });
+    });
+    renderer.domElement.addEventListener('pointerdown', function (e) { drag = { x: e.clientX, y: e.clientY, ry: rotY, rx: rotX }; renderer.domElement.setPointerCapture(e.pointerId); turned = true; });
+    renderer.domElement.addEventListener('pointermove', function (e) { if (!drag) return; rotY = tRotY = drag.ry + (e.clientX - drag.x) * .01; rotX = tRotX = Math.max(-.6, Math.min(.8, drag.rx + (e.clientY - drag.y) * .006)); });
+    renderer.domElement.addEventListener('pointerup', function () { drag = null; });
+    renderer.domElement.addEventListener('pointercancel', function () { drag = null; });
+
+    colourHooks.push(function (c) { shellMat.color.set(c.c); keyMat.color.set(c.key); });
+    window.__oc3d = { face: function (k) { cur = CF.FACES[k] || cur; auto = false; } };
+
+    var CYCLE = ['happy', 'listening', 'thinking', 'ask', 'joy', 'learned', 'wink', 'strain', 'sleepy'];
+    var last = performance.now(), clock = 0, nb = 1500, ng = 1200, nf = 2800, ci = 0, visible = true;
+    if (window.IntersectionObserver) new IntersectionObserver(function (e) { visible = e[0].isIntersecting; }).observe(box);
+    function tick(now) {
+      var dt = Math.min(64, now - last); last = now; clock += dt;
+      if (visible) {
+        var sway = (!turned && !drag && !reduce && mode !== 'back') ? Math.sin(clock / 2800) * .28 : 0;
+        rotY += (tRotY + sway - rotY) * Math.min(1, dt / 350); rotX += (tRotX - rotX) * Math.min(1, dt / 350);
+        dist += (tDist - dist) * Math.min(1, dt / 400); ex += (exT - ex) * Math.min(1, dt / 450);
+        pivot.rotation.set(rotX, rotY, 0);
+        Object.keys(parts).forEach(function (k) { var p = parts[k]; p.position.copy(p.userData.home).addScaledVector(p.userData.ex, ex); });
+        var ty = mode === 'strap' ? 12 : 0;
+        camera.position.set(0, ty + dist * .12, dist); camera.lookAt(0, ty, 0);
+        if (!reduce) {
+          nb -= dt; if (nb <= 0 && cur.fx !== 'z' && cur.fx !== 'spin') { blink = true; setTimeout(function () { blink = false; }, 120); nb = 2400 + Math.random() * 3200; }
+          ng -= dt; if (ng <= 0) { look = { x: Math.random() * 2 - 1, y: Math.random() * 2 - 1 }; ng = 1200 + Math.random() * 2000; }
+          if (auto) { nf -= dt; if (nf <= 0) { ci = (ci + 1) % CYCLE.length; cur = CF.FACES[CYCLE[ci]]; nf = 2800; } }
+        }
+        paint(now);
+        renderer.render(scene, camera);
+      }
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(start, start);
+})();
+</script>
+</body>
+</html>

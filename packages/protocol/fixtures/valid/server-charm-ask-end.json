@@ -1,0 +1,8 @@
+{
+  "direction": "server",
+  "message": {
+    "type": "charm",
+    "op": "ask_end",
+    "id": "q1"
+  }
+}

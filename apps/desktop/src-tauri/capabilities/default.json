@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "The charm window: its own commands and events, nothing else.",
+  "windows": ["charm", "settings"],
+  "permissions": ["core:default"]
+}

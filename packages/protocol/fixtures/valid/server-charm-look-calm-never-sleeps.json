@@ -1,0 +1,12 @@
+{
+  "direction": "server",
+  "message": {
+    "type": "charm",
+    "op": "look",
+    "name": "Pip",
+    "glyph": "#F4F3EE",
+    "greeting": "",
+    "sleep_ms": 0,
+    "motion": "calm"
+  }
+}

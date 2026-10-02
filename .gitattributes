@@ -1,0 +1,8 @@
+# Generated files are compared byte-for-byte by tools/checks; LF everywhere keeps Windows clones green.
+* text=auto eol=lf
+*.png binary
+*.ico binary
+*.stl binary
+*.pdf binary
+# Third-party reference files stay byte-for-byte as published.
+hardware/reference/** -text

@@ -1,0 +1,8 @@
+{
+  "direction": "client",
+  "message": {
+    "type": "charm",
+    "op": "unlocked"
+  },
+  "error": "unknown_op"
+}

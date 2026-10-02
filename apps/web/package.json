@@ -1,0 +1,35 @@
+{
+  "name": "@opencharm-labs/web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "next typegen && tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "vitest run --config vitest.e2e.config.ts"
+  },
+  "dependencies": {
+    "@opencharm-labs/design": "*",
+    "@vercel/analytics": "2.0.1",
+    "class-variance-authority": "^0.7.1",
+    "cn": "^0.4.0",
+    "next": "16.3.6",
+    "radix-ui": "^1.6.7",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "tw-animate-css": "^1.4.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "babel-plugin-react-compiler": "^1.0.0",
+    "eslint-config-next": "16.3.6",
+    "geist": "^1.7.2",
+    "shadcn": "^4.21.0",
+    "tailwindcss": "^4"
+  }
+}

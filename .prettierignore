@@ -1,0 +1,22 @@
+# Prettier 3 also reads .gitignore; only tracked files it must not touch are listed here.
+package-lock.json
+# Generated: compared byte-for-byte by tools/checks, so their own writer owns the format.
+packages/design/faces.json
+hardware/prototype/PROTOTYPE.html
+hardware/stl/
+brand/icon/
+# Third-party and reference material, kept exactly as published.
+hardware/prototype/vendor/
+hardware/reference/
+# The prototype page's template, hand-made; PROTOTYPE.html is built from it.
+hardware/prototype/prototype-template.html
+# The face engine is a browser script mirrored by the firmware; its layout is part of the reference.
+packages/design/src/charm-face.js
+# Licence texts are reproduced exactly.
+LICENSE
+LICENSES/
+firmware/sim/THIRD_PARTY_NOTICES.md
+
+# Rust build output and Tauri-generated schemas (ignored by apps/desktop/src-tauri/.gitignore)
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/

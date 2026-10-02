@@ -1,0 +1,8 @@
+{
+  "direction": "server",
+  "message": {
+    "type": "charm",
+    "op": "paired",
+    "token": "b64url-token-0123456789abcdefghijklmnopqrstuvwxyzABCD"
+  }
+}

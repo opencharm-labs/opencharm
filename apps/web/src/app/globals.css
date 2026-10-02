@@ -1,0 +1,326 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/* Single theme by design: dark: only matches inside a .dark ancestor, which the page never sets, so
+   classes that come with future shadcn components stay inert instead of following the OS theme. */
+@custom-variant dark (&:is(.dark *));
+
+/* The scene's Mac point, computed once where it's set (the hero scene) and inherited as a length, so
+   a container nested inside can't rescale it. */
+@property --pt {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 0px;
+}
+
+/* The look: a technical drawing, white and black, flat. Values mirror packages/design/tokens.json
+   (DESIGN.md is checked against it). */
+
+/* static: always emitted as CSS variables, so components can hand them to the face engine too. */
+@theme static {
+  /* Brand palette, as Tailwind colours: bg-paper, text-ink, border-rule, text-signal… */
+  --color-paper: #f6f6f4;
+  --color-ink: #0a0a0a;
+  --color-ink-2: #3a3a3a;
+  --color-mute: #6e6e6e;
+  --color-faint: #a3a3a3;
+  --color-studio: #ececea;
+  --color-night: var(--color-ink);
+  --color-on-night: #ededed;
+  --color-on-night-2: #8a8a8a;
+  --color-rule: rgb(10 10 10 / 0.22);
+  --color-dash: rgb(10 10 10 / 0.35);
+  /* Orange means one thing only: it needs you. */
+  --color-signal: #ff5a1f;
+  --color-sun: #ffd479;
+  /* The glyphs on a charm's screen (tokens.json icon.glyphs). */
+  --color-glyph: #f4f3ee;
+
+  /* Breakpoints in rem, like Tailwind's own, so they sort with them: the narrowest phones, and the
+     width where the drawing's side margins (ruler, hatching) fit. */
+  --breakpoint-xs: 28.75rem;
+  --breakpoint-wide: 83.75rem;
+
+  /* The drawing's small mono labels: sizes inherit the line height around them. */
+  --text-2xs: 0.6875rem;
+  --text-3xs: 0.625rem;
+  --text-4xs: 0.5625rem;
+  --tracking-label: 0.14em;
+  --tracking-caption: 0.12em;
+
+  /* The app icon's squircle, as browsers draw it. */
+  --radius-icon: 22.37%;
+
+  /* The hero's desktop charm is alive, as in the app: at rest the eyes glance and blink; thinking,
+     they look up and wander; listening, they swell with your voice; asleep, they sink and rise.
+     Distances are in the scene's Mac points (--pt). */
+  --animate-mac-idle:
+    mac-look 9s ease-in-out infinite, mac-blink 5.3s linear infinite;
+  /* The right eye blinks a beat after the left, at rest only. */
+  --animate-mac-idle-right:
+    mac-look 9s ease-in-out infinite, mac-blink 5.3s linear 0.06s infinite;
+  --animate-mac-ponder:
+    mac-ponder 3.2s ease-in-out infinite, mac-blink 5.3s linear infinite;
+  --animate-mac-swell: mac-swell 0.55s ease-in-out infinite alternate;
+  --animate-mac-doze: mac-doze 6.4s ease-in-out infinite;
+  /* The hero's progress line fills while a moment plays. */
+  --animate-scene-fill: scene-fill var(--step-ms, 4200ms) linear forwards;
+  @keyframes mac-look {
+    0%,
+    100% {
+      translate: 0 0;
+    }
+    18% {
+      translate: 0 calc(var(--pt) * -1);
+    }
+    30%,
+    40% {
+      translate: calc(var(--pt) * -4) 0;
+    }
+    52% {
+      translate: 0 calc(var(--pt) * 1);
+    }
+    66%,
+    76% {
+      translate: calc(var(--pt) * 4) calc(var(--pt) * -1);
+    }
+  }
+  @keyframes mac-blink {
+    0%,
+    93%,
+    100% {
+      scale: 1 1;
+    }
+    95% {
+      scale: 1 0.1;
+    }
+  }
+  @keyframes mac-ponder {
+    0%,
+    100% {
+      translate: calc(var(--pt) * -3) calc(var(--pt) * -4);
+    }
+    50% {
+      translate: calc(var(--pt) * 3) calc(var(--pt) * -5);
+    }
+  }
+  @keyframes mac-swell {
+    from {
+      scale: 1;
+    }
+    to {
+      scale: 1.22;
+    }
+  }
+  @keyframes mac-doze {
+    0%,
+    100% {
+      translate: 0 0;
+    }
+    50% {
+      translate: 0 calc(var(--pt) * 2);
+    }
+  }
+  @keyframes scene-fill {
+    to {
+      width: 100%;
+    }
+  }
+
+  /* A terminal's block cursor. */
+  --animate-caret: caret-blink 1s steps(1) infinite;
+  @keyframes caret-blink {
+    50% {
+      opacity: 0;
+    }
+  }
+
+  /* A blink every few seconds: the eyes squash for a moment and open again. */
+  --animate-eye-blink: eye-blink 5.2s infinite;
+  @keyframes eye-blink {
+    0%,
+    94%,
+    100% {
+      transform: scaleY(1);
+    }
+    97% {
+      transform: scaleY(0.1);
+    }
+  }
+}
+
+@theme inline {
+  --font-sans:
+    var(--font-geist-sans), "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-mono:
+    var(--font-geist-mono), "Geist Mono", ui-monospace, Menlo, Consolas,
+    monospace;
+  --font-heading: var(--font-sans);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+}
+
+/* Drawing patterns, one value each, too long to read inline. Not bg-*, so cn() never mistakes them
+   for a background colour. */
+@utility pattern-ruler {
+  background-image:
+    repeating-linear-gradient(
+      180deg,
+      var(--color-dash) 0 1px,
+      transparent 1px 20px
+    ),
+    repeating-linear-gradient(
+      180deg,
+      var(--color-ink) 0 1px,
+      transparent 1px 100px
+    );
+  background-size:
+    8px 100%,
+    16px 100%;
+  background-repeat: repeat-y;
+  background-position:
+    right top,
+    right top;
+}
+@utility pattern-hatch {
+  background-image: repeating-linear-gradient(
+    135deg,
+    rgb(10 10 10 / 0.08) 0 1px,
+    transparent 1px 10px
+  );
+}
+@utility pattern-leader {
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--color-dash) 0 4px,
+    transparent 4px 8px
+  );
+}
+
+/* Hover draws a dashed construction line around a control, the way a part is sketched before it's
+   inked: nothing moves or changes colour. Keyboard focus and a press draw it solid. */
+@utility trace {
+  outline: 1px dashed transparent;
+  outline-offset: 4px;
+  transition: outline-color 0.15s ease;
+  /* Only where there's a pointer to hover with, so a tap doesn't leave the line behind. */
+  @variant hover {
+    outline-color: var(--color-ink);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 4px;
+  }
+  &:active {
+    outline-style: solid;
+  }
+  @variant motion-reduce {
+    transition: none;
+  }
+}
+
+/* shadcn's semantic tokens, mapped onto the drawing: paper ground, ink, white cards, hairline rules.
+   No error colour of its own yet: orange is reserved for "it needs you", so destructive stays ink until
+   the page has a form that can fail. */
+:root {
+  --background: var(--color-paper);
+  --foreground: var(--color-ink);
+  --card: #ffffff;
+  --card-foreground: var(--color-ink);
+  --popover: #ffffff;
+  --popover-foreground: var(--color-ink);
+  --primary: var(--color-ink);
+  --primary-foreground: #ffffff;
+  --secondary: var(--color-studio);
+  --secondary-foreground: var(--color-ink);
+  --muted: var(--color-studio);
+  --muted-foreground: var(--color-mute);
+  --accent: var(--color-studio);
+  --accent-foreground: var(--color-ink);
+  --destructive: var(--color-ink);
+  --border: var(--color-rule);
+  --input: var(--color-ink);
+  --ring: var(--color-ink);
+  --radius: 0.875rem;
+  color-scheme: light;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring;
+  }
+  html {
+    @apply scroll-smooth font-sans motion-reduce:scroll-auto;
+    /* Scrollbars in ink on paper, thin and flat; inherited by every scrolling box. */
+    scrollbar-color: var(--color-ink) var(--color-paper);
+    scrollbar-width: thin;
+  }
+  body {
+    @apply bg-background text-base/normal text-foreground antialiased;
+    /* The drawing paper: a 160 px grid over a 20 px one. */
+    background-image:
+      linear-gradient(rgb(10 10 10 / 0.07) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(10 10 10 / 0.07) 1px, transparent 1px),
+      linear-gradient(rgb(10 10 10 / 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(10 10 10 / 0.03) 1px, transparent 1px);
+    background-size:
+      160px 160px,
+      160px 160px,
+      20px 20px,
+      20px 20px;
+    background-position: -1px -1px;
+  }
+  a {
+    @apply text-ink hover:text-mute;
+  }
+  :focus-visible {
+    @apply outline-2 outline-offset-3 outline-ink;
+  }
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+  /* Buttons keep the browser's line height (preflight would inherit the body's). */
+  button {
+    line-height: normal;
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  /* Browsers that only style scrollbars through these pseudo-elements: the same square ink bar. */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background: var(--color-paper);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-ink);
+    border: 3px solid var(--color-paper);
+  }
+}

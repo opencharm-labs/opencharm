@@ -1,0 +1,8 @@
+{
+  "direction": "server",
+  "message": {
+    "session_id": "s1",
+    "type": "tts",
+    "state": "start"
+  }
+}

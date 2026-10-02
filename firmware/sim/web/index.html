@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OpenCharm emulator</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="sim.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <span class="mono">OPENCHARM · EMULATOR</span>
+        <span class="mono dim" id="status">STARTING</span>
+      </header>
+      <section class="stage">
+        <div class="charm" id="charm">
+          <canvas
+            id="screen"
+            width="480"
+            height="480"
+            aria-label="The charm's screen"
+          ></canvas>
+          <button
+            class="key"
+            id="key"
+            aria-label="The key: hold to talk, press for everything else"
+          ></button>
+        </div>
+        <aside>
+          <p class="mono dim">HOW TO USE</p>
+          <p>
+            <b>Hold Space</b> (or the key on the right side) to talk. A short
+            press stops speech or dismisses a line. Tap the face. Type the PIN
+            on the screen.
+          </p>
+          <p>
+            <b>Orange means it needs you.</b> On a question, hold for yes, press
+            for no.
+          </p>
+          <p>
+            <b>Mac notch</b> shows the desktop charm: its eyes beside the notch,
+            a panel that opens below it. Type the PIN on the keyboard.
+          </p>
+          <p class="mono dim">CHARMD</p>
+          <p class="mono small" id="url"></p>
+          <div class="buttons">
+            <button class="pill" id="wifi">Drop Wi-Fi</button>
+            <button class="pill" id="shape">Round screen</button>
+            <button class="pill" id="forget">Forget pairing</button>
+          </div>
+          <p class="mono dim">LATER</p>
+          <p class="small dim">
+            Pick up, face-down, shake and battery arrive with the motion sensor
+            work (after the MVP).
+          </p>
+          <p class="small dim">
+            Same code as the charm: firmware/core compiled to WebAssembly. No
+            warranty; see README.
+          </p>
+        </aside>
+      </section>
+    </main>
+    <script type="module" src="sim.js"></script>
+  </body>
+</html>

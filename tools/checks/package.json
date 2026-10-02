@@ -1,0 +1,14 @@
+{
+  "name": "@opencharm-labs/checks",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@opencharm-labs/design": "*",
+    "yaml": "^2.9.1"
+  }
+}

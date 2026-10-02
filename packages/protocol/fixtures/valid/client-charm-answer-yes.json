@@ -1,0 +1,9 @@
+{
+  "direction": "client",
+  "message": {
+    "type": "charm",
+    "op": "answer",
+    "id": "q1",
+    "yes": true
+  }
+}

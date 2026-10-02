@@ -1,0 +1,21 @@
+{
+  "name": "@opencharm-labs/protocol",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./constants": "./src/constants.ts",
+    "./messages": "./src/messages.ts",
+    "./parse": "./src/parse.ts",
+    "./fixtures": "./src/fixtures.ts",
+    "./text": "./src/text.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@opencharm-labs/design": "*",
+    "zod": "^4.6.5"
+  }
+}

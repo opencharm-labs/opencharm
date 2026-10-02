@@ -1,0 +1,9 @@
+{
+  "direction": "server",
+  "message": {
+    "type": "charm",
+    "op": "face",
+    "state": "speaking"
+  },
+  "error": "invalid_fields"
+}

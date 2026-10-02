@@ -1,0 +1,8 @@
+{
+  "direction": "client",
+  "message": {
+    "type": "stt",
+    "text": "hi"
+  },
+  "error": "unknown_type"
+}

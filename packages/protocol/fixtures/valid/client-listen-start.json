@@ -1,0 +1,9 @@
+{
+  "direction": "client",
+  "message": {
+    "session_id": "s1",
+    "type": "listen",
+    "state": "start",
+    "mode": "manual"
+  }
+}

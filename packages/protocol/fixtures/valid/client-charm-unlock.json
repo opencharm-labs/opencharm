@@ -1,0 +1,8 @@
+{
+  "direction": "client",
+  "message": {
+    "type": "charm",
+    "op": "unlock",
+    "pin": "482913"
+  }
+}

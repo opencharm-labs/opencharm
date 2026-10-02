@@ -1,0 +1,20 @@
+{
+  "name": "@opencharm-labs/design",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./types": "./src/types.ts",
+    "./faces": "./src/faces-data.ts",
+    "./build-faces-data": "./src/build-faces-data.ts",
+    "./build-faces-header": "./src/build-faces-header.ts",
+    "./faces.json": "./faces.json",
+    "./tokens.json": "./tokens.json",
+    "./charm-face.js": "./src/charm-face.js"
+  },
+  "scripts": {
+    "export": "tsx scripts/export-faces.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run"
+  }
+}

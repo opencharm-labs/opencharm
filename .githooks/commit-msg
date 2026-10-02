@@ -1,0 +1,9 @@
+#!/bin/sh
+# OpenCharm's guards (tools/checks/src/hook.ts), installed by `npm install` (core.hooksPath).
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+TSX="$ROOT/node_modules/.bin/tsx"
+if [ ! -x "$TSX" ]; then
+  echo "OpenCharm guards: run npm install first" >&2
+  exit 1
+fi
+exec "$TSX" "$ROOT/tools/checks/src/hook.ts" commit-msg "$@"

@@ -1,0 +1,345 @@
+{
+  "$comment": "Generated from packages/design/src/charm-face.js by packages/design/scripts/export-faces.ts. Edit the JS, then run npm run design:export.",
+  "signal": "#FF5A1F",
+  "colours": [
+    {
+      "id": "white",
+      "name": "White",
+      "c": "#FFFFFF",
+      "g": "#F4F3EE",
+      "key": "#1E1F22"
+    },
+    {
+      "id": "cobalt",
+      "name": "Cobalt",
+      "c": "#4574FF",
+      "g": "#9DB6FF",
+      "key": "#FFD166"
+    },
+    {
+      "id": "lime",
+      "name": "Lime",
+      "c": "#BDEB4E",
+      "g": "#D6F78A",
+      "key": "#1E1F22"
+    },
+    {
+      "id": "lilac",
+      "name": "Lilac",
+      "c": "#B39BFA",
+      "g": "#D2C4FF",
+      "key": "#1E1F22"
+    },
+    {
+      "id": "sun",
+      "name": "Sun",
+      "c": "#FFCD5C",
+      "g": "#FFDF93",
+      "key": "#1E1F22"
+    },
+    {
+      "id": "coal",
+      "name": "Coal",
+      "c": "#2B2C30",
+      "g": "#F4F3EE",
+      "key": "#FF5A1F"
+    }
+  ],
+  "faces": [
+    {
+      "id": "neutral",
+      "text": "o   o",
+      "t": "Neutral",
+      "L": "o",
+      "R": "o"
+    },
+    {
+      "id": "happy",
+      "text": "^   ^",
+      "t": "Happy",
+      "L": "^",
+      "R": "^"
+    },
+    {
+      "id": "joy",
+      "text": "^ v ^",
+      "t": "Joy",
+      "L": "^",
+      "R": "^",
+      "M": "v",
+      "sl": 1.06,
+      "sr": 1.06
+    },
+    {
+      "id": "cute",
+      "text": "^ w ^",
+      "t": "Cute",
+      "L": "^",
+      "R": "^",
+      "M": "w"
+    },
+    {
+      "id": "wink",
+      "text": "^   −",
+      "t": "Wink",
+      "L": "^",
+      "R": "−",
+      "tilt": -5
+    },
+    {
+      "id": "loved",
+      "text": "♥︎   ♥︎",
+      "t": "Loved",
+      "L": "♥︎",
+      "R": "♥︎",
+      "sl": 0.9,
+      "sr": 0.9
+    },
+    {
+      "id": "listening",
+      "text": "O   O",
+      "t": "Listening",
+      "L": "O",
+      "R": "O",
+      "gy": -0.03
+    },
+    {
+      "id": "thinking",
+      "text": "o _ o",
+      "t": "Thinking",
+      "L": "o",
+      "R": "o",
+      "M": "_",
+      "gx": 0.05,
+      "gy": -0.04,
+      "tilt": 5,
+      "fx": "cursor"
+    },
+    {
+      "id": "focused",
+      "text": "−   −",
+      "t": "Focused",
+      "L": "−",
+      "R": "−",
+      "rl": 9,
+      "rr": -9
+    },
+    {
+      "id": "curious",
+      "text": "o   •",
+      "t": "Curious",
+      "L": "o",
+      "R": "•",
+      "sl": 1.15,
+      "tilt": -8,
+      "gx": 0.02
+    },
+    {
+      "id": "confused",
+      "text": "o   O",
+      "t": "Confused",
+      "L": "o",
+      "R": "O",
+      "tilt": 7
+    },
+    {
+      "id": "surprised",
+      "text": "O o O",
+      "t": "Surprised",
+      "L": "O",
+      "R": "O",
+      "M": "o"
+    },
+    {
+      "id": "doubtful",
+      "text": "¬   ¬",
+      "t": "Doubtful",
+      "L": "¬",
+      "R": "¬",
+      "gx": 0.06
+    },
+    {
+      "id": "unamused",
+      "text": "− _ −",
+      "t": "Unamused",
+      "L": "−",
+      "R": "−",
+      "M": "_"
+    },
+    {
+      "id": "strain",
+      "text": ">   <",
+      "t": "Strain",
+      "L": ">",
+      "R": "<"
+    },
+    {
+      "id": "sad",
+      "text": "T   T",
+      "t": "Sad",
+      "L": "T",
+      "R": "T",
+      "gy": 0.02
+    },
+    {
+      "id": "oops",
+      "text": "x   x",
+      "t": "Oops",
+      "L": "x",
+      "R": "x"
+    },
+    {
+      "id": "dizzy",
+      "text": "@   @",
+      "t": "Dizzy",
+      "L": "@",
+      "R": "@",
+      "tilt": 10,
+      "fx": "spin"
+    },
+    {
+      "id": "sleepy",
+      "text": "−   −",
+      "t": "Sleepy",
+      "L": "−",
+      "R": "−",
+      "dy": 0.04,
+      "fx": "z"
+    },
+    {
+      "id": "learned",
+      "text": "* v *",
+      "t": "Learned",
+      "L": "*",
+      "R": "*",
+      "M": "v",
+      "sl": 1.1,
+      "sr": 1.1
+    },
+    {
+      "id": "money",
+      "text": "$   $",
+      "t": "Money",
+      "L": "$",
+      "R": "$"
+    },
+    {
+      "id": "ask",
+      "text": "o ? o",
+      "t": "Needs you",
+      "L": "o",
+      "R": "o",
+      "M": "?",
+      "fx": "ask"
+    }
+  ],
+  "states": [
+    {
+      "id": "greeting",
+      "face": "happy",
+      "name": "Hello",
+      "when": "You pick it up or sit down.",
+      "trigger": "IMU pick-up / first touch of the day"
+    },
+    {
+      "id": "listening",
+      "face": "listening",
+      "name": "Listening",
+      "when": "You hold the key and talk.",
+      "trigger": "Key held (on device)"
+    },
+    {
+      "id": "thinking",
+      "face": "thinking",
+      "name": "Thinking",
+      "when": "The agent is working on an answer.",
+      "trigger": "Agent turn started"
+    },
+    {
+      "id": "working",
+      "face": "focused",
+      "name": "Working",
+      "when": "A tool or a long task is running.",
+      "trigger": "Tool call started"
+    },
+    {
+      "id": "needs_you",
+      "face": "ask",
+      "name": "Needs you",
+      "when": "A question or an approval. Orange ring, one sound.",
+      "trigger": "Approval request / clarifying question"
+    },
+    {
+      "id": "done",
+      "face": "joy",
+      "name": "Done",
+      "when": "A task finished. One line, then back to the face.",
+      "trigger": "Turn complete / cron job done"
+    },
+    {
+      "id": "stuck",
+      "face": "strain",
+      "name": "Stuck",
+      "when": "Retries are piling up.",
+      "trigger": "3 tool errors in a row"
+    },
+    {
+      "id": "failed",
+      "face": "oops",
+      "name": "Failed",
+      "when": "Something broke. It says what, in one line.",
+      "trigger": "Run failed"
+    },
+    {
+      "id": "learned",
+      "face": "learned",
+      "name": "Learned",
+      "when": "It made or improved a skill.",
+      "trigger": "Hermes: skill created or updated"
+    },
+    {
+      "id": "noted",
+      "face": "wink",
+      "name": "Noted",
+      "when": "It saved something about you.",
+      "trigger": "Memory write (e.g. USER.md / MEMORY.md)"
+    },
+    {
+      "id": "cost",
+      "face": "money",
+      "name": "Cost",
+      "when": "Spend passed a limit you set.",
+      "trigger": "Budget threshold"
+    },
+    {
+      "id": "asleep",
+      "face": "sleepy",
+      "name": "Asleep",
+      "when": "Face-down or quiet hours. The agent keeps running.",
+      "trigger": "IMU face-down / schedule"
+    },
+    {
+      "id": "idle",
+      "face": "neutral",
+      "name": "Idle",
+      "when": "Nothing going on. Slow blinks and glances.",
+      "trigger": "No events"
+    }
+  ],
+  "fields": {
+    "L": "left eye glyph",
+    "R": "right eye glyph",
+    "M": "mouth glyph (optional)",
+    "gx": "gaze x, fraction of screen",
+    "gy": "gaze y, fraction of screen",
+    "dy": "move eyes down, fraction",
+    "dl": "move left eye down, fraction",
+    "dr": "move right eye down, fraction",
+    "rl": "rotate left eye, degrees",
+    "rr": "rotate right eye, degrees",
+    "sl": "scale left eye",
+    "sr": "scale right eye",
+    "tilt": "rotate whole face, degrees",
+    "fx": "cursor | spin | z | ask"
+  }
+}

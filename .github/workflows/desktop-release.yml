@@ -1,0 +1,110 @@
+name: Desktop release
+# When apps/desktop's version changes on main (no desktop@<version> tag yet), build the desktop charm
+# for macOS (Apple silicon and Intel) and Windows and publish it as a GitHub release, so people can
+# install it without building it. The builds are unsigned for now (see apps/desktop/README.md).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+permissions:
+  contents: write
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      version: ${{ steps.tag.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: tag
+        run: |
+          VERSION=$(node -p "require('./apps/desktop/package.json').version")
+          TAG="desktop@$VERSION"
+          if ! git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          fi
+  emulator:
+    needs: version
+    if: needs.version.outputs.tag != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - run: sudo apt-get update && sudo apt-get install -y ninja-build
+      - run: |
+          git clone --depth 1 https://github.com/emscripten-core/emsdk.git "$RUNNER_TEMP/emsdk"
+          "$RUNNER_TEMP/emsdk/emsdk" install 6.0.10
+          "$RUNNER_TEMP/emsdk/emsdk" activate 6.0.10
+      - run: |
+          source "$RUNNER_TEMP/emsdk/emsdk_env.sh"
+          npm run firmware:sim
+      - uses: actions/upload-artifact@v4
+        with:
+          name: charm-sim
+          path: packages/cli/sim
+          if-no-files-found: error
+  build:
+    needs: [version, emulator]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            target: aarch64-apple-darwin
+          - os: macos-latest
+            target: x86_64-apple-darwin
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - uses: actions/download-artifact@v4
+        with:
+          name: charm-sim
+          path: packages/cli/sim
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: apps/desktop
+          tauriScript: npx tauri
+          args: --target ${{ matrix.target }}
+          tagName: ${{ needs.version.outputs.tag }}
+          releaseName: OpenCharm Desktop ${{ needs.version.outputs.version }}
+          releaseBody: |
+            The desktop charm: OpenCharm under your Mac's notch (Windows: a pill at the top of the screen).
+            Install and first-run notes: https://github.com/${{ github.repository }}/blob/main/apps/desktop/README.md
+            Provided as is, with no warranty.
+          releaseDraft: false
+          prerelease: true
+  # Unsigned builds earn trust another way: checksums to compare, and (public repo) a signed
+  # statement from GitHub that these files were built by this workflow from this commit
+  # (`gh attestation verify <file> --repo <owner>/<repo>`).
+  verify:
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.version.outputs.tag }}
+        run: |
+          mkdir assets
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir assets --pattern '*.dmg' --pattern '*.exe' --pattern '*.msi'
+          cd assets && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
+          gh release upload "$TAG" SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --clobber
+      - if: ${{ !github.event.repository.private }}
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: assets/*

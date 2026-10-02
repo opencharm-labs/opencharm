@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>OpenCharm</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="settings.css" />
+    <script src="charm-face.js"></script>
+  </head>
+  <body>
+    <header>
+      <div class="charm" id="face" aria-hidden="true"></div>
+      <div>
+        <p class="mono dim">OPENCHARM · DESKTOP</p>
+        <h1>Settings</h1>
+        <p class="lede">Your charm lives by the notch. Hold the key to talk.</p>
+      </div>
+    </header>
+
+    <button type="button" class="update" id="update" hidden></button>
+
+    <form id="form" autocomplete="off">
+      <section id="agent-card">
+        <span class="mono">YOUR AGENT</span>
+        <div class="status-card">
+          <span class="dot" id="dot"></span>
+          <div class="grow">
+            <strong id="who">…</strong>
+            <p class="note mono-path" id="where"></p>
+          </div>
+          <button type="button" class="pill ghost small" id="restart">
+            Restart
+          </button>
+        </div>
+        <p class="note" id="state-note"></p>
+
+        <div class="managed">
+          <label class="mono" for="folder">FOLDER</label>
+          <div class="row">
+            <input id="folder" readonly placeholder="Choose a folder" />
+            <button type="button" class="pill" id="choose">Choose…</button>
+          </div>
+          <p class="note" id="folder-note">
+            An OpenCharm workspace (like Momo), or any folder your agent should
+            work in.
+          </p>
+          <button type="button" class="pill ghost" id="create" hidden>
+            Create a workspace here
+          </button>
+
+          <label class="mono" for="agent">AGENT</label>
+          <select id="agent"></select>
+          <div class="row" id="command-row" hidden>
+            <input
+              id="command"
+              spellcheck="false"
+              placeholder="my-agent --acp"
+            />
+          </div>
+          <div id="server-row" hidden>
+            <div class="row">
+              <input
+                id="server-url"
+                spellcheck="false"
+                placeholder="http://127.0.0.1:8642/v1"
+              />
+            </div>
+            <div class="row">
+              <input id="server-model" spellcheck="false" placeholder="model" />
+            </div>
+          </div>
+          <p class="note" id="agent-note">
+            Any agent that speaks ACP, or an OpenAI-compatible server.
+          </p>
+
+          <label class="mono" for="voice">VOICE</label>
+          <select id="voice">
+            <option value="local">On this computer (macOS)</option>
+            <option value="openai">OpenAI</option>
+            <option value="fake">None, for trying</option>
+          </select>
+          <div class="row" id="key-row" hidden>
+            <input
+              id="openai-key"
+              type="password"
+              spellcheck="false"
+              placeholder="sk-…"
+            />
+            <button type="button" class="pill" id="save-key">Save</button>
+          </div>
+          <p class="note" id="voice-note">
+            Speech to text and back, on this Mac. Nothing leaves it.
+          </p>
+        </div>
+      </section>
+
+      <section class="look" aria-labelledby="look-title">
+        <span class="mono" id="look-title">YOUR CHARM</span>
+        <p class="note" id="look-note"></p>
+
+        <label class="mono" for="charm-name">NAME</label>
+        <input id="charm-name" maxlength="12" spellcheck="false" />
+
+        <span class="mono" id="colour-label">COLOUR</span>
+        <div
+          class="swatches"
+          id="swatches"
+          role="radiogroup"
+          aria-labelledby="colour-label"
+        ></div>
+
+        <label class="mono" for="greeting">GREETING</label>
+        <input id="greeting" maxlength="40" />
+        <p class="note">What it says when it wakes up: one short line.</p>
+
+        <div id="say-section">
+          <label class="mono" for="say-voice">ITS VOICE</label>
+          <div class="row">
+            <select id="say-voice"></select>
+            <button type="button" class="pill ghost" id="try">Try it</button>
+          </div>
+        </div>
+
+        <label class="mono" for="sleep">SLEEPS AFTER</label>
+        <select id="sleep">
+          <option value="2">2 minutes alone</option>
+          <option value="4">4 minutes alone</option>
+          <option value="10">10 minutes alone</option>
+          <option value="30">30 minutes alone</option>
+          <option value="0">Never</option>
+        </select>
+
+        <div class="switch-row">
+          <div>
+            <span class="mono" id="calm-label">CALM MOTION</span>
+            <p class="note">
+              It breathes and blinks, but doesn't glance around.
+            </p>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="calm" aria-labelledby="calm-label" />
+            <span></span>
+          </label>
+        </div>
+
+        <div class="switch-row">
+          <div>
+            <span class="mono" id="agent-look-label"
+              >LET THE AGENT CHANGE ITS LOOK</span
+            >
+            <p class="note">
+              Ask it to "make yourself blue". Until charmd restarts.
+            </p>
+          </div>
+          <label class="switch">
+            <input
+              type="checkbox"
+              id="agent-look"
+              aria-labelledby="agent-look-label"
+            />
+            <span></span>
+          </label>
+        </div>
+      </section>
+
+      <section>
+        <label class="mono" for="key">TALK KEY</label>
+        <select id="key"></select>
+        <p class="note">
+          Hold it in any app to talk. On an orange question, hold for yes, press
+          for no.
+        </p>
+      </section>
+
+      <section class="switch-row">
+        <div>
+          <span class="mono">START AT LOGIN</span>
+          <p class="note">Your charm is there when you are.</p>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="login" />
+          <span></span>
+        </label>
+      </section>
+
+      <section class="switch-row">
+        <div>
+          <span class="mono">CHECK FOR UPDATES</span>
+          <p class="note">
+            Once a day, from GitHub's public release list. Nothing is sent about
+            you.
+          </p>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="updates" />
+          <span></span>
+        </label>
+      </section>
+
+      <details>
+        <summary class="mono">ADVANCED</summary>
+        <section class="switch-row">
+          <div>
+            <span class="mono">ANOTHER CHARMD</span>
+            <p class="note">
+              Connect to a charmd you run yourself (<code>opencharm serve</code
+              >) instead of the app's own.
+            </p>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="external" />
+            <span></span>
+          </label>
+        </section>
+        <section id="url-section">
+          <label class="mono" for="url">CHARMD</label>
+          <div class="row">
+            <input id="url" spellcheck="false" />
+            <button type="button" class="pill" id="check">Check</button>
+          </div>
+          <p class="note" id="check-note">
+            Where <code>opencharm serve</code> runs. Usually this computer.
+          </p>
+        </section>
+        <section>
+          <label class="mono" for="cli">OPENCHARM CLI</label>
+          <input
+            id="cli"
+            spellcheck="false"
+            placeholder="Found automatically"
+          />
+          <p class="note">
+            Only if it isn't found: the full path of
+            <code>opencharm</code> (<code>command -v opencharm</code> in a
+            terminal).
+          </p>
+        </section>
+        <section>
+          <span class="mono">PAIRING</span>
+          <div class="row">
+            <p class="note grow">
+              Pair again. With the app's own charmd it pairs itself.
+            </p>
+            <button type="button" class="pill ghost" id="forget">
+              Forget this charm
+            </button>
+          </div>
+        </section>
+      </details>
+    </form>
+
+    <footer class="mono dim">
+      <span id="status">ALL SAVED</span>
+      <span>NO WARRANTY · OPENCHARM.DEV</span>
+    </footer>
+    <script type="module" src="settings.js"></script>
+  </body>
+</html>

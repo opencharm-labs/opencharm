@@ -1,0 +1,60 @@
+{
+  "name": "opencharm",
+  "version": "0.1.0",
+  "description": "An open-source body for the AI agent you already run: a face, a voice, one key. Claude Code, Codex, Gemini CLI, Hermes, OpenClaw or any ACP or OpenAI-compatible agent; on a small board, your Mac's notch or the browser.",
+  "type": "module",
+  "bin": {
+    "opencharm": "dist/main.mjs"
+  },
+  "files": [
+    "dist/",
+    "sim/",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:e2e": "vitest run --config vitest.e2e.config.ts"
+  },
+  "devDependencies": {
+    "@opencharm-labs/charmd": "*",
+    "@opencharm-labs/design": "*",
+    "playwright": "^1.63.0",
+    "tsdown": "^0.23.0"
+  },
+  "keywords": [
+    "opencharm",
+    "ai-agent",
+    "hermes-agent",
+    "openclaw",
+    "claude-code",
+    "acp",
+    "mcp",
+    "esp32",
+    "esp32-s3",
+    "open-hardware",
+    "ai-companion",
+    "cli"
+  ],
+  "homepage": "https://opencharm.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/opencharm-labs/opencharm.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/opencharm-labs/opencharm/issues"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@agentclientprotocol/sdk": "1.5.1",
+    "opusscript": "^0.1.1",
+    "ws": "^8.22.0",
+    "zod": "^4.6.5"
+  }
+}

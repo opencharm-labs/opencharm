@@ -1,0 +1,27 @@
+name: Emulator
+on:
+  pull_request:
+  push:
+    branches: [main, develop]
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  build-and-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - run: sudo apt-get update && sudo apt-get install -y ninja-build
+      # Emscripten from its official SDK, pinned to the version the emulator is developed with.
+      - run: |
+          git clone --depth 1 https://github.com/emscripten-core/emsdk.git "$RUNNER_TEMP/emsdk"
+          "$RUNNER_TEMP/emsdk/emsdk" install 6.0.10
+          "$RUNNER_TEMP/emsdk/emsdk" activate 6.0.10
+      - run: |
+          source "$RUNNER_TEMP/emsdk/emsdk_env.sh"
+          npm run firmware:sim
+      # The real emulator in the runner's Google Chrome, against a real charmd, with a fake microphone.
+      - run: npm run test:e2e -w packages/cli

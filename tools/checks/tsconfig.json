@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": [
+    "src",
+    "scripts",
+    "*.ts",
+    "../../hardware/prototype/*.ts",
+    "../../firmware/core/fonts/*.ts",
+    "../../firmware/sim/*.ts"
+  ]
+}

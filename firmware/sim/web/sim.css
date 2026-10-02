@@ -1,0 +1,148 @@
+/* The OpenCharm look: a technical drawing on paper. Colour lives only on the device. */
+:root {
+  --paper: #f6f6f4;
+  --ink: #0a0a0a;
+  --ink-2: #3a3a3a;
+  --mute: #6e6e6e;
+  --grid: rgba(10, 10, 10, 0.05);
+  --mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+  color: var(--ink);
+  font: 15px/1.5 var(--sans);
+}
+main {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 32px 24px;
+}
+header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 40px;
+}
+.mono {
+  font-family: var(--mono);
+  letter-spacing: 0.12em;
+  font-size: 12px;
+}
+.dim {
+  color: var(--mute);
+}
+.small {
+  font-size: 13px;
+}
+.stage {
+  display: flex;
+  gap: 56px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.charm {
+  position: relative;
+  width: 520px;
+  padding: 20px;
+  border-radius: 13.8%;
+  background: #fff;
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.18),
+    0 1px 0 rgba(0, 0, 0, 0.04);
+}
+.charm.round {
+  border-radius: 50%;
+}
+canvas {
+  display: block;
+  width: 480px;
+  height: 480px;
+  border-radius: 10.8%;
+  background: #000;
+  touch-action: none;
+  transition: filter 0.4s;
+}
+.charm.round canvas {
+  border-radius: 50%;
+}
+/* The desktop charm: a black panel under a Mac's notch, cropped to the menu-bar strip when closed. */
+.charm.notch {
+  align-self: flex-start; /* it hangs from the top edge, like the menu bar, and only grows down */
+  padding: 0;
+  border-radius: 0 0 18px 18px;
+  background: #000;
+  height: var(--strip);
+  overflow: hidden;
+  transition: height 0.28s cubic-bezier(0.2, 0.9, 0.25, 1.1);
+}
+.charm.notch.open {
+  height: var(--panel);
+}
+.charm.notch canvas {
+  border-radius: 0;
+}
+.charm.notch::before {
+  /* where the Mac's notch is: the charm never draws there */
+  content: "";
+  position: absolute;
+  left: calc(50% - var(--notch) / 2);
+  top: 0;
+  width: var(--notch);
+  height: var(--strip);
+  border-radius: 0 0 10px 10px;
+  outline: 1px dashed rgba(255, 255, 255, 0.18);
+  pointer-events: none;
+}
+.charm.notch .key {
+  display: none;
+}
+.key {
+  position: absolute;
+  right: -9px;
+  top: 43%;
+  width: 9px;
+  height: 14%;
+  border: 0;
+  border-radius: 0 5px 5px 0;
+  background: #1e1f22;
+  cursor: pointer;
+}
+.key.down {
+  right: -6px;
+  width: 6px;
+}
+aside {
+  max-width: 320px;
+}
+aside p {
+  margin: 0 0 14px;
+}
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 22px;
+}
+.pill {
+  font: 12px var(--mono);
+  letter-spacing: 0.08em;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--ink);
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+.pill.on {
+  background: var(--ink);
+  color: var(--paper);
+}

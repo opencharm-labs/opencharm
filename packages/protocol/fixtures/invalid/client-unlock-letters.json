@@ -1,0 +1,9 @@
+{
+  "direction": "client",
+  "message": {
+    "type": "charm",
+    "op": "unlock",
+    "pin": "12ab"
+  },
+  "error": "invalid_fields"
+}

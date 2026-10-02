@@ -1,0 +1,7 @@
+{
+  "direction": "client",
+  "message": {
+    "type": "dance"
+  },
+  "error": "unknown_type"
+}

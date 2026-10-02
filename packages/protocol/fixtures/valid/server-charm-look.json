@@ -1,0 +1,12 @@
+{
+  "direction": "server",
+  "message": {
+    "type": "charm",
+    "op": "look",
+    "name": "Momo",
+    "glyph": "#9DB6FF",
+    "greeting": "Hi! I'm Momo.",
+    "sleep_ms": 240000,
+    "motion": "full"
+  }
+}

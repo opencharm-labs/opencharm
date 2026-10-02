@@ -1,0 +1,6 @@
+# OpenCharm C++ style: Google-based, 100 columns (matches the Python and wide TypeScript lines).
+BasedOnStyle: Google
+ColumnLimit: 100
+IndentWidth: 2
+DerivePointerAlignment: false
+PointerAlignment: Left

@@ -1,0 +1,11 @@
+{
+  "direction": "server",
+  "message": {
+    "type": "charm",
+    "op": "ask",
+    "id": "q2",
+    "text": "Send the message to Ada?",
+    "yes": "SEND",
+    "no": "NO"
+  }
+}

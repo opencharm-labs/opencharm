@@ -1,0 +1,9 @@
+{
+  "direction": "server",
+  "message": {
+    "type": "charm",
+    "op": "locked",
+    "reason": "bored"
+  },
+  "error": "invalid_fields"
+}

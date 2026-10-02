@@ -1,0 +1,7 @@
+{
+  "direction": "server",
+  "message": {
+    "type": "charm",
+    "op": "revoked"
+  }
+}

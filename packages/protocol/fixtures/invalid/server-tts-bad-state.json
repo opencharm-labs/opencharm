@@ -1,0 +1,8 @@
+{
+  "direction": "server",
+  "message": {
+    "type": "tts",
+    "state": "pause"
+  },
+  "error": "invalid_fields"
+}

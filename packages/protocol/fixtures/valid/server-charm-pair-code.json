@@ -1,0 +1,9 @@
+{
+  "direction": "server",
+  "message": {
+    "type": "charm",
+    "op": "pair_code",
+    "code": "482913",
+    "expires_in": 300
+  }
+}

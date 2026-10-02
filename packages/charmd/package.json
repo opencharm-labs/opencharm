@@ -1,0 +1,28 @@
+{
+  "name": "@opencharm-labs/charmd",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./config": "./src/config/config.ts",
+    "./daemon": "./src/daemon.ts",
+    "./admin-client": "./src/admin/admin-client.ts",
+    "./acp-agents": "./src/agent/acp-agents.ts",
+    "./look": "./src/look.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@agentclientprotocol/sdk": "1.5.1",
+    "@opencharm-labs/design": "*",
+    "@opencharm-labs/protocol": "*",
+    "opusscript": "^0.1.1",
+    "ws": "^8.22.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.1"
+  }
+}

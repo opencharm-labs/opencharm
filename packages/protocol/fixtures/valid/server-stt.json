@@ -1,0 +1,8 @@
+{
+  "direction": "server",
+  "message": {
+    "session_id": "s1",
+    "type": "stt",
+    "text": "What is on my calendar?"
+  }
+}
