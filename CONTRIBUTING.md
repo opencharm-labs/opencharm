@@ -89,7 +89,7 @@ If a guard trips:
 
 In the GitHub settings of `opencharm-labs/opencharm` and `opencharm-labs/opencharm-starter`:
 
-- Pull requests: merge commits only (each branch's conventional commits stay in the history), and "Automatically delete head branches" on.
+- Pull requests: merge commits only (each branch's conventional commits stay in the history), with "Pull request title" as the default merge message; "Always suggest updating pull request branches" and "Automatically delete head branches" on.
 - Features: Projects off; in the starter, issues off (reports go to this repo) and "Template repository" on.
 - Code security: Dependabot alerts; secret scanning with push protection (blocks a push that contains a key); private vulnerability reporting (`SECURITY.md` points people to it).
 - Actions: the workflow token stays read-only by default; each workflow asks for what it needs.
