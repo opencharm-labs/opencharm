@@ -53,12 +53,14 @@ The MVP is done when all of this works, in the emulator first, then on the Waves
 
 ## Releasing the CLI (maintainer)
 
-`.github/workflows/cli-release.yml` publishes `opencharm` to npm with provenance when `packages/cli/package.json`'s version changes on `main` and that version isn't on npm yet. It builds the emulator and the CLI and runs the CLI's tests first.
+`.github/workflows/cli-release.yml` publishes `opencharm` to npm with provenance when `packages/cli/package.json`'s version isn't on npm yet. It builds the emulator and the CLI and runs the CLI's tests first.
 
 1. Once: on npmjs.com, add this workflow as a trusted publisher for `opencharm`. For the very first publish, before the package exists, add an `NPM_TOKEN` repository secret instead and delete it afterwards.
-2. To release: bump `version` in `packages/cli/package.json` and merge to `main`.
+2. To release: bump `version` in `packages/cli/package.json`, merge to `main`, then run the workflow on `main` (Actions → CLI release → Run workflow).
 
 The desktop app is released the same way (see `apps/desktop/README.md`).
+
+Both release workflows are manual only while the repository is private. At launch they go back to releasing on their own when the version changes on `main`: add `push: branches: [main]` under `on:` in each (their version checks already skip anything released).
 
 ## Guards
 

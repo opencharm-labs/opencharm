@@ -643,7 +643,13 @@ mod tests {
         let (config, label) = build_config(&Settings::default(), &folder, data);
         assert_eq!(label, "Claude Code");
         assert_eq!(config["listen"]["port"], 8790);
-        assert_eq!(config["statePath"], "/data/charmd/state.json");
+        assert_eq!(
+            config["statePath"],
+            data.join("charmd")
+                .join("state.json")
+                .to_string_lossy()
+                .as_ref()
+        );
         assert_eq!(config["agent"]["agent"], "claude");
         assert_eq!(
             config["agent"]["cwd"],
