@@ -7,7 +7,7 @@
   "scripts": {
     "web": "tsx scripts/build-web.ts",
     "dev": "npm run web && tauri dev",
-    "build": "npm run web && tauri build",
+    "bundle": "tauri build",
     "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",

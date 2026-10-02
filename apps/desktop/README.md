@@ -63,13 +63,13 @@ You need Node 24, Rust (`rustup`), and the emulator built once (`npm run firmwar
 
 ```bash
 npm run desktop          # run it (development)
-npm run desktop:build    # build the app and installer into apps/desktop/src-tauri/target/release/bundle
+npm run desktop:build    # bundle the app and installer into apps/desktop/src-tauri/target/release/bundle
 npm run test:rust -w apps/desktop
 ```
 
 ## Releases
 
-`.github/workflows/desktop-release.yml` publishes a GitHub release whenever `apps/desktop/package.json`'s version changes on `main` and has no `desktop@<version>` tag yet. It builds the emulator once, then macOS (Apple silicon and Intel) and Windows with `tauri-action`. Then it adds `SHA256SUMS.txt` and, in a public repository, build-provenance attestations. To release, bump the version in that `package.json` and merge to `main`. The update check looks for `desktop@` releases in `opencharm-labs/opencharm`.
+`.github/workflows/desktop-release.yml` publishes a GitHub release when `apps/desktop/package.json`'s version has no `desktop@<version>` tag yet. It builds the emulator once, then macOS (Apple silicon and Intel) and Windows with `tauri-action`. Then it adds `SHA256SUMS.txt` and, in a public repository, build-provenance attestations. To release, bump the version in that `package.json`, merge to `main`, then run the workflow on `main` (Actions → Desktop release → Run workflow). It is manual only while the repository is private; at launch it releases on its own again when the version changes on `main` (CONTRIBUTING, "Releasing the CLI"). The update check looks for `desktop@` releases in `opencharm-labs/opencharm`.
 
 ## Resource use
 

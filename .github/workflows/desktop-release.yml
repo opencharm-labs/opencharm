@@ -1,10 +1,12 @@
 name: Desktop release
-# When apps/desktop's version changes on main (no desktop@<version> tag yet), build the desktop charm
-# for macOS (Apple silicon and Intel) and Windows and publish it as a GitHub release, so people can
-# install it without building it. The builds are unsigned for now (see apps/desktop/README.md).
+# Run by hand on main (Actions → Desktop release → Run workflow): if there is no desktop@<version> tag
+# for apps/desktop's version yet, build the desktop charm for macOS (Apple silicon and Intel) and
+# Windows and publish it as a GitHub release, so people can install it without building it. The
+# builds are unsigned for now (see apps/desktop/README.md).
+# Builds from scratch on purpose: no caches, so what we publish never depends on an earlier run.
+# Manual only while the repository is private. At launch, release on every version bump again by
+# adding `push: branches: [main]` under `on:` (the tag check already skips released versions).
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 permissions:
@@ -42,7 +44,7 @@ jobs:
       - run: |
           source "$RUNNER_TEMP/emsdk/emsdk_env.sh"
           npm run firmware:sim
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: charm-sim
           path: packages/cli/sim
@@ -63,7 +65,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: charm-sim
           path: packages/cli/sim

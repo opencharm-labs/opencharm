@@ -53,12 +53,14 @@ The MVP is done when all of this works, in the emulator first, then on the Waves
 
 ## Releasing the CLI (maintainer)
 
-`.github/workflows/cli-release.yml` publishes `opencharm` to npm with provenance when `packages/cli/package.json`'s version changes on `main` and that version isn't on npm yet. It builds the emulator and the CLI and runs the CLI's tests first.
+`.github/workflows/cli-release.yml` publishes `opencharm` to npm with provenance when `packages/cli/package.json`'s version isn't on npm yet. It builds the emulator and the CLI and runs the CLI's tests first.
 
 1. Once: on npmjs.com, add this workflow as a trusted publisher for `opencharm`. For the very first publish, before the package exists, add an `NPM_TOKEN` repository secret instead and delete it afterwards.
-2. To release: bump `version` in `packages/cli/package.json` and merge to `main`.
+2. To release: bump `version` in `packages/cli/package.json`, merge to `main`, then run the workflow on `main` (Actions → CLI release → Run workflow).
 
 The desktop app is released the same way (see `apps/desktop/README.md`).
+
+Both release workflows are manual only while the repository is private. At launch they go back to releasing on their own when the version changes on `main`: add `push: branches: [main]` under `on:` in each (their version checks already skip anything released).
 
 ## Guards
 
@@ -85,10 +87,17 @@ If a guard trips:
 
 ## Repository settings (maintainer)
 
-In the repository's GitHub settings, keep these on:
+In the GitHub settings of `opencharm-labs/opencharm` and `opencharm-labs/opencharm-starter`:
 
-- Code security: secret scanning with push protection (blocks a push that contains a key), Dependabot alerts, private vulnerability reporting (`SECURITY.md` points people to it).
-- Branch protection on `main`: pull requests only, and the checks must pass.
+- Pull requests: merge commits only (no squash or rebase, so `main` and `develop` keep one history), and "Automatically delete head branches" off (the head of the release PR is `develop`).
+- Features: Projects off; in the starter, issues off (reports go to this repo) and "Template repository" on.
+- Code security: Dependabot alerts; secret scanning with push protection (blocks a push that contains a key); private vulnerability reporting (`SECURITY.md` points people to it).
+- Actions: the workflow token stays read-only by default; each workflow asks for what it needs.
+- Rulesets for `main` and `develop`: no deletion, no force-push; `main` takes pull requests only, and its checks must pass.
+
+On the free plan, secret scanning, private vulnerability reporting and rulesets only work on public repositories: turn them on the day the repositories go public, together with the release triggers (see "Releasing the CLI").
+
+`.github/dependabot.yml` opens a monthly pull request against `develop` when a GitHub Action has a new version.
 
 ## Licence of contributions
 
