@@ -55,6 +55,14 @@ describe("the desktop app", () => {
     );
   });
 
+  it("stays out of the workspace build, which runs on Linux and can't bundle it", () => {
+    const pkg = JSON.parse(read(APP, "package.json")) as {
+      scripts: Record<string, string>;
+    };
+    expect(pkg.scripts.build).toBeUndefined();
+    expect(pkg.scripts.bundle).toBe("tauri build");
+  });
+
   it("is built and published by the release workflow", () => {
     const release = read(REPO, ".github", "workflows", "desktop-release.yml");
     expect(release).toContain("projectPath: apps/desktop");
