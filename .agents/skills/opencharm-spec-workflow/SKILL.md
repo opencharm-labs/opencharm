@@ -43,11 +43,11 @@ Update the status in the spec **and** the row in `specs/README.md` (the checks c
 
 1. New work: `npm run spec:new <slug>`; fill Why, Scope, Not in scope, Acceptance (one page).
 2. After approval: write `plan.md` next to it: tasks with exact files, interfaces, test-first steps, commands with expected output.
-3. Branch `spec/NNN-<slug>` (or a git worktree). Commit per task, conventional commits.
+3. Branch `spec/NNN-<slug>` from an up-to-date `main` (or a git worktree). Commit per task, conventional commits.
 4. Each acceptance item must be proven by a test, a command or a named manual check.
 5. Before the merge: `npm run check` green; update `OPENCHARM.md`, the README next to the changed code and any doc the change touches; set status Done in the spec and in the index in `specs/README.md`.
-6. Merge: a finished spec branch goes into `develop` (no fast-forward) once `npm run check` is green; contributors open a PR against `develop` instead. Link the spec and the GitHub issue; list follow-ups instead of widening scope. Only the maintainer opens `develop` → `main`.
+6. Pull request: once `npm run check` is green, push the branch and open a PR against `main` (trunk-based: `main` is the only long-lived branch). Link the spec and the GitHub issue; list follow-ups instead of widening scope. The maintainer reviews and merges it with a merge commit; never merge your own PR.
 
 ## Working from a GitHub issue (OpenClaw, Codex and other agents)
 
-The issue form "Spec task" names the spec and the task. Read that spec and its plan, work in a worktree, open a PR against `develop`, report the PR link. Never push to `main`.
+The issue form "Spec task" names the spec and the task. Read that spec and its plan, work in a worktree, open a PR against `main`, report the PR link. Never push to `main`.

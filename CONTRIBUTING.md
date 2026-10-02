@@ -26,8 +26,8 @@ Thanks for helping. OpenCharm is built spec by spec, by people and by coding age
 2. Branch `spec/NNN-<slug>`, one spec per branch, conventional commits.
 3. `npm run check` must pass locally and in CI.
 4. The change updates `OPENCHARM.md` (what the product is), the README next to the code it changes, and any other doc it makes wrong.
-5. Contributors open a pull request against `develop`. The maintainer, or a coding agent working for them, merges a finished spec branch into `develop` (no fast-forward) once `npm run check` is green.
-6. Only the maintainer opens the pull request from `develop` to `main`. Nobody pushes to `main`.
+5. Every change reaches `main` through a pull request: contributors from a fork, the maintainer and coding agents from a branch in this repository (`main` is the only long-lived branch; nobody pushes to it).
+6. The maintainer reviews it and merges it with a merge commit once the checks pass; the branch is then deleted. If `main` moved on meanwhile, merge `main` into the branch (no force-push).
 
 Coding agents (Claude Code, Codex, OpenClaw workers, Hermes) read [AGENTS.md](AGENTS.md) and the skills in `.agents/skills/`. Issues created with the "Spec task" form are ready for an agent to pick up.
 
@@ -89,15 +89,15 @@ If a guard trips:
 
 In the GitHub settings of `opencharm-labs/opencharm` and `opencharm-labs/opencharm-starter`:
 
-- Pull requests: merge commits only (no squash or rebase, so `main` and `develop` keep one history), and "Automatically delete head branches" off (the head of the release PR is `develop`).
+- Pull requests: merge commits only (each branch's conventional commits stay in the history), and "Automatically delete head branches" on.
 - Features: Projects off; in the starter, issues off (reports go to this repo) and "Template repository" on.
 - Code security: Dependabot alerts; secret scanning with push protection (blocks a push that contains a key); private vulnerability reporting (`SECURITY.md` points people to it).
 - Actions: the workflow token stays read-only by default; each workflow asks for what it needs.
-- Rulesets for `main` and `develop`: no deletion, no force-push; `main` takes pull requests only, and its checks must pass.
+- A ruleset for `main`: no deletion, no force-push, pull requests only, and the checks must pass.
 
 On the free plan, secret scanning, private vulnerability reporting and rulesets only work on public repositories: turn them on the day the repositories go public, together with the release triggers (see "Releasing the CLI").
 
-`.github/dependabot.yml` opens a monthly pull request against `develop` when a GitHub Action has a new version.
+`.github/dependabot.yml` opens a monthly pull request against `main` when a GitHub Action has a new version.
 
 ## Licence of contributions
 

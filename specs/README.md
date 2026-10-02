@@ -21,7 +21,7 @@ Branches for that work: `fix/…`, `perf/…`, `docs/…`, `chore/…`, `ci/…`
 2. Write the spec: why, scope, not in scope, acceptance. One page. Status `Draft`.
 3. The maintainer approves it: status `Approved`.
 4. Just before building, write `plan.md` next to it (tasks with files and steps). Status `In progress`.
-5. Build on branch `spec/NNN-<slug>`. A finished branch is merged into `develop` (no fast-forward) once `npm run check` is green; contributors open a PR against `develop` instead. Link the spec (and the GitHub issue, if any).
+5. Build on branch `spec/NNN-<slug>` from `main`. Once `npm run check` is green, open a pull request against `main`; the maintainer merges it with a merge commit. Link the spec (and the GitHub issue, if any).
 6. The same change updates `OPENCHARM.md`, the README next to the code and any docs it touches, and sets status `Done`. Delete `plan.md`: plans are derived from the spec and only live while it's being built (git keeps them).
 
 Everything is built and proven on localhost first (charmd, emulator, any agent including Claude Code), then on the droplet; the real device (009) comes last and only swaps the HAL.
