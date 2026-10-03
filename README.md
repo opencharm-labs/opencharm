@@ -13,7 +13,7 @@ Site: [opencharm.dev](https://opencharm.dev) · Product spec: [OPENCHARM.md](OPE
 
 ## Status
 
-Early. charmd (the charm daemon), the emulator and the desktop charm work today with Claude Code, Codex, Gemini CLI, Hermes, OpenClaw and other ACP or OpenAI-compatible agents. Firmware for the real board (spec 009) is next. Work is specified spec by spec ([specs/](specs/README.md)).
+Early. Tested end to end on macOS (3 October 2026): `opencharm init`, charmd (the charm daemon), the emulator and Claude Code, from pairing to a spoken answer through a real microphone. The desktop charm runs on macOS; its Windows build is untested on a real machine. charmd also has presets for Codex, Gemini CLI, goose, Hermes and OpenClaw, and adapters for OpenAI-compatible agents: covered by tests with a stand-in agent, not yet each tried for real. Firmware for the real board (spec 009) is next. Work is specified spec by spec ([specs/](specs/README.md)).
 
 ## Try it
 
@@ -22,6 +22,18 @@ npx opencharm            # the face in your terminal
 npx opencharm faces      # all 22 moods
 npx opencharm hardware   # what to buy and print
 ```
+
+**Your own charm, in your browser** (Node 24, git, and an agent such as Claude Code):
+
+```bash
+npm i -g opencharm
+opencharm init my-charm && cd my-charm   # your charm's workspace (default name Momo)
+opencharm serve                          # charmd; it runs your agent in charm/
+opencharm sim                            # in another terminal: the charm in your browser
+opencharm pair <code>                    # the code on its screen; then choose a PIN
+```
+
+Hold Space and talk. The workspace's README covers the voice (local on macOS, or OpenAI).
 
 **The desktop charm (macOS).** Download it from [Releases](https://github.com/opencharm-labs/opencharm/releases) ([how](apps/desktop/README.md)). In Settings, choose your agent's folder, then hold **⌥ Space** and talk.
 
