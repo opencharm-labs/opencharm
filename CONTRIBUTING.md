@@ -55,7 +55,7 @@ The MVP is done when all of this works, in the emulator first, then on the Waves
 
 `.github/workflows/cli-release.yml` publishes `opencharm` to npm with provenance when `packages/cli/package.json`'s version isn't on npm yet. It builds the emulator and the CLI and runs the CLI's tests first.
 
-1. Once: on npmjs.com, add this workflow as a trusted publisher for `opencharm`. For the very first publish, before the package exists, add an `NPM_TOKEN` repository secret instead and delete it afterwards.
+1. Publishing uses npm trusted publishing only: on npmjs.com, `opencharm` trusts this workflow (GitHub Actions, `opencharm-labs/opencharm`, `cli-release.yml`), and its publishing access is "Require two-factor authentication and disallow tokens". There is no npm token anywhere. The name was claimed on 3 October 2026 with an empty `0.0.0` published by hand (trusted publishing needs the package to exist); `0.1.0` is the first release with code.
 2. To release: bump `version` in `packages/cli/package.json`, merge to `main`, then run the workflow on `main` (Actions → CLI release → Run workflow).
 
 The desktop app is released the same way (see `apps/desktop/README.md`).
