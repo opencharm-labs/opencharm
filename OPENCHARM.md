@@ -10,7 +10,7 @@ Licence of this document: CC BY-SA 4.0 (see README). Prices and specs were check
 | ------------------------------------------------ | ----------------------------------------------------------------------------------------- |
 | Product definition, UX, face system              | Decided (this file)                                                                       |
 | Face engine, browser reference                   | Done: `packages/design/src/charm-face.js`                                                 |
-| Landing page                                     | Built: `apps/web` (spec 008); not deployed yet                                            |
+| Landing page                                     | Live at opencharm.dev: `apps/web` (spec 008), on Vercel                                   |
 | Device + face prototype page                     | Done: `hardware/prototype/PROTOTYPE.html` (3D from the real STL files)                    |
 | Brand: page look, app icon                       | Done: white and black pages; icon set in `brand/icon/`                                    |
 | npm CLI (`packages/cli`)                         | TypeScript, tested, bundled; published from CI (`cli-release.yml`), first release pending |

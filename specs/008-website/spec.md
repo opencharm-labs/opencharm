@@ -1,6 +1,6 @@
 # 008: Website (opencharm.dev)
 
-Status: In progress
+Status: Done
 Depends on: 004, 005, 010, 011, 012, 013
 
 ## Why
@@ -67,4 +67,4 @@ Docs pages, a blog, a shop (there is none).
 - [x] Valid JSON-LD (FAQPage, SoftwareApplication, Organization, WebSite), metadata and Open Graph in the built HTML; `llms.txt`, `sitemap.xml` and `robots.txt` served; Lighthouse SEO and accessibility 100.
 - [x] Vercel Analytics loads in production builds only.
 - [x] The end-to-end suite passes on the production build in Chrome (`npm run test:e2e -w @opencharm-labs/web`, 15 tests); the page also loads clean in Firefox and WebKit (checked 2 October 2026).
-- [ ] Deployed on Vercel (root `apps/web`, see `apps/web/README.md`): deferred, the maintainer's step.
+- [x] Deployed on Vercel (root `apps/web`, see `apps/web/README.md`) at opencharm.dev (3 October 2026).
