@@ -93,7 +93,7 @@ The charm is an **MCP server** for the agent, `opencharm mcp` (stdio, no depende
 
 ## Voice
 
-- `local`: macOS `say` speaks, whisper.cpp (`whisper-cli`, model `~/.opencharm/models/ggml-base.en.bin`) listens; everything stays on the machine.
+- `local`: macOS `say` speaks (in English by default: voice Samantha, whatever the system language; `voice.sayVoice` picks another installed voice), whisper.cpp (`whisper-cli`, model `~/.opencharm/models/ggml-base.en.bin`) listens; everything stays on the machine.
 - `openai` (see "Research notes" below): Opus packets are forwarded, never decoded. The charm's 16 kHz packets are wrapped in Ogg for speech-to-text; text-to-speech Ogg Opus is unwrapped into packets the charm plays at 24 kHz (Opus is sample-rate independent). Defaults (unverified until a key is used): `gpt-4o-mini-transcribe` for speech-to-text, `gpt-4o-mini-tts` with `response_format: "opus"` for text-to-speech.
 - Only the `local` and `fake` voices decode and encode Opus (`opusscript`), because `say` and whisper.cpp work on PCM.
 

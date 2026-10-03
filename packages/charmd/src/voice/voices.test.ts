@@ -8,7 +8,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { readOggOpus, writeOggOpus } from "../audio/ogg-opus";
 import { createFakeVoice } from "./fake";
-import { createLocalVoice, defaultWhisperModel } from "./local";
+import { createLocalVoice, defaultWhisperModel, sayArgs } from "./local";
 import { createOpenAiVoice } from "./openai";
 import { readWav, writeWav } from "./wav";
 
@@ -124,6 +124,22 @@ describe("fake voice", () => {
     );
     expect(short).toBeGreaterThan(0);
     expect(long).toBeGreaterThan(short);
+  });
+});
+
+describe("local voice: which macOS voice", () => {
+  it("speaks English by default, whatever the system language (say falls back to the system voice if it's missing)", () => {
+    expect(sayArgs(undefined, "in.txt", "out.wav").slice(0, 2)).toEqual([
+      "-v",
+      "Samantha",
+    ]);
+  });
+
+  it("uses the voice set in opencharm.json", () => {
+    expect(sayArgs("Daniel", "in.txt", "out.wav").slice(0, 2)).toEqual([
+      "-v",
+      "Daniel",
+    ]);
   });
 });
 
