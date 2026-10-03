@@ -55,7 +55,7 @@ The app's charmd listens on port 8790, with its own config, state and log, so a 
 
 - **Pairing with its own charmd** types the PIN only on a boot lock, never after `opencharm lock`.
 - **Long runs:** displays are re-measured every 4 s, and the charm moves when the notch or screen changes. The charm reconnects when the network comes back. On Windows, charmd and its agent run in a job object, so they end with the app even after a crash.
-- **Releases are unsigned by choice** (maintainer, 1 October 2026); see Install for how to check them. Build-provenance attestations start once the repository is public.
+- **Releases are unsigned by choice** (maintainer, 1 October 2026); see Install for how to check them.
 
 ## Build it yourself
 
@@ -69,7 +69,7 @@ npm run test:rust -w apps/desktop
 
 ## Releases
 
-`.github/workflows/desktop-release.yml` publishes a GitHub release when `apps/desktop/package.json`'s version has no `desktop@<version>` tag yet. It builds the emulator once, then macOS (Apple silicon and Intel) and Windows with `tauri-action`. Then it adds `SHA256SUMS.txt` and, in a public repository, build-provenance attestations. To release, bump the version in that `package.json`, merge to `main`, then run the workflow on `main` (Actions → Desktop release → Run workflow). It is manual only while the repository is private; at launch it releases on its own again when the version changes on `main` (CONTRIBUTING, "Releasing the CLI"). The update check looks for `desktop@` releases in `opencharm-labs/opencharm`.
+Releases are made with release-please (CONTRIBUTING, "Releasing"): merging its release pull request creates the `desktop@<version>` tag and GitHub pre-release, with the changelog as notes; then `.github/workflows/desktop-release.yml` builds the emulator once, then macOS (Apple silicon and Intel) and Windows with `tauri-action`, and attaches the installers, `SHA256SUMS.txt` and build-provenance attestations. The app's version is `apps/desktop/package.json`'s; nobody bumps it by hand. The update check looks for `desktop@` releases in `opencharm-labs/opencharm`.
 
 ## Resource use
 

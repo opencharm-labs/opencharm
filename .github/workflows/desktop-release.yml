@@ -1,37 +1,35 @@
 name: Desktop release
-# Run by hand on main (Actions → Desktop release → Run workflow): if there is no desktop@<version> tag
-# for apps/desktop's version yet, build the desktop charm for macOS (Apple silicon and Intel) and
-# Windows and publish it as a GitHub release, so people can install it without building it. The
-# builds are unsigned for now (see apps/desktop/README.md).
+# Builds the desktop charm for macOS (Apple silicon and Intel) and Windows and attaches the installers
+# to its GitHub release, so people can install it without building it. Started by release.yml on the
+# desktop@<version> tag that release-please created (or by hand on that tag: Actions → Desktop
+# release → Run workflow → choose the tag). The builds are unsigned for now (apps/desktop/README.md).
 # Builds from scratch on purpose: no caches, so what we publish never depends on an earlier run.
-# Manual only while the repository is private. At launch, release on every version bump again by
-# adding `push: branches: [main]` under `on:` (the tag check already skips released versions).
 on:
   workflow_dispatch:
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 permissions:
   contents: write
 jobs:
-  version:
+  release:
     runs-on: ubuntu-latest
     outputs:
-      tag: ${{ steps.tag.outputs.tag }}
-      version: ${{ steps.tag.outputs.version }}
+      id: ${{ steps.release.outputs.id }}
     steps:
       - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - id: tag
+      - id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
         run: |
           VERSION=$(node -p "require('./apps/desktop/package.json').version")
-          TAG="desktop@$VERSION"
-          if ! git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if [ "$TAG" != "desktop@$VERSION" ]; then
+            echo "Run this on the tag desktop@$VERSION, not $TAG"
+            exit 1
           fi
+          ID=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json databaseId -q .databaseId)
+          echo "id=$ID" >> "$GITHUB_OUTPUT"
   emulator:
-    needs: version
-    if: needs.version.outputs.tag != ''
+    needs: release
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -50,7 +48,7 @@ jobs:
           path: packages/cli/sim
           if-no-files-found: error
   build:
-    needs: [version, emulator]
+    needs: [release, emulator]
     strategy:
       fail-fast: false
       matrix:
@@ -72,26 +70,20 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
+      # Uploads to the release release-please created; its name and notes (the changelog) stay as they are.
       - uses: tauri-apps/tauri-action@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
         with:
           projectPath: apps/desktop
           tauriScript: npx tauri
           args: --target ${{ matrix.target }}
-          tagName: ${{ needs.version.outputs.tag }}
-          releaseName: OpenCharm Desktop ${{ needs.version.outputs.version }}
-          releaseBody: |
-            The desktop charm: OpenCharm under your Mac's notch (Windows: a pill at the top of the screen).
-            Install and first-run notes: https://github.com/${{ github.repository }}/blob/main/apps/desktop/README.md
-            Provided as is, with no warranty.
-          releaseDraft: false
-          prerelease: true
-  # Unsigned builds earn trust another way: checksums to compare, and (public repo) a signed
-  # statement from GitHub that these files were built by this workflow from this commit
-  # (`gh attestation verify <file> --repo <owner>/<repo>`).
+          releaseId: ${{ needs.release.outputs.id }}
+  # Unsigned builds earn trust another way: checksums to compare, and a signed statement from GitHub
+  # that these files were built by this workflow from this commit
+  # (gh attestation verify <file> --repo <owner>/<repo>).
   verify:
-    needs: [version, build]
+    needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -99,14 +91,33 @@ jobs:
       attestations: write
     steps:
       - env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ needs.version.outputs.tag }}
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
         run: |
           mkdir assets
           gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir assets --pattern '*.dmg' --pattern '*.exe' --pattern '*.msi'
           cd assets && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
           gh release upload "$TAG" SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --clobber
-      - if: ${{ !github.event.repository.private }}
-        uses: actions/attest-build-provenance@v4
+      - uses: actions/attest-build-provenance@v4
         with:
           subject-path: assets/*
+      # The release notes are the changelog; the install notes go under them, once.
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          NOTES=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body -q .body)
+          if ! grep -q "Install and first-run notes" <<<"$NOTES"; then
+            README="https://github.com/$GITHUB_REPOSITORY/blob/main/apps/desktop/README.md"
+            {
+              echo "$NOTES"
+              echo
+              echo "---"
+              echo
+              echo "The desktop charm: OpenCharm under your Mac's notch (Windows: a pill at the top of the screen)."
+              echo "Install and first-run notes: $README"
+              echo "Unsigned for now: compare SHA256SUMS.txt, or run gh attestation verify <file> --repo $GITHUB_REPOSITORY."
+              echo "Provided as is, with no warranty."
+            } > notes.md
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --notes-file notes.md
+          fi

@@ -1,0 +1,106 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "include-component-in-tag": true,
+  "include-v-in-tag": false,
+  "include-v-in-release-name": false,
+  "tag-separator": "@",
+  "bump-minor-pre-major": true,
+  "changelog-sections": [
+    {
+      "type": "feat",
+      "section": "Features"
+    },
+    {
+      "type": "fix",
+      "section": "Fixes"
+    },
+    {
+      "type": "perf",
+      "section": "Performance"
+    },
+    {
+      "type": "revert",
+      "section": "Reverts"
+    },
+    {
+      "type": "docs",
+      "section": "Docs",
+      "hidden": true
+    },
+    {
+      "type": "chore",
+      "section": "Chores",
+      "hidden": true
+    },
+    {
+      "type": "ci",
+      "section": "CI",
+      "hidden": true
+    },
+    {
+      "type": "test",
+      "section": "Tests",
+      "hidden": true
+    },
+    {
+      "type": "refactor",
+      "section": "Refactors",
+      "hidden": true
+    },
+    {
+      "type": "build",
+      "section": "Build",
+      "hidden": true
+    },
+    {
+      "type": "style",
+      "section": "Style",
+      "hidden": true
+    }
+  ],
+  "packages": {
+    ".": {
+      "component": "cli",
+      "package-name": "opencharm",
+      "release-type": "simple",
+      "changelog-path": "packages/cli/CHANGELOG.md",
+      "exclude-paths": [
+        "apps",
+        "hardware",
+        "brand",
+        "docs",
+        "specs",
+        "tools",
+        ".github",
+        ".agents",
+        ".claude",
+        "release-please-config.json",
+        ".release-please-manifest.json"
+      ],
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "packages/cli/package.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "package-lock.json",
+          "jsonpath": "$.packages['packages/cli'].version"
+        }
+      ]
+    },
+    "apps/desktop": {
+      "component": "desktop",
+      "release-type": "node",
+      "prerelease": true,
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "/package-lock.json",
+          "jsonpath": "$.packages['apps/desktop'].version"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,47 @@
+name: Release
+# release-please keeps one release pull request open on main with the next versions and changelogs,
+# written from the conventional-commit titles of the pull requests merged since the last release
+# (release-please-config.json). Merging it tags the release (cli@x.y.z, desktop@x.y.z), creates the
+# GitHub release and starts the publish workflows. Events made with GITHUB_TOKEN don't start other
+# workflows, except workflow_dispatch, so this workflow dispatches the publishing (and CI on the
+# release pull request) itself; no token beyond GITHUB_TOKEN is needed.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+concurrency: ${{ github.workflow }}
+permissions:
+  contents: read
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    steps:
+      - id: rp
+        uses: googleapis/release-please-action@v5
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+      # The CLI is the root component (it bundles charmd, protocol, design and the emulator).
+      - if: steps.rp.outputs.release_created == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.rp.outputs.tag_name }}
+        run: gh workflow run cli-release.yml --repo "$GITHUB_REPOSITORY" --ref "$TAG"
+      - if: steps.rp.outputs['apps/desktop--release_created'] == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.rp.outputs['apps/desktop--tag_name'] }}
+        run: gh workflow run desktop-release.yml --repo "$GITHUB_REPOSITORY" --ref "$TAG"
+      # A pull request opened with GITHUB_TOKEN gets no CI by itself; the required `ci` check comes
+      # from this run on its branch.
+      - if: steps.rp.outputs.prs_created == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ steps.rp.outputs.pr }}
+        run: |
+          BRANCH=$(jq -r .headBranchName <<<"$PR")
+          gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref "$BRANCH"

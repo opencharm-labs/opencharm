@@ -1,10 +1,10 @@
 name: CLI release
-# Run by hand on main (Actions → CLI release → Run workflow): if packages/cli's version isn't on npm
-# yet, build the emulator and the CLI and publish `opencharm` to npm with provenance (npm shows which
-# commit and workflow built it). Auth: npm trusted publishing only (OIDC, set up on npmjs.com for this
-# workflow; the package refuses tokens), so there is no npm secret in this repository.
-# Manual only while the repository is private. At launch, release on every version bump again by
-# adding `push: branches: [main]` under `on:` (the version check already skips published versions).
+# Publishes `opencharm` to npm with provenance (npm shows which commit and workflow built it): builds
+# the emulator and the CLI and runs the CLI's tests first. Started by release.yml on the cli@<version>
+# tag that release-please created (or by hand on that tag: Actions → CLI release → Run workflow →
+# choose the tag); a version already on npm is skipped, so a re-run is safe. Auth: npm trusted
+# publishing only (OIDC, set up on npmjs.com for this workflow; the package refuses tokens), so there
+# is no npm secret in this repository.
 on:
   workflow_dispatch:
 concurrency: ${{ github.workflow }}-${{ github.ref }}
@@ -18,8 +18,14 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
       - id: version
+        env:
+          TAG: ${{ github.ref_name }}
         run: |
           VERSION=$(node -p "require('./packages/cli/package.json').version")
+          if [ "$TAG" != "cli@$VERSION" ]; then
+            echo "Run this on the tag cli@$VERSION, not $TAG"
+            exit 1
+          fi
           if npm view "opencharm@$VERSION" version >/dev/null 2>&1; then
             echo "opencharm@$VERSION is already on npm"
           else

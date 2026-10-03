@@ -6,21 +6,21 @@ Licence of this document: CC BY-SA 4.0 (see README). Prices and specs were check
 
 ## 1. Status
 
-| Area                                             | State                                                                                     |
-| ------------------------------------------------ | ----------------------------------------------------------------------------------------- |
-| Product definition, UX, face system              | Decided (this file)                                                                       |
-| Face engine, browser reference                   | Done: `packages/design/src/charm-face.js`                                                 |
-| Landing page                                     | Live at opencharm.dev: `apps/web` (spec 008), on Vercel                                   |
-| Device + face prototype page                     | Done: `hardware/prototype/PROTOTYPE.html` (3D from the real STL files)                    |
-| Brand: page look, app icon                       | Done: white and black pages; icon set in `brand/icon/`                                    |
-| npm CLI (`packages/cli`)                         | TypeScript, tested, bundled; published from CI (`cli-release.yml`), first release pending |
-| Repo foundation (workspaces, checks, agents, CI) | Done                                                                                      |
-| Enclosure v0.1                                   | STL files generated, **not yet printed or fitted**                                        |
-| Hardware                                         | Reference board: Waveshare ESP32-S3-Touch-AMOLED-2.16                                     |
-| Firmware, OpenCharm OS (`firmware/`)             | Core and emulator built (specs 005, 006); the board port (009) not started                |
-| charmd, the charm daemon                         | Built (specs 002, 003, 010, 011, 012); the droplet deploy waits for a droplet (007)       |
-| Desktop charm (`apps/desktop`)                   | macOS app built (spec 013); Windows builds in CI, untested on a real machine              |
-| Build guide                                      | `docs/build.md`                                                                           |
+| Area                                             | State                                                                                                     |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| Product definition, UX, face system              | Decided (this file)                                                                                       |
+| Face engine, browser reference                   | Done: `packages/design/src/charm-face.js`                                                                 |
+| Landing page                                     | Live at opencharm.dev: `apps/web` (spec 008), on Vercel                                                   |
+| Device + face prototype page                     | Done: `hardware/prototype/PROTOTYPE.html` (3D from the real STL files)                                    |
+| Brand: page look, app icon                       | Done: white and black pages; icon set in `brand/icon/`                                                    |
+| npm CLI (`packages/cli`)                         | TypeScript, tested, bundled; on npm with provenance (0.1.0, 3 October 2026), released with release-please |
+| Repo foundation (workspaces, checks, agents, CI) | Done                                                                                                      |
+| Enclosure v0.1                                   | STL files generated, **not yet printed or fitted**                                                        |
+| Hardware                                         | Reference board: Waveshare ESP32-S3-Touch-AMOLED-2.16                                                     |
+| Firmware, OpenCharm OS (`firmware/`)             | Core and emulator built (specs 005, 006); the board port (009) not started                                |
+| charmd, the charm daemon                         | Built (specs 002, 003, 010, 011, 012); the droplet deploy waits for a droplet (007)                       |
+| Desktop charm (`apps/desktop`)                   | macOS app built (spec 013); Windows builds in CI, untested on a real machine                              |
+| Build guide                                      | `docs/build.md`                                                                                           |
 
 ## 2. Principles and the moment of truth
 
