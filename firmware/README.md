@@ -85,7 +85,7 @@ C++17 without exceptions or RTTI, LVGL 9.6, cJSON.
 - **Audio in the browser:** the mic runs at 16 kHz through an AudioWorklet, and 60 ms frames are encoded to Opus in WebAssembly. The microphone is opened when the key goes down and closed when it comes up, so the browser shows it recording only while the key is held; the core still decides which frames leave (after a 200 ms hold). Speech is decoded at 24 kHz. The page says "MIC READY" once capture runs; it starts at the first click or key press.
 - **The token rides as a WebSocket subprotocol** (`opencharm.token.<token>`), because browsers can't set other headers on a WebSocket; tokens never go in URLs (spec 007's security review).
 - **Side panel:** drop Wi-Fi, square/round screen, forget pairing. Motion and battery controls wait for the motion-sensor work after the MVP.
-- **Tested end to end** in headless Google Chrome with a fake microphone against a real charmd: pair, type the PIN on the canvas, hold Space, and the spoken answer comes back (`npm run test:e2e -w packages/cli`; also in CI, `emulator.yml`).
+- **Tested end to end** in headless Google Chrome with a fake microphone against a real charmd: pair, type the PIN on the canvas, hold Space, and the spoken answer comes back (`npm run test:e2e -w packages/cli`; also in CI, `ci.yml`).
 - **Can't prove**: the board's echo cancellation and mic quality, Wi-Fi, battery life, flash. Those are tested on the board.
 
 ## Work plan

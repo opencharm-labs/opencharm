@@ -18,7 +18,7 @@ npm run build -w @opencharm-labs/web      # every route is static
 npm run test:e2e -w @opencharm-labs/web   # the build in Google Chrome
 ```
 
-The end-to-end suite (`e2e/site.e2e.test.ts`) loads the production build at 1440, 390 and 320 px and fails on any console error, failed request, CSP violation or sideways scrolling. It also checks the security headers, the metadata files (icons, share image, robots, sitemap, `llms.txt`), the 404 page and the controls (the switches, filters, pickers and phone menu). CI runs it in `.github/workflows/website.yml`.
+The end-to-end suite (`e2e/site.e2e.test.ts`) loads the production build at 1440, 390 and 320 px and fails on any console error, failed request, CSP violation or sideways scrolling. It also checks the security headers, the metadata files (icons, share image, robots, sitemap, `llms.txt`), the 404 page and the controls (the switches, filters, pickers and phone menu). CI runs it in `ci.yml` (job `website`).
 
 ## Security headers
 

@@ -1,0 +1,181 @@
+name: CI
+# One workflow for every pull request and every push to main. The first job works out which areas a
+# change touches; the slow jobs (firmware, emulator, website, the desktop app on macOS and Windows)
+# run only for their areas, and the desktop app only on pull requests (a merge doesn't change what
+# its pull request already proved). `ci` is the one check to require: it fails if any job that ran
+# failed. A change to CI itself, the lockfile or the root package.json runs everything.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      firmware: ${{ steps.areas.outputs.firmware }}
+      emulator: ${{ steps.areas.outputs.emulator }}
+      website: ${{ steps.areas.outputs.website }}
+      desktop: ${{ steps.areas.outputs.desktop }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      # A pull request is checked out as its merge commit, so its changes are HEAD^1..HEAD; a push
+      # compares with the commit before it. No usable base (a manual run, a new branch): everything.
+      - id: areas
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "$EVENT" = pull_request ]; then BASE=HEAD^1; else BASE="$BEFORE"; fi
+          if [ "$EVENT" != workflow_dispatch ] && git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            CHANGED=$(git diff --name-only "$BASE" HEAD)
+          else
+            CHANGED=ALL
+          fi
+          echo "$CHANGED"
+          ALWAYS='^(\.github/|package\.json$|package-lock\.json$|\.nvmrc$)'
+          area() {
+            if [ "$CHANGED" = ALL ] || grep -qE "$ALWAYS|$2" <<<"$CHANGED"; then
+              echo "$1=true" >> "$GITHUB_OUTPUT"
+            fi
+          }
+          area firmware '^firmware/|^packages/protocol/'
+          area emulator '^firmware/|^packages/(cli|charmd|protocol|design)/'
+          area website '^apps/web/|^packages/design/'
+          area desktop '^apps/desktop/|^firmware/|^brand/icon/'
+
+  # Everything that needs only Node and Python, with one install: what `npm run check` runs locally,
+  # plus the full build, the bundled CLI on its own and the audit of what we ship.
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: pip install "ruff==0.16.*"
+      - run: npm run format:check
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: ruff check . && ruff format --check .
+      - run: npm run build
+      # The bundle must run on its own: catches dependencies that break when inlined.
+      - run: node packages/cli/dist/main.mjs faces --no-color
+      # Known vulnerabilities in what we ship (production dependencies, high or worse).
+      - run: npm audit --omit=dev --audit-level=high
+
+  firmware:
+    needs: changes
+    if: needs.changes.outputs.firmware == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # The core's tests read packages/protocol/fixtures and firmware/core/src/generated/faces.h, both in the repo.
+      - run: sudo apt-get update && sudo apt-get install -y ninja-build
+      # Same clang-format major as contributors (brew install clang-format); older versions format differently.
+      - run: pip install "clang-format==23.1.*"
+      - run: npm run firmware:format:check
+      - run: cmake -S firmware/core -B firmware/core/build -G Ninja
+      - run: cmake --build firmware/core/build
+      - run: ctest --test-dir firmware/core/build --output-on-failure
+
+  # The firmware core in WebAssembly, built once for the emulator test and the desktop app.
+  sim:
+    needs: changes
+    if: needs.changes.outputs.emulator == 'true' || (needs.changes.outputs.desktop == 'true' && github.event_name != 'push')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - run: sudo apt-get update && sudo apt-get install -y ninja-build
+      # Emscripten from its official SDK, pinned to the version the emulator is developed with.
+      - run: |
+          git clone --depth 1 https://github.com/emscripten-core/emsdk.git "$RUNNER_TEMP/emsdk"
+          "$RUNNER_TEMP/emsdk/emsdk" install 6.0.10
+          "$RUNNER_TEMP/emsdk/emsdk" activate 6.0.10
+      - run: |
+          source "$RUNNER_TEMP/emsdk/emsdk_env.sh"
+          npm run firmware:sim
+      - uses: actions/upload-artifact@v7
+        with:
+          name: charm-sim
+          path: packages/cli/sim
+          if-no-files-found: error
+
+  emulator:
+    needs: [changes, sim]
+    if: needs.changes.outputs.emulator == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - uses: actions/download-artifact@v8
+        with:
+          name: charm-sim
+          path: packages/cli/sim
+      # The real emulator in the runner's Google Chrome, against a real charmd, with a fake microphone.
+      - run: npm run test:e2e -w packages/cli
+
+  website:
+    needs: changes
+    if: needs.changes.outputs.website == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - run: npm run build -w @opencharm-labs/web
+      # The production build in the runner's Google Chrome: loads clean, headers, metadata, controls.
+      - run: npm run test:e2e -w @opencharm-labs/web
+
+  desktop:
+    needs: [changes, sim]
+    if: needs.changes.outputs.desktop == 'true' && github.event_name != 'push'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - uses: actions/download-artifact@v8
+        with:
+          name: charm-sim
+          path: packages/cli/sim
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      # Reuses the compiled third-party crates between runs (keyed on Cargo.lock and the toolchain);
+      # our own crate is always rebuilt. Release builds never use a cache.
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri
+      - run: npm run web -w apps/desktop
+      - working-directory: apps/desktop/src-tauri
+        run: |
+          cargo fmt --check
+          cargo clippy --all-targets -- -D warnings
+          cargo test
+
+  # The one required check: passes when every job that ran passed (skipped areas are fine).
+  ci:
+    if: always()
+    needs: [changes, checks, firmware, sim, emulator, website, desktop]
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "$RESULTS"
+          case " $RESULTS " in
+            *" failure "* | *" cancelled "*) exit 1 ;;
+          esac

@@ -24,7 +24,7 @@ Thanks for helping. OpenCharm is built spec by spec, by people and by coding age
 
 1. A new feature starts from a numbered spec in `specs/`. Fixes, refactors, performance work, docs, CI and cleanups don't get a spec: they go on a `fix/`, `perf/`, `docs/`, `chore/` or `ci/` branch with the docs they touch updated in the same change ([what gets a spec](specs/README.md#what-gets-a-spec)).
 2. Branch `spec/NNN-<slug>`, one spec per branch, conventional commits.
-3. `npm run check` must pass locally and in CI.
+3. `npm run check` must pass locally and in CI. CI is one workflow, `.github/workflows/ci.yml`: the same checks on every change, plus the firmware, emulator, website and desktop jobs only when their files change (the desktop app on macOS and Windows only on pull requests). Its `ci` job is the single result to look at.
 4. The change updates `OPENCHARM.md` (what the product is), the README next to the code it changes, and any other doc it makes wrong.
 5. Every change reaches `main` through a pull request: contributors from a fork, the maintainer and coding agents from a branch in this repository (`main` is the only long-lived branch; nobody pushes to it).
 6. Its title is a conventional commit (`fix(cli): …`): the maintainer reviews it and squash-merges it once the checks pass, so each pull request becomes one commit on `main`, and the branch is then deleted. If `main` moved on meanwhile, merge `main` into the branch (no force-push).
@@ -37,7 +37,7 @@ How each part is tested:
 
 - **charmd, automatic** (Vitest): token and PIN hashing, lock and wrong-try logic, protocol parsing, Ogg wrap/unwrap round-trip on sample files, sentence splitting; a **full turn with no network and no keys** (a Node fake charm replaying recorded Opus, the `fake` agent, a fake voice provider); security cases (5 wrong PINs → blocked, revoked token rejected, audio before unlock ignored, oversized frame → disconnect).
 - **firmware/core, automatic**: state machine and protocol handling tested natively (host build) with a fake HAL; UI snapshots.
-- **Emulator**: a headless end-to-end test in CI (`emulator.yml`: pair, PIN, hold, spoken answer, with a fake mic), plus a checklist and the real-microphone run by hand.
+- **Emulator**: a headless end-to-end test in CI (`ci.yml`, job `emulator`: pair, PIN, hold, spoken answer, with a fake mic), plus a checklist and the real-microphone run by hand.
 - **Real services, by hand**: one smoke test with real OpenAI voice and Hermes on the droplet.
 - **Device**: builds for the 2.16; the same checklist on the board when it arrives.
 
@@ -78,7 +78,7 @@ The guards:
 - no AI tool credited as an author
 - no file over 1 MB, except a short list kept on purpose
 
-CI also runs `npm audit --omit=dev --audit-level=high` on every change and weekly (`.github/workflows/audit.yml`).
+CI also runs `npm audit --omit=dev --audit-level=high` on every change (`ci.yml`) and weekly (`audit.yml`).
 
 If a guard trips:
 
@@ -93,7 +93,7 @@ In the GitHub settings of `opencharm-labs/opencharm` and `opencharm-labs/opencha
 - Features: Projects off; in the starter, issues off (reports go to this repo) and "Template repository" on.
 - Code security: Dependabot alerts; secret scanning with push protection (blocks a push that contains a key); private vulnerability reporting (`SECURITY.md` points people to it).
 - Actions: the workflow token stays read-only by default; each workflow asks for what it needs.
-- A ruleset for `main`: no deletion, no force-push, pull requests only, and the checks must pass.
+- A ruleset for `main`: no deletion, no force-push, pull requests only, and the `ci` check must pass.
 
 On the free plan, secret scanning, private vulnerability reporting and rulesets only work on public repositories: turn them on the day the repositories go public, together with the release triggers (see "Releasing the CLI").
 
