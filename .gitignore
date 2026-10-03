@@ -31,6 +31,9 @@ docs/superpowers/
 # CMake build trees (charm-core fetches LVGL, cJSON, doctest into them)
 firmware/core/build/
 
+# npm pack output (testing the package before a release)
+*.tgz
+
 # Built emulator (npm run firmware:sim); shipped in the npm package, never committed
 packages/cli/sim/
 firmware/sim/build/
