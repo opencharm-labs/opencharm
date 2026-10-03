@@ -1,13 +1,16 @@
 name: CI
 # One workflow for every pull request and every push to main. The first job works out which areas a
 # change touches; the slow jobs (firmware, emulator, website, the desktop app on macOS and Windows)
-# run only for their areas, and the desktop app only on pull requests (a merge doesn't change what
-# its pull request already proved). `ci` is the one check to require: it fails if any job that ran
-# failed. A change to CI itself, the lockfile or the root package.json runs everything.
+# run only for their areas. `ci` is the one check to require: it fails if any job that ran failed.
+# A change to CI itself, the lockfile or the root package.json runs everything, and so do the weekly
+# run (the safety net for the path rules, new advisories and runner updates) and a manual run.
+# A green run on main starts the release workflows (cli-release.yml, desktop-release.yml).
 on:
   pull_request:
   push:
     branches: [main]
+  schedule:
+    - cron: "17 6 * * 1"
   workflow_dispatch:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -27,14 +30,14 @@ jobs:
         with:
           fetch-depth: 0
       # A pull request is checked out as its merge commit, so its changes are HEAD^1..HEAD; a push
-      # compares with the commit before it. No usable base (a manual run, a new branch): everything.
+      # compares with the commit before it. No base (a weekly or manual run, a new branch): everything.
       - id: areas
         env:
           EVENT: ${{ github.event_name }}
           BEFORE: ${{ github.event.before }}
         run: |
           if [ "$EVENT" = pull_request ]; then BASE=HEAD^1; else BASE="$BEFORE"; fi
-          if [ "$EVENT" != workflow_dispatch ] && git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+          if [ "$EVENT" != workflow_dispatch ] && [ "$EVENT" != schedule ] && git cat-file -e "$BASE^{commit}" 2>/dev/null; then
             CHANGED=$(git diff --name-only "$BASE" HEAD)
           else
             CHANGED=ALL
@@ -91,7 +94,7 @@ jobs:
   # The firmware core in WebAssembly, built once for the emulator test and the desktop app.
   sim:
     needs: changes
-    if: needs.changes.outputs.emulator == 'true' || (needs.changes.outputs.desktop == 'true' && github.event_name != 'push')
+    if: needs.changes.outputs.emulator == 'true' || needs.changes.outputs.desktop == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -138,7 +141,7 @@ jobs:
 
   desktop:
     needs: [changes, sim]
-    if: needs.changes.outputs.desktop == 'true' && github.event_name != 'push'
+    if: needs.changes.outputs.desktop == 'true'
     strategy:
       fail-fast: false
       matrix:

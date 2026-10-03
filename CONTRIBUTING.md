@@ -51,16 +51,31 @@ The MVP is done when all of this works, in the emulator first, then on the Waves
 6. No audio on disk; "key released → first audio" measured and written into `packages/charmd/README.md` (target about 1.5 s).
 7. Docs updated: README, `OPENCHARM.md`, `firmware/README.md`, `docs/build.md`.
 
-## Releasing the CLI (maintainer)
+## Releasing
 
-`.github/workflows/cli-release.yml` publishes `opencharm` to npm with provenance when `packages/cli/package.json`'s version isn't on npm yet. It builds the emulator and the CLI and runs the CLI's tests first.
+`main` is production. The website deploys on every merge (Vercel), `opencharm init` clones the starter's `main`, and the CLI and the desktop app release themselves: there is no release branch, release pull request or version bump to make by hand.
 
-1. Publishing uses npm trusted publishing only: on npmjs.com, `opencharm` trusts this workflow (GitHub Actions, `opencharm-labs/opencharm`, `cli-release.yml`), and its publishing access is "Require two-factor authentication and disallow tokens". There is no npm token anywhere. The name was claimed on 3 October 2026 with an empty `0.0.0` published by hand (trusted publishing needs the package to exist); `0.1.0` is the first release with code.
-2. To release: bump `version` in `packages/cli/package.json`, merge to `main`, then run the workflow on `main` (Actions → CLI release → Run workflow).
+**How a merge becomes a release.** After every push to `main` whose CI passed, `cli-release.yml` and `desktop-release.yml` each ask `tools/release` whether their unit has something new: the conventional-commit titles merged since its last tag, counting only the folders it ships.
 
-The desktop app is released the same way (see `apps/desktop/README.md`).
+| Unit        | Tag             | Counts changes in                                                            | Publishes                                                                                                                                              |
+| ----------- | --------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| CLI         | `cli@x.y.z`     | `packages/cli`, `charmd`, `protocol`, `design`, `firmware` (it bundles them) | `opencharm` on npm, with provenance                                                                                                                    |
+| Desktop app | `desktop@x.y.z` | `apps/desktop`, `firmware`, `brand/icon`                                     | installers for macOS (Apple silicon, Intel) and Windows on GitHub Releases, with `SHA256SUMS.txt` and build attestations; a pre-release while unsigned |
 
-Both release workflows are manual only while the repository is private. At launch they go back to releasing on their own when the version changes on `main`: add `push: branches: [main]` under `on:` in each (their version checks already skip anything released).
+| PR title                                                           | Release                         |
+| ------------------------------------------------------------------ | ------------------------------- |
+| `fix: …`, `perf: …`, `revert: …`                                   | patch: 0.1.0 → 0.1.1            |
+| `feat: …`                                                          | minor: 0.1.1 → 0.2.0            |
+| `feat!: …` or a `BREAKING CHANGE:` footer                          | minor below 1.0, major from 1.0 |
+| `docs:`, `ci:`, `chore:`, `test:`, `refactor:`, `build:`, `style:` | none                            |
+
+If there is something, the workflow stamps the version into the build, builds and tests, publishes, then tags and creates the GitHub release, whose notes list the PR titles by section. The CLI is tagged once the package is on npm; the desktop app builds into a draft release that's published (and tagged) only when every installer is attached. So a tag always means a complete release.
+
+**Versions live in tags only.** The repository's `package.json` files (and the desktop app's `Cargo.toml`) say `0.0.0`, so the code never states a version that could drift; CI stamps the real one into what it builds. From source, `opencharm --version` says `0.0.0`, and the desktop app offers no updates. The GitHub Releases page is the changelog.
+
+**Commands.** `npm run release:next -- cli` (or `desktop`) prints what `main` would release now. If a release fails, re-run the workflow (Actions → CLI release or Desktop release → Re-run, or Run workflow): every step skips what's already done. To leave something out of a release, don't merge it yet.
+
+**npm.** `opencharm` trusts only `cli-release.yml` (trusted publishing, with "Allow npm publish" on) and its publishing access is "Require two-factor authentication and disallow tokens": there is no npm token anywhere. The name was claimed on 3 October 2026 with an empty `0.0.0` published by hand (trusted publishing needs the package to exist); `0.1.0` (3 October 2026) is the first release with code.
 
 ## Guards
 
@@ -78,7 +93,7 @@ The guards:
 - no AI tool credited as an author
 - no file over 1 MB, except a short list kept on purpose
 
-CI also runs `npm audit --omit=dev --audit-level=high` on every change (`ci.yml`) and weekly (`audit.yml`).
+CI also runs `npm audit --omit=dev --audit-level=high` on every change and weekly (`ci.yml`).
 
 If a guard trips:
 
@@ -93,9 +108,7 @@ In the GitHub settings of `opencharm-labs/opencharm` and `opencharm-labs/opencha
 - Features: Projects off; in the starter, issues off (reports go to this repo) and "Template repository" on.
 - Code security: Dependabot alerts; secret scanning with push protection (blocks a push that contains a key); private vulnerability reporting (`SECURITY.md` points people to it).
 - Actions: the workflow token stays read-only by default; each workflow asks for what it needs.
-- A ruleset for `main`: no deletion, no force-push, pull requests only, and the `ci` check must pass.
-
-On the free plan, secret scanning, private vulnerability reporting and rulesets only work on public repositories: turn them on the day the repositories go public, together with the release triggers (see "Releasing the CLI").
+- Branch protection on `main`: pull requests only, with 1 approval; the `ci` check (`test` in the starter) must pass on an up-to-date branch; no force-push, no deletion. While there is one maintainer, they merge their own pull requests with the admin bypass, only once `ci` is green.
 
 `.github/dependabot.yml` opens a monthly pull request against `main` when a GitHub Action has a new version.
 

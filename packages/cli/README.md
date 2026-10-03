@@ -30,6 +30,6 @@ Node 24 or newer. Runtime dependencies: `ws`, `zod`.
 
 Source and hardware: <https://github.com/opencharm-labs/opencharm>
 
-Development: this package lives in the OpenCharm monorepo (`packages/cli`). Run it from the repo root with `npm run cli -- <command>`; `npm run build -w packages/cli` bundles `dist/main.mjs`.
+Development: this package lives in the OpenCharm monorepo (`packages/cli`). Run it from the repo root with `npm run cli -- <command>`; `npm run build -w packages/cli` bundles `dist/main.mjs`. From source, `opencharm --version` says `0.0.0`: released versions come from their `cli@` tag, and each merged `fix`/`feat`/`perf` that touches the CLI publishes one (CONTRIBUTING, "Releasing").
 
 Not affiliated with Meta, Nous Research, OpenClaw, Waveshare or Espressif.

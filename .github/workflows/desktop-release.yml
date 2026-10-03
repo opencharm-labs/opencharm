@@ -1,40 +1,77 @@
 name: Desktop release
-# Run by hand on main (Actions → Desktop release → Run workflow): if there is no desktop@<version> tag
-# for apps/desktop's version yet, build the desktop charm for macOS (Apple silicon and Intel) and
-# Windows and publish it as a GitHub release, so people can install it without building it. The
-# builds are unsigned for now (see apps/desktop/README.md).
-# Builds from scratch on purpose: no caches, so what we publish never depends on an earlier run.
-# Manual only while the repository is private. At launch, release on every version bump again by
-# adding `push: branches: [main]` under `on:` (the tag check already skips released versions).
+# main is production: after every push to main whose CI passed, this decides whether the desktop app
+# has something to release (tools/release: conventional-commit titles since the last desktop@ tag, in
+# the folders the app ships). If so, it builds macOS (Apple silicon and Intel) and Windows with the
+# version stamped in, attaches the installers, checksums and build attestations to a draft release,
+# and publishes it, which creates the desktop@<version> tag (CONTRIBUTING "Releasing"). A failed run
+# leaves only a draft; re-running it (or Actions → Desktop release → Run workflow) picks it up again.
+# The builds are unsigned for now (apps/desktop/README.md). Built from scratch on purpose: no caches,
+# so what we publish never depends on an earlier run.
 on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
-concurrency: ${{ github.workflow }}-${{ github.ref }}
+# One release at a time, in order: the next run starts from the tag this one creates.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
 permissions:
   contents: write
+env:
+  SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
 jobs:
-  version:
+  plan:
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
     outputs:
-      tag: ${{ steps.tag.outputs.tag }}
-      version: ${{ steps.tag.outputs.version }}
+      version: ${{ steps.plan.outputs.version }}
+      tag: ${{ steps.plan.outputs.tag }}
+      release: ${{ steps.draft.outputs.id }}
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ env.SHA }}
           fetch-depth: 0
-      - id: tag
+      - uses: ./.github/actions/setup
+      - id: plan
+        run: npx tsx tools/release/scripts/next-release.ts desktop --head "$SHA" --notes "$RUNNER_TEMP/notes.md"
+      # The draft holds the installers until they're all there; a re-run reuses it.
+      - id: draft
+        if: steps.plan.outputs.version != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.plan.outputs.tag }}
+          VERSION: ${{ steps.plan.outputs.version }}
         run: |
-          VERSION=$(node -p "require('./apps/desktop/package.json').version")
-          TAG="desktop@$VERSION"
-          if ! git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          ID=$(gh api "repos/$GITHUB_REPOSITORY/releases" --paginate \
+            -q ".[] | select(.draft and .tag_name == \"$TAG\") | .id" | head -n 1)
+          if [ -z "$ID" ]; then
+            README="https://github.com/$GITHUB_REPOSITORY/blob/main/apps/desktop/README.md"
+            {
+              echo
+              echo "---"
+              echo
+              echo "The desktop charm: OpenCharm under your Mac's notch (Windows: a pill at the top of the screen)."
+              echo "Install and first-run notes: $README"
+              echo "Unsigned for now: compare SHA256SUMS.txt, or run gh attestation verify <file> --repo $GITHUB_REPOSITORY."
+              echo "Provided as is, with no warranty."
+            } >> "$RUNNER_TEMP/notes.md"
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$SHA" --draft --prerelease \
+              --title "desktop: $VERSION" --notes-file "$RUNNER_TEMP/notes.md"
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/releases" --paginate \
+              -q ".[] | select(.draft and .tag_name == \"$TAG\") | .id" | head -n 1)
           fi
+          echo "id=$ID" >> "$GITHUB_OUTPUT"
   emulator:
-    needs: version
-    if: needs.version.outputs.tag != ''
+    needs: plan
+    if: needs.plan.outputs.version != ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.SHA }}
       - uses: ./.github/actions/setup
       - run: sudo apt-get update && sudo apt-get install -y ninja-build
       - run: |
@@ -50,7 +87,7 @@ jobs:
           path: packages/cli/sim
           if-no-files-found: error
   build:
-    needs: [version, emulator]
+    needs: [plan, emulator]
     strategy:
       fail-fast: false
       matrix:
@@ -64,6 +101,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.SHA }}
       - uses: ./.github/actions/setup
       - uses: actions/download-artifact@v8
         with:
@@ -72,26 +111,24 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
+      # The repository says 0.0.0; the release build carries its real version.
+      - shell: bash
+        env:
+          VERSION: ${{ needs.plan.outputs.version }}
+        run: npm pkg set version="$VERSION" -w apps/desktop
       - uses: tauri-apps/tauri-action@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
         with:
           projectPath: apps/desktop
           tauriScript: npx tauri
           args: --target ${{ matrix.target }}
-          tagName: ${{ needs.version.outputs.tag }}
-          releaseName: OpenCharm Desktop ${{ needs.version.outputs.version }}
-          releaseBody: |
-            The desktop charm: OpenCharm under your Mac's notch (Windows: a pill at the top of the screen).
-            Install and first-run notes: https://github.com/${{ github.repository }}/blob/main/apps/desktop/README.md
-            Provided as is, with no warranty.
-          releaseDraft: false
-          prerelease: true
-  # Unsigned builds earn trust another way: checksums to compare, and (public repo) a signed
-  # statement from GitHub that these files were built by this workflow from this commit
-  # (`gh attestation verify <file> --repo <owner>/<repo>`).
-  verify:
-    needs: [version, build]
+          releaseId: ${{ needs.plan.outputs.release }}
+  # Unsigned builds earn trust another way: checksums to compare, and a signed statement from GitHub
+  # that these files were built by this workflow from this commit
+  # (gh attestation verify <file> --repo <owner>/<repo>).
+  publish:
+    needs: [plan, build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -99,14 +136,28 @@ jobs:
       attestations: write
     steps:
       - env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ needs.version.outputs.tag }}
+          GH_TOKEN: ${{ github.token }}
+          ID: ${{ needs.plan.outputs.release }}
         run: |
           mkdir assets
-          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir assets --pattern '*.dmg' --pattern '*.exe' --pattern '*.msi'
+          for url in $(gh api "repos/$GITHUB_REPOSITORY/releases/$ID/assets" --paginate \
+            -q '.[] | select(.name | test("\\.(dmg|exe|msi)$")) | .url'); do
+            name=$(gh api "$url" -q .name)
+            gh api -H "Accept: application/octet-stream" "$url" > "assets/$name"
+          done
           cd assets && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
-          gh release upload "$TAG" SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --clobber
-      - if: ${{ !github.event.repository.private }}
-        uses: actions/attest-build-provenance@v4
+      - uses: actions/attest-build-provenance@v4
         with:
           subject-path: assets/*
+      # Publishing the draft creates the tag: a desktop@ tag always means a complete release.
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          ID: ${{ needs.plan.outputs.release }}
+          TAG: ${{ needs.plan.outputs.tag }}
+        run: |
+          OLD=$(gh api "repos/$GITHUB_REPOSITORY/releases/$ID/assets" --paginate -q '.[] | select(.name == "SHA256SUMS.txt") | .id')
+          if [ -n "$OLD" ]; then gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$OLD"; fi
+          gh api -X POST "repos/$GITHUB_REPOSITORY/releases/$ID/assets?name=SHA256SUMS.txt" \
+            --hostname uploads.github.com -H "Content-Type: text/plain" --input assets/SHA256SUMS.txt >/dev/null
+          gh api -X PATCH "repos/$GITHUB_REPOSITORY/releases/$ID" -F draft=false -f tag_name="$TAG" >/dev/null
+          echo "Published $TAG"

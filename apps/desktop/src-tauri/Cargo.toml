@@ -1,6 +1,6 @@
 [package]
 name = "opencharm-desktop"
-version = "0.1.0"
+version = "0.0.0" # the app's version is its release tag, stamped into package.json by CI (CONTRIBUTING "Releasing")
 description = "The desktop charm: OpenCharm under your Mac's notch"
 edition = "2021"
 license = "MIT"
