@@ -22,7 +22,7 @@ describe("the desktop app", () => {
     expect(existsSync(join(APP, "web", "settings.html"))).toBe(true);
   });
 
-  it("takes its version from package.json, the one number to bump for a release", () => {
+  it("takes its version from package.json, which CI stamps from the release tag", () => {
     expect(conf.version).toBe("../package.json");
   });
 
@@ -65,7 +65,7 @@ describe("the desktop app", () => {
 
   it("is built and published by the release workflow", () => {
     const release = read(REPO, ".github", "workflows", "desktop-release.yml");
-    expect(release).toContain("projectPath: apps/desktop");
+    expect(release).toContain("npm run bundle -w apps/desktop");
     expect(release).toContain("aarch64-apple-darwin");
     expect(release).toContain("x86_64-pc-windows-msvc");
   });

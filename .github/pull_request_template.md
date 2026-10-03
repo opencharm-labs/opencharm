@@ -1,4 +1,4 @@
-<!-- Title: a conventional commit (`fix(cli): …`, `feat(design): …`). The pull request is squash-merged, so the title becomes its commit on main. -->
+<!-- Title: a conventional commit (`fix(cli): …`, `feat(design): …`). The pull request is squash-merged, so the title becomes its commit on main; a fix, feat or perf title also becomes a release and its notes. -->
 
 ## Why
 
@@ -11,6 +11,8 @@ The problem this solves, for whom. Feature: link its spec (`specs/NNN-<slug>/spe
 ## Evidence
 
 How you know it works: the tests or commands you ran and their result, a screenshot or a measurement. Name any manual check.
+
+Independent review (fresh context, AGENTS.md): the tool, what it found, what was fixed, and what was rejected and why.
 
 ## Checklist
 

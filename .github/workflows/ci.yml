@@ -1,17 +1,23 @@
 name: CI
 # One workflow for every pull request and every push to main. The first job works out which areas a
 # change touches; the slow jobs (firmware, emulator, website, the desktop app on macOS and Windows)
-# run only for their areas, and the desktop app only on pull requests (a merge doesn't change what
-# its pull request already proved). `ci` is the one check to require: it fails if any job that ran
-# failed. A change to CI itself, the lockfile or the root package.json runs everything.
+# run only for their areas. `ci` is the one check to require: it fails if any job that ran failed.
+# A change to CI itself, the lockfile or the root package.json runs everything, and so do the weekly
+# run (the safety net for the path rules, new advisories and runner updates) and a manual run.
+# A green run on main starts the release workflows (cli-release.yml, desktop-release.yml).
 on:
   pull_request:
   push:
     branches: [main]
+  schedule:
+    - cron: "17 6 * * 1"
   workflow_dispatch:
+# Per event as well as per branch, and only pull requests cancel their older runs: a merge's run on
+# main is never cut short, because its success is what releases. If several merges queue up, GitHub
+# keeps only the newest waiting run, whose release covers the others.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 permissions:
   contents: read
 jobs:
@@ -22,19 +28,20 @@ jobs:
       emulator: ${{ steps.areas.outputs.emulator }}
       website: ${{ steps.areas.outputs.website }}
       desktop: ${{ steps.areas.outputs.desktop }}
+      deps: ${{ steps.areas.outputs.deps }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       # A pull request is checked out as its merge commit, so its changes are HEAD^1..HEAD; a push
-      # compares with the commit before it. No usable base (a manual run, a new branch): everything.
+      # compares with the commit before it. No base (a weekly or manual run, a new branch): everything.
       - id: areas
         env:
           EVENT: ${{ github.event_name }}
           BEFORE: ${{ github.event.before }}
         run: |
           if [ "$EVENT" = pull_request ]; then BASE=HEAD^1; else BASE="$BEFORE"; fi
-          if [ "$EVENT" != workflow_dispatch ] && git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+          if [ "$EVENT" != workflow_dispatch ] && [ "$EVENT" != schedule ] && git cat-file -e "$BASE^{commit}" 2>/dev/null; then
             CHANGED=$(git diff --name-only "$BASE" HEAD)
           else
             CHANGED=ALL
@@ -49,11 +56,16 @@ jobs:
           area firmware '^firmware/|^packages/protocol/'
           area emulator '^firmware/|^packages/(cli|charmd|protocol|design)/'
           area website '^apps/web/|^packages/design/'
-          area desktop '^apps/desktop/|^firmware/|^brand/icon/'
+          area desktop '^apps/desktop/|^firmware/|^brand/icon/|^packages/design/'
+          # Dependencies changed (any package.json or the lockfile): the audit then gates the change.
+          if [ "$CHANGED" = ALL ] || grep -qE '(^|/)package\.json$|^package-lock\.json$' <<<"$CHANGED"; then
+            echo "deps=true" >> "$GITHUB_OUTPUT"
+          fi
 
   # Everything that needs only Node and Python, with one install: what `npm run check` runs locally,
   # plus the full build, the bundled CLI on its own and the audit of what we ship.
   checks:
+    needs: changes
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -70,8 +82,17 @@ jobs:
       - run: npm run build
       # The bundle must run on its own: catches dependencies that break when inlined.
       - run: node packages/cli/dist/main.mjs faces --no-color
-      # Known vulnerabilities in what we ship (production dependencies, high or worse).
-      - run: npm audit --omit=dev --audit-level=high
+      # Known vulnerabilities in what we ship (production dependencies, high or worse). It fails a pull
+      # request that changes dependencies (so none can bring one in) and the weekly run (so a new advisory
+      # shows); otherwise it warns: an advisory nobody can fix yet mustn't block every other change, nor
+      # a push to main, whose success is what releases. Dependabot alerts track them too.
+      - env:
+          EVENT: ${{ github.event_name }}
+          DEPS: ${{ needs.changes.outputs.deps }}
+        run: |
+          if npm audit --omit=dev --audit-level=high; then exit 0; fi
+          if [ "$EVENT" != push ] && [ "$DEPS" = true ]; then exit 1; fi
+          echo "::warning::npm audit found a high or critical advisory (see this step's log and Dependabot alerts)"
 
   firmware:
     needs: changes
@@ -91,7 +112,7 @@ jobs:
   # The firmware core in WebAssembly, built once for the emulator test and the desktop app.
   sim:
     needs: changes
-    if: needs.changes.outputs.emulator == 'true' || (needs.changes.outputs.desktop == 'true' && github.event_name != 'push')
+    if: needs.changes.outputs.emulator == 'true' || needs.changes.outputs.desktop == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -138,7 +159,7 @@ jobs:
 
   desktop:
     needs: [changes, sim]
-    if: needs.changes.outputs.desktop == 'true' && github.event_name != 'push'
+    if: needs.changes.outputs.desktop == 'true'
     strategy:
       fail-fast: false
       matrix:

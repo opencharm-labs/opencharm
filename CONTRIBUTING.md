@@ -24,7 +24,7 @@ Thanks for helping. OpenCharm is built spec by spec, by people and by coding age
 
 1. A new feature starts from a numbered spec in `specs/`. Fixes, refactors, performance work, docs, CI and cleanups don't get a spec: they go on a `fix/`, `perf/`, `docs/`, `chore/` or `ci/` branch with the docs they touch updated in the same change ([what gets a spec](specs/README.md#what-gets-a-spec)).
 2. Branch `spec/NNN-<slug>`, one spec per branch, conventional commits.
-3. `npm run check` must pass locally and in CI. CI is one workflow, `.github/workflows/ci.yml`: the same checks on every change, plus the firmware, emulator, website and desktop jobs only when their files change (the desktop app on macOS and Windows only on pull requests). Its `ci` job is the single result to look at.
+3. `npm run check` must pass locally and in CI, and the branch gets an independent, adversarial review before its pull request (AGENTS.md, "Working rules for agents"): findings are reproduced, then fixed or rejected with a reason in the pull request's Evidence. CI is one workflow, `.github/workflows/ci.yml`: the same checks on every change, plus the firmware, emulator, website and desktop jobs only when their files change (the desktop app on macOS and Windows too). Its `ci` job is the single result to look at.
 4. The change updates `OPENCHARM.md` (what the product is), the README next to the code it changes, and any other doc it makes wrong.
 5. Every change reaches `main` through a pull request: contributors from a fork, the maintainer and coding agents from a branch in this repository (`main` is the only long-lived branch; nobody pushes to it).
 6. Its title is a conventional commit (`fix(cli): …`): the maintainer reviews it and squash-merges it once the checks pass, so each pull request becomes one commit on `main`, and the branch is then deleted. If `main` moved on meanwhile, merge `main` into the branch (no force-push).
@@ -51,16 +51,33 @@ The MVP is done when all of this works, in the emulator first, then on the Waves
 6. No audio on disk; "key released → first audio" measured and written into `packages/charmd/README.md` (target about 1.5 s).
 7. Docs updated: README, `OPENCHARM.md`, `firmware/README.md`, `docs/build.md`.
 
-## Releasing the CLI (maintainer)
+## Releasing
 
-`.github/workflows/cli-release.yml` publishes `opencharm` to npm with provenance when `packages/cli/package.json`'s version isn't on npm yet. It builds the emulator and the CLI and runs the CLI's tests first.
+`main` is production. The website deploys on every merge (Vercel), `opencharm init` clones the starter's `main`, and the CLI and the desktop app release themselves: there is no release branch, release pull request or version bump to make by hand.
 
-1. Publishing uses npm trusted publishing only: on npmjs.com, `opencharm` trusts this workflow (GitHub Actions, `opencharm-labs/opencharm`, `cli-release.yml`), and its publishing access is "Require two-factor authentication and disallow tokens". There is no npm token anywhere. The name was claimed on 3 October 2026 with an empty `0.0.0` published by hand (trusted publishing needs the package to exist); `0.1.0` is the first release with code.
-2. To release: bump `version` in `packages/cli/package.json`, merge to `main`, then run the workflow on `main` (Actions → CLI release → Run workflow).
+**How a merge becomes a release.** After every push to `main` whose CI passed, `cli-release.yml` and `desktop-release.yml` each ask `tools/release` whether their unit has something new: the conventional-commit titles merged since its last tag, counting only the folders it ships.
 
-The desktop app is released the same way (see `apps/desktop/README.md`).
+| Unit        | Tag             | Counts changes in                                                                                                                                                                    | Publishes                                                                                                                                              |
+| ----------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| CLI         | `cli@x.y.z`     | `packages/cli`, `charmd`, `protocol`, `design`, `firmware/core`, `firmware/sim` (it bundles them; its npm dependencies are installed from their ranges, so the lockfile never ships) | `opencharm` on npm, with provenance                                                                                                                    |
+| Desktop app | `desktop@x.y.z` | `apps/desktop`, `firmware/core`, `firmware/sim`, `brand/icon`, `packages/design` (its pages include the face engine)                                                                 | installers for macOS (Apple silicon, Intel) and Windows on GitHub Releases, with `SHA256SUMS.txt` and build attestations; a pre-release while unsigned |
 
-Both release workflows are manual only while the repository is private. At launch they go back to releasing on their own when the version changes on `main`: add `push: branches: [main]` under `on:` in each (their version checks already skip anything released).
+| PR title                                                                                        | Release                         |
+| ----------------------------------------------------------------------------------------------- | ------------------------------- |
+| `fix: …`, `perf: …`, or a revert (`revert: …`, GitHub's `Revert "…"`) of a change that released | patch: 0.1.0 → 0.1.1            |
+| `feat: …`                                                                                       | minor: 0.1.1 → 0.2.0            |
+| `feat!: …` or `fix!: …` (the `!` in the title; a footer in a branch commit doesn't count)       | minor below 1.0, major from 1.0 |
+| `docs:`, `ci:`, `chore:`, `test:`, `refactor:`, `build:`, `style:`                              | none                            |
+
+If there is something, the workflow stamps the version into the build, builds and tests, publishes, then tags and creates the GitHub release, whose notes list the PR titles by section. The CLI is tagged once the package is on npm; the desktop app builds into a draft release that's published (and tagged) only when every installer is attached. So a tag always means a complete release.
+
+**Versions live in tags only.** The repository's `package.json` files (and the desktop app's `Cargo.toml`) say `0.0.0`, so the code never states a version that could drift; CI stamps the real one into what it builds. From source, `opencharm --version` says `0.0.0`, and the desktop app offers no updates. The GitHub Releases page is the changelog.
+
+**Commands.** `npm run release:next -- cli` (or `desktop`) prints what `main` would release now. If a release fails, re-run it (Actions → CLI release or Desktop release → Re-run, or Run workflow on `main`; other branches can't release, and a run started by hand needs a green CI on that commit). The CLI skips what's done (a version already on npm from this commit, an existing tag); a version already on npm from an earlier commit that was never tagged is repaired (the run tags that commit, then starts a fresh release for what came after); from a commit outside `main`'s history, the run stops with the command to tag it by hand. The desktop app does nothing if the version is already released, and otherwise starts from a fresh draft (removing earlier drafts this workflow made; a draft written by hand is left alone). If `main` had moved on by the time a commit's CI finished, its release run stands down with a warning and the newer commit's release covers it (if several merges queue up, GitHub keeps only the newest waiting CI run, whose release covers the others); should the newer commit's CI fail, run the workflow by hand on `main` once it's green. A breaking change only releases in a releasing type (`feat!`, `fix!`); `docs!` or `ci!` release nothing. To leave something out of a release, don't merge it yet.
+
+**Security of the release jobs.** The jobs that install and run third-party code (`npm ci`, Emscripten, the tests, the CLI and desktop builds) have a read-only token, no npm publishing right and no token on disk. Only two short jobs can write: the CLI's `publish` (npm through OIDC, the tag) and the desktop app's `publish` (checksums, attestations, the release); neither runs an installed package. The release planner runs on plain Node, with nothing installed. A release run also stands down if `main` had moved on by the time its commit's CI finished, so provenance always names the commit that was built; the newer commit's release covers it.
+
+**npm.** `opencharm` trusts only `cli-release.yml` (trusted publishing, with "Allow npm publish" on) and its publishing access is "Require two-factor authentication and disallow tokens": there is no npm token anywhere. The name was claimed on 3 October 2026 with an empty `0.0.0` published by hand (trusted publishing needs the package to exist); `0.1.0` (3 October 2026) is the first release with code.
 
 ## Guards
 
@@ -78,7 +95,7 @@ The guards:
 - no AI tool credited as an author
 - no file over 1 MB, except a short list kept on purpose
 
-CI also runs `npm audit --omit=dev --audit-level=high` on every change (`ci.yml`) and weekly (`audit.yml`).
+CI also runs `npm audit --omit=dev --audit-level=high` on every change and weekly (`ci.yml`), failing a pull request that changes dependencies (so none can bring one in) and the weekly run (so a new advisory shows); otherwise it warns, because an advisory nobody can fix yet mustn't block every other change, nor a push to `main`, whose success is what releases. Dependabot alerts track them too.
 
 If a guard trips:
 
@@ -93,9 +110,7 @@ In the GitHub settings of `opencharm-labs/opencharm` and `opencharm-labs/opencha
 - Features: Projects off; in the starter, issues off (reports go to this repo) and "Template repository" on.
 - Code security: Dependabot alerts; secret scanning with push protection (blocks a push that contains a key); private vulnerability reporting (`SECURITY.md` points people to it).
 - Actions: the workflow token stays read-only by default; each workflow asks for what it needs.
-- A ruleset for `main`: no deletion, no force-push, pull requests only, and the `ci` check must pass.
-
-On the free plan, secret scanning, private vulnerability reporting and rulesets only work on public repositories: turn them on the day the repositories go public, together with the release triggers (see "Releasing the CLI").
+- Branch protection on `main`: pull requests only, with 1 approval; the `ci` check (`test` in the starter) must pass on an up-to-date branch; no force-push, no deletion. While there is one maintainer, they merge their own pull requests with the admin bypass, only once `ci` is green.
 
 `.github/dependabot.yml` opens a monthly pull request against `main` when a GitHub Action has a new version.
 

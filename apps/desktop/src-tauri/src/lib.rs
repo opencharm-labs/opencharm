@@ -40,7 +40,7 @@ struct Tray {
     offered: Mutex<Option<String>>,
 }
 
-/// The page found the release list: offer the newest newer release once, in the menu bar. Returns
+/// The page found the desktop@ tags: offer the newest newer release once, in the menu bar. Returns
 /// its version for the settings window.
 #[tauri::command]
 fn offer_update(app: AppHandle, tray: State<Tray>, tags: Vec<String>) -> Option<String> {

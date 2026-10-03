@@ -1,0 +1,46 @@
+name: Release plan
+description: >
+  Decides what a release workflow publishes (CONTRIBUTING "Releasing"), after checkout (full history)
+  and setup-node. A run started by hand releases only a commit whose CI passed as a push to main; a run
+  stands down if main had moved on by the time that commit's CI finished (provenance names main's head
+  at that moment, so the newer commit's release covers this one); then tools/release plans the
+  version and writes the notes.
+inputs:
+  unit:
+    description: cli or desktop
+    required: true
+  notes:
+    description: Where to write the release notes
+    required: true
+outputs:
+  version:
+    description: The version to release, empty when there's nothing to release
+    value: ${{ steps.plan.outputs.version }}
+  tag:
+    description: Its tag, unit@version
+    value: ${{ steps.plan.outputs.tag }}
+runs:
+  using: composite
+  steps:
+    - id: plan
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        UNIT: ${{ inputs.unit }}
+        NOTES: ${{ inputs.notes }}
+        SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+      run: |
+        if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+          PASSED=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --commit "$SHA" --event push \
+            --status success --json databaseId -q length)
+          if [ "$PASSED" = 0 ]; then
+            echo "::error::CI hasn't passed on $SHA as a push to main: fix main first"
+            exit 1
+          fi
+        fi
+        if [ "$SHA" != "$GITHUB_SHA" ]; then
+          echo "::warning::main had moved on to $GITHUB_SHA when $SHA's CI finished; its release covers $SHA. If that commit's CI fails, run this workflow by hand on main once main is green."
+          echo "version=" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+        node tools/release/scripts/next-release.ts "$UNIT" --head "$SHA" --notes "$NOTES"

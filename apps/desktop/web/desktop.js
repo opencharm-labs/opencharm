@@ -65,19 +65,18 @@ if (geometry.autoPair && (!geometry.testPin || geometry.testPin === "auto")) {
 }
 
 // A newer release? Once at start and once a day, unless turned off in Settings: one request to
-// GitHub's public release list, nothing sent about you. Rust picks the version and offers it.
+// GitHub's public list of desktop@ tags (a tag exists only for a published release), nothing sent
+// about you. Rust picks the version and offers it.
 async function checkForUpdate() {
   try {
     if (!(await invoke("get_settings")).checkUpdates) return;
     const response = await fetch(
-      "https://api.github.com/repos/opencharm-labs/opencharm/releases?per_page=30",
+      "https://api.github.com/repos/opencharm-labs/opencharm/git/matching-refs/tags/desktop@",
       { headers: { accept: "application/vnd.github+json" } }
     );
     if (!response.ok) return;
-    const releases = await response.json();
-    const tags = releases
-      .filter((r) => !r.draft)
-      .map((r) => String(r.tag_name));
+    const refs = await response.json();
+    const tags = refs.map((r) => String(r.ref).replace("refs/tags/", ""));
     await invoke("offer_update", { tags });
   } catch {
     // Offline or rate-limited: try again tomorrow.

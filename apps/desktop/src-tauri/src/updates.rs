@@ -1,4 +1,4 @@
-//! A new release, offered rather than installed: the page asks GitHub's release list once a day (the
+//! A new release, offered rather than installed: the page asks GitHub for the desktop@ tags once a day (the
 //! only call the app makes on its own; Settings can turn it off), and this picks the newest desktop
 //! release above this one. The builds aren't signed, so people download it themselves.
 
@@ -12,9 +12,10 @@ fn parse(version: &str) -> Option<(u64, u64, u64)> {
     parts.next().is_none().then_some(version)
 }
 
-/// The newest `desktop@<version>` tag above `current`, as its version.
+/// The newest `desktop@<version>` tag above `current`, as its version. A build from source
+/// (`0.0.0`: only release builds get a real version) is offered nothing.
 pub fn newer(current: &str, tags: &[String]) -> Option<String> {
-    let current = parse(current)?;
+    let current = parse(current).filter(|v| *v != (0, 0, 0))?;
     tags.iter()
         .filter_map(|tag| tag.strip_prefix("desktop@"))
         .filter_map(|v| parse(v).map(|parsed| (parsed, v)))
@@ -52,6 +53,12 @@ mod tests {
             newer("0.1.0", &tags(&["desktop@banana", "desktop@1.2"])),
             None
         );
+    }
+
+    #[test]
+    fn a_build_from_source_is_offered_no_update() {
+        let all = tags(&["desktop@0.1.0", "desktop@0.2.0"]);
+        assert_eq!(newer("0.0.0", &all), None);
     }
 
     #[test]

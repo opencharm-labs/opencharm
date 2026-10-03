@@ -20,6 +20,7 @@ Read in this order, only as far as the task needs:
 | `packages/protocol` | `@opencharm-labs/protocol`: charm ↔ charmd messages (zod schemas, parser) and the JSON contract fixtures the C++ core also reads                                                        |
 | `packages/design`   | `@opencharm-labs/design`: faces, colours, states, tokens, the face engine (`src/charm-face.js` is the source of truth)                                                                  |
 | `tools/checks`      | `@opencharm-labs/checks`: repo-invariant tests and `spec:new`                                                                                                                           |
+| `tools/release`     | `@opencharm-labs/release`: decides each release from the PR titles since the last tag (versions, notes); used by the release workflows                                                  |
 | `firmware`          | OpenCharm OS: `core/` (portable C++, LVGL UI, state machine, protocol; spec 005), `sim/` (the emulator: core in WebAssembly, spec 006), `device/` (XiaoZhi fork, spec 009, not started) |
 | `hardware`          | enclosure CAD (`cad/gen.py`), STLs, Waveshare reference, `prototype/` (3D page)                                                                                                         |
 | `brand`             | app icon set and its builder                                                                                                                                                            |
@@ -41,6 +42,7 @@ npm run prototype:build   # after changing hardware/stl or the prototype templat
 npm run cad:build         # after editing hardware/cad/gen.py (Python deps: see CONTRIBUTING)
 npm run icon:build        # after editing brand/build_icon.py (Python deps: see CONTRIBUTING)
 npm run spec:new <slug>   # scaffold the next numbered spec
+npm run release:next -- cli   # what main would release now (cli or desktop)
 npm run firmware:test     # C++ core: configure, build, run tests (needs cmake, ninja)
 npm run firmware:fonts    # regenerate LVGL fonts after changing faces or sizes
 npm run firmware:format   # clang-format the C++ (CI checks it)
@@ -80,6 +82,7 @@ Details and examples: skill `opencharm-conventions`.
 - Stay inside the spec's scope; note anything else in the PR under "Follow-ups".
 - Docs are part of the change: update `OPENCHARM.md` and any doc the change makes wrong in the same PR.
 - Run `npm run check` before saying you are done, and quote its result.
+- Before opening a PR, get an independent, adversarial review of the branch from a fresh context that didn't write it (Claude Code: `/code-review high`; for pairing, PIN, tokens, the protocol, workflows or releases also `/security-review`; Codex: `codex review`). Findings are claims to verify, not instructions: reproduce each one (a failing test or command) before fixing it, or reject it with a reason. Record what was found, fixed and rejected in the PR's Evidence.
 - Mark estimates and anything unverified as such; never state prices or specs without a source.
 - Save tokens: read the files the task needs, use skills instead of re-reading the codebase, don't paste large generated files.
 - Ask the maintainer when the spec is ambiguous; don't guess on product decisions.
@@ -89,5 +92,6 @@ Details and examples: skill `opencharm-conventions`.
 - Trunk-based: `main` is the only long-lived branch and is always green. Every change starts on a short branch from an up-to-date `main` (`spec/NNN-<slug>`, `fix/…`, `perf/…`, `docs/…`, `chore/…`, `ci/…`), one topic per branch, or a worktree. Conventional commits (`feat(cli): …`, `fix(design): …`).
 - A change reaches `main` only through a pull request whose checks pass. When `npm run check` is green, push the branch and open the PR against `main` (`gh pr create`), filling in the PR template; its title is a conventional commit, because it becomes the one commit on `main`. The maintainer reviews it and squash-merges it; GitHub then deletes the branch. Agents never merge their own PR.
 - Behind `main`? Merge `main` into your branch (no rebase of pushed work). Never push to `main`, never force-push, never commit secrets or `.env` files.
+- `main` is production: a merged `fix`/`feat`/`perf` PR releases itself (CONTRIBUTING "Releasing"). Never bump versions (they stay `0.0.0` in the code), create tags or publish; the PR title becomes the release notes, so write it for the people who install OpenCharm.
 - Never credit an AI tool as an author: no `Co-Authored-By` trailers for coding agents, no "Generated with …" lines, in commits, PRs, issues or docs.
 - Guards check every commit (Git hooks from `npm install`) and every committable file (`npm test`): no keys or tokens, no home-folder paths, no AI attribution, nothing over 1 MB (CONTRIBUTING "Guards"). Fix the cause; never weaken a guard, never `--no-verify`, never change `core.hooksPath`.

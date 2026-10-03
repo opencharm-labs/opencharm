@@ -45,8 +45,8 @@ Update the status in the spec **and** the row in `specs/README.md` (the checks c
 2. After approval: write `plan.md` next to it: tasks with exact files, interfaces, test-first steps, commands with expected output.
 3. Branch `spec/NNN-<slug>` from an up-to-date `main` (or a git worktree). Commit per task, conventional commits.
 4. Each acceptance item must be proven by a test, a command or a named manual check.
-5. Before the merge: `npm run check` green; update `OPENCHARM.md`, the README next to the changed code and any doc the change touches; set status Done in the spec and in the index in `specs/README.md`.
-6. Pull request: once `npm run check` is green, push the branch and open a PR against `main` (trunk-based: `main` is the only long-lived branch), titled as a conventional commit: it becomes the one commit on `main`. Link the spec and the GitHub issue; list follow-ups instead of widening scope. The maintainer reviews it and squash-merges it; never merge your own PR.
+5. Before the merge: `npm run check` green; an independent, adversarial review from a fresh context (AGENTS.md, Working rules), each finding reproduced and fixed or rejected with a reason; update `OPENCHARM.md`, the README next to the changed code and any doc the change touches; set status Done in the spec and in the index in `specs/README.md`.
+6. Pull request: once `npm run check` is green, push the branch and open a PR against `main` (trunk-based: `main` is the only long-lived branch), titled as a conventional commit: it becomes the one commit on `main` and, for `fix`/`feat`/`perf`, a release with that title in its notes (`main` is production; CONTRIBUTING "Releasing"). Never bump versions, tag or publish. Link the spec and the GitHub issue; list follow-ups instead of widening scope. The maintainer reviews it and squash-merges it; never merge your own PR.
 
 ## Working from a GitHub issue (OpenClaw, Codex and other agents)
 

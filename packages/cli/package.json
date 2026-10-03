@@ -1,6 +1,6 @@
 {
   "name": "opencharm",
-  "version": "0.1.0",
+  "version": "0.0.0",
   "description": "An open-source body for the AI agent you already run: a face, a voice, one key. Claude Code, Codex, Gemini CLI, Hermes, OpenClaw or any ACP or OpenAI-compatible agent; on a small board, your Mac's notch or the browser.",
   "type": "module",
   "bin": {

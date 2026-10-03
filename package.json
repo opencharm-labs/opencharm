@@ -34,7 +34,8 @@
     "firmware:sim": "emcmake cmake -S firmware/sim -B firmware/sim/build -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build firmware/sim/build && tsx firmware/sim/package-sim.ts",
     "sim": "npm run cli -- sim",
     "desktop": "npm run dev -w apps/desktop",
-    "desktop:build": "npm run bundle -w apps/desktop"
+    "desktop:build": "npm run bundle -w apps/desktop",
+    "release:next": "node tools/release/scripts/next-release.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.3",

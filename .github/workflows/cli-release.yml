@@ -1,49 +1,168 @@
 name: CLI release
-# Run by hand on main (Actions → CLI release → Run workflow): if packages/cli's version isn't on npm
-# yet, build the emulator and the CLI and publish `opencharm` to npm with provenance (npm shows which
-# commit and workflow built it). Auth: npm trusted publishing only (OIDC, set up on npmjs.com for this
-# workflow; the package refuses tokens), so there is no npm secret in this repository.
-# Manual only while the repository is private. At launch, release on every version bump again by
-# adding `push: branches: [main]` under `on:` (the version check already skips published versions).
+# main is production: after every push to main whose CI passed, this decides whether the CLI has
+# something to release (tools/release: conventional-commit titles since the last cli@ tag, in the
+# folders the CLI ships). If so, `build` stamps the version, builds the emulator and the CLI and runs
+# the CLI's tests; `publish` publishes `opencharm` to npm with provenance, then tags cli@<version> and
+# creates the GitHub release with the notes (CONTRIBUTING "Releasing"). A failed run can be re-run, or
+# started again by hand on main (Actions → CLI release → Run workflow); a version published but never
+# tagged is repaired by the next run. npm downloads come from the setup action's cache, checked
+# against the lockfile's integrity hashes; nothing built is cached.
+# Security: `build` runs third-party code (npm ci, emsdk, tests) with a read-only token and no OIDC;
+# `publish` holds the npm (OIDC) and tag rights and runs no installed packages. Auth to npm: trusted
+# publishing only (set up on npmjs.com for this workflow; the package refuses tokens).
 on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
-concurrency: ${{ github.workflow }}-${{ github.ref }}
+# Real releases run one at a time, in order (a newer one waiting replaces an older one waiting: it
+# covers the same commits and more). Runs that release nothing get a group of their own, so they never
+# displace a waiting release.
+# The release condition appears here and in the first job's `if` (GitHub allows no variables in either):
+# keep the two identical.
+concurrency:
+  group: ${{ github.workflow }}-${{ ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')) && 'release' || github.run_id }}
+  cancel-in-progress: false
 permissions:
   contents: read
-  id-token: write
+env:
+  SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
 jobs:
-  publish:
+  build:
+    if: (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      version: ${{ steps.plan.outputs.version }}
+      tag: ${{ steps.plan.outputs.tag }}
+      build: ${{ steps.published.outputs.build }}
+      target: ${{ steps.published.outputs.target }}
+      repair: ${{ steps.published.outputs.repair }}
     steps:
       - uses: actions/checkout@v7
-      - uses: ./.github/actions/setup
-      - id: version
+        with:
+          ref: ${{ env.SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - id: plan
+        uses: ./.github/actions/release-plan
+        with:
+          unit: cli
+          notes: ${{ runner.temp }}/release/notes.md
+      # Already on npm? Only "not found" (E404) means not published: a registry hiccup stops the run.
+      # From this commit, there's nothing to build, only the tag. From an earlier commit on main (a
+      # run published, then failed to tag), repair: tag that commit with its own notes, and start a
+      # fresh release for what came after.
+      - id: published
+        if: steps.plan.outputs.version != ''
+        env:
+          VERSION: ${{ steps.plan.outputs.version }}
         run: |
-          VERSION=$(node -p "require('./packages/cli/package.json').version")
-          if npm view "opencharm@$VERSION" version >/dev/null 2>&1; then
-            echo "opencharm@$VERSION is already on npm"
+          if PUBLISHED=$(npm view "opencharm@$VERSION" gitHead 2>"$RUNNER_TEMP/npm-view.log"); then
+            :
+          elif grep -q E404 "$RUNNER_TEMP/npm-view.log"; then
+            { echo "build=true"; echo "target=$SHA"; } >> "$GITHUB_OUTPUT"
+            exit 0
           else
-            echo "publish=$VERSION" >> "$GITHUB_OUTPUT"
+            cat "$RUNNER_TEMP/npm-view.log"
+            echo "::error::Couldn't ask npm whether opencharm@$VERSION exists: re-run later"
+            exit 1
           fi
-      - if: steps.version.outputs.publish != ''
+          if [ "$PUBLISHED" = "$SHA" ]; then
+            echo "opencharm@$VERSION is already on npm from this commit: tagging only"
+            { echo "build=false"; echo "target=$SHA"; } >> "$GITHUB_OUTPUT"
+          elif [ -n "$PUBLISHED" ] && git merge-base --is-ancestor "$PUBLISHED" "$SHA"; then
+            echo "::warning::opencharm@$VERSION was published from $PUBLISHED but never tagged: tagging it, then starting a fresh release"
+            node tools/release/scripts/next-release.ts cli --head "$PUBLISHED" --notes "$RUNNER_TEMP/release/notes.md" > /dev/null
+            { echo "build=false"; echo "target=$PUBLISHED"; echo "repair=true"; } >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::opencharm@$VERSION is on npm from '${PUBLISHED:-an unrecorded commit}', not an ancestor of $SHA: find the commit in the package's provenance on npmjs.com and tag it by hand (gh release create cli@$VERSION --target <commit> --title 'cli: $VERSION' --generate-notes)"
+            exit 1
+          fi
+      - if: steps.published.outputs.build == 'true'
+        uses: ./.github/actions/setup
+      - if: steps.published.outputs.build == 'true'
         run: sudo apt-get update && sudo apt-get install -y ninja-build
-      - if: steps.version.outputs.publish != ''
+      - if: steps.published.outputs.build == 'true'
         run: |
           git clone --depth 1 https://github.com/emscripten-core/emsdk.git "$RUNNER_TEMP/emsdk"
           "$RUNNER_TEMP/emsdk/emsdk" install 6.0.10
           "$RUNNER_TEMP/emsdk/emsdk" activate 6.0.10
-      - if: steps.version.outputs.publish != ''
+      # The repository says 0.0.0; the release build carries its real version.
+      - if: steps.published.outputs.build == 'true'
+        env:
+          VERSION: ${{ steps.plan.outputs.version }}
         run: |
+          npm pkg set version="$VERSION" -w packages/cli
           source "$RUNNER_TEMP/emsdk/emsdk_env.sh"
           npm run firmware:sim
           npm run build -w packages/cli
           npm test -w packages/cli
+          mkdir -p "$RUNNER_TEMP/release/cli"
+          cp -R packages/cli/package.json packages/cli/README.md packages/cli/dist packages/cli/sim "$RUNNER_TEMP/release/cli/"
+      - if: steps.plan.outputs.version != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: cli-release
+          path: ${{ runner.temp }}/release
+          if-no-files-found: error
+  publish:
+    needs: build
+    if: needs.build.outputs.version != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      actions: write
+    steps:
+      # The commit itself (for npm's gitHead and the tag), with no install: only the built package runs here.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.SHA }}
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - uses: actions/download-artifact@v8
+        with:
+          name: cli-release
+          path: ${{ runner.temp }}/release
+      - if: needs.build.outputs.build == 'true'
+        run: |
+          rm -rf packages/cli
+          cp -R "$RUNNER_TEMP/release/cli" packages/cli
       # Trusted publishing needs npm 11.5.1 or later; fail clearly instead of falling back to a token.
-      - if: steps.version.outputs.publish != ''
+      - if: needs.build.outputs.build == 'true'
         run: |
           NPM=$(npm --version)
           node -e "const [a,b,c]=process.argv[1].split('.').map(Number); process.exit(a>11||(a===11&&(b>5||(b===5&&c>=1)))?0:1)" "$NPM" \
             || { echo "npm $NPM is too old for trusted publishing (needs 11.5.1+)"; exit 1; }
-      # --provenance makes a publish without provenance fail, never slip through.
-      - if: steps.version.outputs.publish != ''
-        run: npm publish -w packages/cli --provenance --access public
+      # --provenance makes a publish without provenance fail, never slip through. (build decided above
+      # whether npm already has this version from this commit.)
+      - if: needs.build.outputs.build == 'true'
+        run: npm publish ./packages/cli --provenance --access public --ignore-scripts
+      # Tagged once the package is out, so a tag always means a published version.
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.build.outputs.tag }}
+          VERSION: ${{ needs.build.outputs.version }}
+          TARGET: ${{ needs.build.outputs.target }}
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "$TAG already exists"
+            exit 0
+          fi
+          echo "Install or update: npm i -g opencharm (Node 24). Published from CI with npm provenance." >> "$RUNNER_TEMP/release/notes.md"
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$TARGET" \
+            --title "cli: $VERSION" --notes-file "$RUNNER_TEMP/release/notes.md" --latest
+      # After a repair, what came after the repaired release is still unreleased: plan it afresh.
+      - if: needs.build.outputs.repair == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run cli-release.yml --repo "$GITHUB_REPOSITORY" --ref main

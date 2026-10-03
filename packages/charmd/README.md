@@ -151,7 +151,7 @@ npx tsx packages/charmd/scripts/smoke-turn.ts ws://127.0.0.1:8787/charm <token> 
 
 ## Install
 
-`npm i -g opencharm` (published from `cli-release.yml`; first release pending). On a server, `sudo opencharm setup --domain <d> [--dry-run]` creates the `charmd` user, `/var/lib/charmd`, `/etc/opencharm`, a systemd unit, and prints the Caddy block: [docs/deploy.md](../../docs/deploy.md).
+`npm i -g opencharm` (published from `cli-release.yml`, with provenance). On a server, `sudo opencharm setup --domain <d> [--dry-run]` creates the `charmd` user, `/var/lib/charmd`, `/etc/opencharm`, a systemd unit, and prints the Caddy block: [docs/deploy.md](../../docs/deploy.md).
 
 ## Prior art
 
