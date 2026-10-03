@@ -1,4 +1,4 @@
-<!-- Title: a conventional commit (`fix(cli): …`, `feat(design): …`). The pull request is squash-merged, so the title becomes its commit on main. -->
+<!-- Title: a conventional commit (`fix(cli): …`, `feat(design): …`). The pull request is squash-merged, so the title becomes its commit on main and its line in the release notes. -->
 
 ## Why
 
