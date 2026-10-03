@@ -3,7 +3,7 @@ import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 import { ACP_AGENT_NAMES } from "@opencharm-labs/charmd/acp-agents";
-import { lookFields } from "@opencharm-labs/charmd/look";
+import { lookFields, readAgentName } from "@opencharm-labs/charmd/look";
 import { z } from "zod";
 
 import { firstPositional, flagValue } from "../args";
@@ -104,18 +104,17 @@ function runInit(ctx: CliContext, args: readonly string[]): void {
     process.exitCode = 1;
     return;
   }
+  // Named the way charmd names it: --name, else the first heading of the starter's charm/AGENTS.md.
+  const charm = name ?? readAgentName(join(dir, "charm"));
   ctx.out.write(`
   ${ctx.style.bold("Your charm's workspace is ready")} ${ctx.style.dim(dir)}
 
   cd ${dir}
   opencharm serve          start charmd here; it runs your agent in charm/
+  opencharm sim            no charm yet? it appears in your browser (another terminal)
   opencharm pair <code>    the code on the charm (or the emulator); you choose its PIN
 
-  ${
-    name
-      ? `The charm is called ${name}: its name, colour and greeting are in opencharm.json ("charm").`
-      : `The charm is called Pip, after charm/AGENTS.md: set its name and colour in opencharm.json ("charm").`
-  } README.md has the voice setup.
+  The charm is called ${charm}: its name, colour and greeting are in opencharm.json ("charm"). README.md has the voice setup.
 `);
 }
 

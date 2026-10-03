@@ -104,7 +104,7 @@ function toMessage(look: Look): LookMessage {
   return message;
 }
 
-// The first "# " heading of the agent's AGENTS.md is its name in the starter (e.g. "# Pip").
+// The first "# " heading of the agent's AGENTS.md is its name in the starter (e.g. "# Momo").
 function nameFromAgentsMd(markdown: string): string | undefined {
   const heading = /^# +(.+)$/m.exec(markdown)?.[1]?.trim();
   if (!heading) return undefined;
