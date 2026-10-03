@@ -1,8 +1,8 @@
 name: CLI release
 # Run by hand on main (Actions → CLI release → Run workflow): if packages/cli's version isn't on npm
 # yet, build the emulator and the CLI and publish `opencharm` to npm with provenance (npm shows which
-# commit and workflow built it). Auth: npm trusted publishing for this workflow (set up once on
-# npmjs.com), or an NPM_TOKEN secret for the very first publish.
+# commit and workflow built it). Auth: npm trusted publishing only (OIDC, set up on npmjs.com for this
+# workflow; the package refuses tokens), so there is no npm secret in this repository.
 # Manual only while the repository is private. At launch, release on every version bump again by
 # adding `push: branches: [main]` under `on:` (the version check already skips published versions).
 on:
@@ -38,12 +38,12 @@ jobs:
           npm run firmware:sim
           npm run build -w packages/cli
           npm test -w packages/cli
+      # Trusted publishing needs npm 11.5.1 or later; fail clearly instead of falling back to a token.
       - if: steps.version.outputs.publish != ''
-        uses: actions/setup-node@v7
-        with:
-          node-version-file: .nvmrc
-          registry-url: https://registry.npmjs.org
+        run: |
+          NPM=$(npm --version)
+          node -e "const [a,b,c]=process.argv[1].split('.').map(Number); process.exit(a>11||(a===11&&(b>5||(b===5&&c>=1)))?0:1)" "$NPM" \
+            || { echo "npm $NPM is too old for trusted publishing (needs 11.5.1+)"; exit 1; }
+      # --provenance makes a publish without provenance fail, never slip through.
       - if: steps.version.outputs.publish != ''
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish -w packages/cli --provenance --access public
