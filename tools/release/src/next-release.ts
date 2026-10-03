@@ -12,6 +12,8 @@ type Commit = {
   scope: string | undefined;
   breaking: boolean;
   description: string;
+  // For a revert: the type of what it undoes, when the title says (a revert of docs releases nothing).
+  reverts?: string | undefined;
 };
 
 type Git = {
@@ -31,7 +33,7 @@ type Version = [number, number, number];
 
 // What each unit ships, so only changes there count for it. The CLI bundles charmd, protocol, design,
 // the emulator (firmware) and the dependencies the lockfile pins; the desktop app is its own code, the
-// emulator and the app icon.
+// emulator, the app icon and the face engine (packages/design).
 const UNITS: Record<Unit, readonly string[]> = {
   cli: [
     "packages/cli",
@@ -41,7 +43,7 @@ const UNITS: Record<Unit, readonly string[]> = {
     "firmware",
     "package-lock.json",
   ],
-  desktop: ["apps/desktop", "firmware", "brand/icon"],
+  desktop: ["apps/desktop", "firmware", "brand/icon", "packages/design"],
 };
 
 const SECTIONS: ReadonlyArray<[string, string]> = [
@@ -53,8 +55,9 @@ const SECTIONS: ReadonlyArray<[string, string]> = [
 
 const TITLE = /^(\w+)(?:\(([^)]*)\))?(!)?: (.+)$/;
 // GitHub's Revert button titles the pull request this way.
-const GITHUB_REVERT = /^Revert ".+"/;
+const GITHUB_REVERT = /^Revert "(.+)"/;
 const RELEASED = /^(\d+)\.(\d+)\.(\d+)$/;
+const RELEASING = ["feat", "fix", "perf", "revert"];
 
 function parse(version: string): Version | undefined {
   const match = RELEASED.exec(version);
@@ -67,24 +70,32 @@ function compare(a: Version, b: Version): number {
   return a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
 }
 
+function typeOf(title: string): string | undefined {
+  return TITLE.exec(title.trim())?.[1]?.toLowerCase();
+}
+
 function parseCommit(raw: RawCommit): Commit | undefined {
   const subject = raw.subject.trim();
-  if (GITHUB_REVERT.test(subject))
+  const revert = GITHUB_REVERT.exec(subject);
+  if (revert)
     return {
       sha: raw.sha,
       type: "revert",
       scope: undefined,
       breaking: false,
       description: subject,
+      reverts: typeOf(revert[1] ?? ""),
     };
   const match = TITLE.exec(subject);
   if (!match?.[1] || !match[4]) return undefined;
+  const type = match[1].toLowerCase();
   return {
     sha: raw.sha,
-    type: match[1].toLowerCase(),
+    type,
     scope: match[2] || undefined,
     breaking: match[3] === "!" || /^BREAKING[ -]CHANGE:/m.test(raw.body),
     description: match[4],
+    reverts: type === "revert" ? typeOf(match[4]) : undefined,
   };
 }
 
@@ -98,7 +109,11 @@ function nextVersion(
   const [major, minor, patch] = version;
   const breaking = commits.some((c) => c.breaking);
   const feature = commits.some((c) => c.type === "feat");
-  const fix = commits.some((c) => ["fix", "perf", "revert"].includes(c.type));
+  const fix = commits.some(
+    (c) =>
+      ["fix", "perf"].includes(c.type) ||
+      (c.type === "revert" && (!c.reverts || RELEASING.includes(c.reverts)))
+  );
   if (breaking && major > 0) return `${major + 1}.0.0`;
   if (breaking || feature) return `${major}.${minor + 1}.0`;
   if (fix) return `${major}.${minor}.${patch + 1}`;

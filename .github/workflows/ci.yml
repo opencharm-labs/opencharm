@@ -54,7 +54,7 @@ jobs:
           area firmware '^firmware/|^packages/protocol/'
           area emulator '^firmware/|^packages/(cli|charmd|protocol|design)/'
           area website '^apps/web/|^packages/design/'
-          area desktop '^apps/desktop/|^firmware/|^brand/icon/'
+          area desktop '^apps/desktop/|^firmware/|^brand/icon/|^packages/design/'
 
   # Everything that needs only Node and Python, with one install: what `npm run check` runs locally,
   # plus the full build, the bundled CLI on its own and the audit of what we ship.

@@ -1,8 +1,9 @@
-// Used by the release workflows: `tsx tools/release/scripts/next-release.ts <cli|desktop> [--head <sha>]
+// Used by the release workflows, on plain Node 24 (no install): `node tools/release/scripts/next-release.ts <cli|desktop> [--head <sha>]
 // [--notes <file>]`. Prints the plan; in GitHub Actions also sets the outputs version, tag and previous
 // (version and tag empty when there is nothing to release) and writes the release notes to --notes.
 import { execFileSync } from "node:child_process";
-import { appendFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
 
 import {
   type Git,
@@ -10,7 +11,7 @@ import {
   type Unit,
   UNITS,
   planRelease,
-} from "../src/next-release";
+} from "../src/next-release.ts";
 
 const FIELD = "\x1f";
 const RECORD = "\x1e";
@@ -63,7 +64,10 @@ console.log(
     : `${unit}: nothing to release since ${unit}@${plan.previous}`
 );
 const notes = flag("--notes");
-if (notes) writeFileSync(notes, plan.notes);
+if (notes) {
+  mkdirSync(dirname(notes), { recursive: true });
+  writeFileSync(notes, plan.notes);
+}
 if (process.env.GITHUB_OUTPUT)
   appendFileSync(
     process.env.GITHUB_OUTPUT,

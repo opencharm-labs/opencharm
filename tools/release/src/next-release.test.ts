@@ -145,7 +145,29 @@ describe("release notes for a breaking change", () => {
   });
 });
 
+describe("reverts", () => {
+  const plan = (subject: string) =>
+    nextVersion(
+      "0.2.0",
+      [parseCommit(commit(subject))].filter((c) => c !== undefined)
+    );
+
+  it("release a patch when they undo something that was released", () => {
+    expect(plan('Revert "feat(cli): a risky thing" (#30)')).toBe("0.2.1");
+    expect(plan("revert: fix(charmd): the PIN change")).toBe("0.2.1");
+  });
+
+  it("release nothing when they undo docs, CI or a chore", () => {
+    expect(plan('Revert "docs(cli): reword the README" (#40)')).toBeUndefined();
+    expect(plan("revert: ci: the cache step")).toBeUndefined();
+  });
+});
+
 describe("what each unit ships", () => {
+  it("counts the face engine for the desktop app, whose pages include it", () => {
+    expect(UNITS.desktop).toContain("packages/design");
+  });
+
   it("counts the lockfile for the CLI, whose bundle inlines its dependencies", () => {
     expect(UNITS.cli).toContain("package-lock.json");
   });

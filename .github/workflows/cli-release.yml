@@ -14,9 +14,11 @@ on:
     types: [completed]
     branches: [main]
   workflow_dispatch:
-# One release at a time, in order: the next run starts from the tag this one creates.
+# Real releases run one at a time, in order (a newer one waiting replaces an older one waiting: it
+# covers the same commits and more). Runs that release nothing get a group of their own, so they never
+# displace a waiting release.
 concurrency:
-  group: ${{ github.workflow }}
+  group: ${{ github.workflow }}-${{ ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')) && 'release' || github.run_id }}
   cancel-in-progress: false
 permissions:
   contents: read
@@ -35,9 +37,21 @@ jobs:
           ref: ${{ env.SHA }}
           fetch-depth: 0
           persist-credentials: false
-      - uses: ./.github/actions/setup
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      # Provenance names the run's commit (github.sha): if main moved on before this run started, stand
+      # down, and the newer commit's release covers this one.
       - id: plan
-        run: npx tsx tools/release/scripts/next-release.ts cli --head "$SHA" --notes "$RUNNER_TEMP/release/notes.md"
+        run: |
+          if [ "$SHA" != "$GITHUB_SHA" ]; then
+            echo "main moved on to $GITHUB_SHA; its release covers $SHA"
+            echo "version=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          node tools/release/scripts/next-release.ts cli --head "$SHA" --notes "$RUNNER_TEMP/release/notes.md"
+      - if: steps.plan.outputs.version != ''
+        uses: ./.github/actions/setup
       - if: steps.plan.outputs.version != ''
         run: sudo apt-get update && sudo apt-get install -y ninja-build
       - if: steps.plan.outputs.version != ''

@@ -35,7 +35,7 @@
     "sim": "npm run cli -- sim",
     "desktop": "npm run dev -w apps/desktop",
     "desktop:build": "npm run bundle -w apps/desktop",
-    "release:next": "tsx tools/release/scripts/next-release.ts"
+    "release:next": "node tools/release/scripts/next-release.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.3",
