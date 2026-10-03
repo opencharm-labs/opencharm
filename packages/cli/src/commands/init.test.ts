@@ -11,7 +11,9 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { initWorkspace } from "./init";
+import type { CliContext } from "../context";
+import { createStyle } from "../terminal";
+import { initWorkspace, runInit } from "./init";
 
 const STARTER_CONFIG = {
   listen: { host: "127.0.0.1", port: 8787 },
@@ -34,7 +36,7 @@ function starter(): string {
     `${JSON.stringify(STARTER_CONFIG, null, 2)}\n`
   );
   mkdirSync(join(dir, "charm"));
-  writeFileSync(join(dir, "charm", "AGENTS.md"), "# Pip\n");
+  writeFileSync(join(dir, "charm", "AGENTS.md"), "# Momo\n");
   git(dir, "add", "-A");
   git(
     dir,
@@ -66,7 +68,7 @@ describe("initWorkspace", () => {
     const dir = target();
     initWorkspace(dir, { from, platform: "darwin" });
     expect(readFileSync(join(dir, "charm", "AGENTS.md"), "utf8")).toBe(
-      "# Pip\n"
+      "# Momo\n"
     );
     expect(git(dir, "remote")).toBe("upstream");
   });
@@ -165,5 +167,33 @@ describe("initWorkspace", () => {
       initWorkspace(dir, { from: "/nope/starter", platform: "darwin" })
     ).toThrow(/clone.*\/nope\/starter/);
     expect(existsSync(join(dir, "opencharm.json"))).toBe(false);
+  });
+});
+
+function context() {
+  const out: string[] = [];
+  const ctx = {
+    out: { write: (s: string) => out.push(s) },
+    err: { write: (s: string) => out.push(s) },
+    style: createStyle({ color: false, trueColor: false }),
+    canAnimate: false,
+    version: "0.0.0",
+    signal: "#FF5A1F",
+  } as unknown as CliContext;
+  return { ctx, out: () => out.join("") };
+}
+
+describe("opencharm init", () => {
+  it("names the charm after the starter's AGENTS.md and shows how to see it without hardware", () => {
+    const { ctx, out } = context();
+    runInit(ctx, [target(), "--from", starter()]);
+    expect(out()).toContain("The charm is called Momo");
+    expect(out()).toContain("opencharm sim");
+  });
+
+  it("names the charm as you asked with --name", () => {
+    const { ctx, out } = context();
+    runInit(ctx, [target(), "--from", starter(), "--name", "Bo"]);
+    expect(out()).toContain("The charm is called Bo");
   });
 });
