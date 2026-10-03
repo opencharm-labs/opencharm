@@ -140,11 +140,12 @@ jobs:
           ID: ${{ needs.plan.outputs.release }}
         run: |
           mkdir assets
-          for url in $(gh api "repos/$GITHUB_REPOSITORY/releases/$ID/assets" --paginate \
-            -q '.[] | select(.name | test("\\.(dmg|exe|msi)$")) | .url'); do
-            name=$(gh api "$url" -q .name)
-            gh api -H "Accept: application/octet-stream" "$url" > "assets/$name"
-          done
+          gh api "repos/$GITHUB_REPOSITORY/releases/$ID/assets" --paginate \
+            -q '.[] | select(.name | test("\\.(dmg|exe|msi)$")) | "\(.id) \(.name)"' |
+            while read -r asset name; do
+              curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/octet-stream" \
+                "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/assets/$asset" -o "assets/$name"
+            done
           cd assets && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
       - uses: actions/attest-build-provenance@v4
         with:
@@ -157,7 +158,8 @@ jobs:
         run: |
           OLD=$(gh api "repos/$GITHUB_REPOSITORY/releases/$ID/assets" --paginate -q '.[] | select(.name == "SHA256SUMS.txt") | .id')
           if [ -n "$OLD" ]; then gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$OLD"; fi
-          gh api -X POST "repos/$GITHUB_REPOSITORY/releases/$ID/assets?name=SHA256SUMS.txt" \
-            --hostname uploads.github.com -H "Content-Type: text/plain" --input assets/SHA256SUMS.txt >/dev/null
+          curl -fsS -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Content-Type: text/plain" \
+            --data-binary @assets/SHA256SUMS.txt \
+            "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$ID/assets?name=SHA256SUMS.txt" >/dev/null
           gh api -X PATCH "repos/$GITHUB_REPOSITORY/releases/$ID" -F draft=false -f tag_name="$TAG" >/dev/null
           echo "Published $TAG"
