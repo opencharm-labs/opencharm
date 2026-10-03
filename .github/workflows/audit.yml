@@ -1,10 +1,8 @@
 name: Audit
-# Known vulnerabilities in what we ship (production dependencies, high or worse). Weekly as well:
-# new advisories appear without any change here.
+# Known vulnerabilities in what we ship (production dependencies, high or worse), weekly: new
+# advisories appear without any change here. Every change is audited in ci.yml.
 on:
-  pull_request:
-  push:
-    branches: [main]
+  workflow_dispatch:
   schedule:
     - cron: "17 6 * * 1"
 concurrency:
