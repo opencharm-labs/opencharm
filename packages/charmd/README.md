@@ -116,7 +116,7 @@ Key held → `listening` face; released → `thinking` face → Ogg → speech-t
 A local agent needs a folder to work in. It comes from **opencharm-starter** (github.com/opencharm-labs/opencharm-starter, a template repo and the single source of truth): `opencharm init [dir] [--agent claude|codex|…] [--from <git url>]` clones it (keeping it as the `upstream` remote, so `git pull upstream main` brings fixes) and fits `opencharm.json` to the machine; or "Use this template" on GitHub. Then `opencharm serve` inside it. Server agents (Hermes, OpenClaw) keep their own homes and don't need one. Two audiences, two places:
 
 - The root is for the developer and their coding agent: `AGENTS.md`, skill `customise-charm`, `opencharm.json` (the agent runs in `charm/`), tests (`node --test`) and CI.
-- `charm/` is the voice agent's workspace: its persona (`AGENTS.md`, default name Pip), skills `charm-voice` and `charm-workspace`, `notes/` (what it was asked to remember) and `.claude/settings.json` (Claude Code's rules; other agents use their own permission settings).
+- `charm/` is the voice agent's workspace: its persona (`AGENTS.md`, default name Momo), skills `charm-voice` and `charm-workspace`, `notes/` (what it was asked to remember) and `.claude/settings.json` (Claude Code's rules; other agents use their own permission settings).
 - charmd's state stays in its default place, `~/.opencharm/`, outside the repo.
 
 The voice agent's permission posture is pinned by the starter's tests:

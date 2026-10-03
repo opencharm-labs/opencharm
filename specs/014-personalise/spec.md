@@ -10,7 +10,7 @@ A companion should feel like yours. Today every charm looks the same on screen (
 ## Scope
 
 - **The charm's identity**, stored once in the workspace's `opencharm.json`, in a new `charm` block (validated with zod in charmd). It holds:
-  - `name`: up to 12 characters; default: the first heading of the agent's `AGENTS.md` (Momo, Pip…)
+  - `name`: up to 12 characters; default: the first heading of the agent's `AGENTS.md` (Momo in the starter)
   - `colour`: one of the six identity colours (White, Cobalt, Lime, Lilac, Sun, Coal; `packages/design`); the glyphs light up in its glyph colour
   - `greeting`: the line after unlock; default "Hi! I'm {name}."
   - `sleepAfterMinutes`: how long alone before it dozes; default 4, 0 = never
