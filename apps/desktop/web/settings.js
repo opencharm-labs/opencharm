@@ -244,7 +244,8 @@ voices = await invoke("list_voices");
 const language = navigator.language.split("-")[0].toLowerCase();
 const mine = voices.filter((v) => v.locale.split("_")[0] === language);
 const others = voices.filter((v) => v.locale.split("_")[0] !== language);
-$("say-voice").append(new Option("The system's voice", ""));
+// Empty means charmd's default, Samantha: English, whatever the system language.
+$("say-voice").append(new Option("Samantha · English (default)", ""));
 for (const [label, list] of [
   ["Your language", mine],
   ["Other languages", others],
@@ -284,8 +285,7 @@ $("say-voice").addEventListener(
   (e) => void saveLook({}, e.target.value)
 );
 $("try").addEventListener("click", async () => {
-  const name = $("say-voice").value;
-  if (!name) return react("confused");
+  const name = $("say-voice").value || "Samantha";
   const text = $("greeting").value.trim() || $("greeting").placeholder;
   try {
     await invoke("try_voice", { name, text });

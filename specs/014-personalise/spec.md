@@ -17,7 +17,7 @@ A companion should feel like yours. Today every charm looks the same on screen (
   - `motion`: `full` (default) or `calm`, which keeps breathing and blinks but no glances or squash, for people who prefer less movement
 - **charmd sends it** to a charm after unlock, in a new message `{"type":"charm","op":"look", name, glyph, greeting, sleepMs, motion}` (packages/protocol, with fixtures for both sides), and again whenever the config changes while running.
 - **OpenCharm OS applies it** at runtime: the glyph colour (eyes, mouth, z's; orange stays reserved for "it needs you"), the greeting text, the sleep delay and calm motion. The emulator and the desktop charm get it for free, since they run the same core.
-- **Voice**: the local voice's macOS voice (`sayVoice`) gets a picker. The OpenAI voice already has `voice` (13 voices); it gets a picker too.
+- **Voice**: the local voice's macOS voice (`sayVoice`, Samantha when unset, so English text never gets the system language's voice) gets a picker. The OpenAI voice already has `voice` (13 voices); it gets a picker too.
 - **The desktop charm's Settings, "Your charm"** (spec 013's settings window):
   - name, colour (the six swatches), greeting, voice (the macOS voices that speak the system language, with a "Try it" button), sleep delay, calm motion
   - changes are written to the workspace's `opencharm.json` and applied at once

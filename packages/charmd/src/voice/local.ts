@@ -13,6 +13,11 @@ type LocalVoiceOptions = {
   sayVoice?: string;
 };
 
+// The starter's persona speaks English, so the default voice does too: without it, `say` uses the
+// system voice, and on an Italian Mac that's an Italian voice reading English. A voice that isn't
+// installed makes `say` fall back to the system voice, never fail.
+const DEFAULT_SAY_VOICE = "Samantha";
+
 function defaultWhisperModel(): string {
   return join(homedir(), ".opencharm", "models", "ggml-base.en.bin");
 }
@@ -43,6 +48,23 @@ function run(
       }
     );
   });
+}
+
+function sayArgs(
+  voice: string | undefined,
+  input: string,
+  wav: string
+): string[] {
+  return [
+    "-v",
+    voice || DEFAULT_SAY_VOICE,
+    "-f",
+    input,
+    "-o",
+    wav,
+    "--file-format=WAVE",
+    "--data-format=LEI16@24000",
+  ];
 }
 
 // Everything on this machine, no key: macOS `say` speaks, whisper.cpp listens. Audio lives only in a
@@ -77,19 +99,7 @@ function createLocalVoice(options: LocalVoiceOptions): VoiceProvider {
         const input = join(dir, "text.txt");
         const wav = join(dir, "out.wav");
         writeFileSync(input, text);
-        await run(
-          "say",
-          [
-            ...(options.sayVoice ? ["-v", options.sayVoice] : []),
-            "-f",
-            input,
-            "-o",
-            wav,
-            "--file-format=WAVE",
-            "--data-format=LEI16@24000",
-          ],
-          signal
-        );
+        await run("say", sayArgs(options.sayVoice, input, wav), signal);
         const { pcm, sampleRate } = readWav(readFileSync(wav));
         if (sampleRate !== 24000)
           throw new Error(`say produced ${sampleRate} Hz, expected 24000`);
@@ -98,5 +108,5 @@ function createLocalVoice(options: LocalVoiceOptions): VoiceProvider {
   };
 }
 
-export { createLocalVoice, defaultWhisperModel };
+export { createLocalVoice, defaultWhisperModel, sayArgs };
 export type { LocalVoiceOptions };
