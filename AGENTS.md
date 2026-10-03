@@ -87,7 +87,7 @@ Details and examples: skill `opencharm-conventions`.
 ## Git
 
 - Trunk-based: `main` is the only long-lived branch and is always green. Every change starts on a short branch from an up-to-date `main` (`spec/NNN-<slug>`, `fix/…`, `perf/…`, `docs/…`, `chore/…`, `ci/…`), one topic per branch, or a worktree. Conventional commits (`feat(cli): …`, `fix(design): …`).
-- A change reaches `main` only through a pull request whose checks pass. When `npm run check` is green, push the branch and open the PR against `main` (`gh pr create`), filling in the PR template. The maintainer reviews and merges it with a merge commit; GitHub then deletes the branch. Agents never merge their own PR.
+- A change reaches `main` only through a pull request whose checks pass. When `npm run check` is green, push the branch and open the PR against `main` (`gh pr create`), filling in the PR template; its title is a conventional commit, because it becomes the one commit on `main`. The maintainer reviews it and squash-merges it; GitHub then deletes the branch. Agents never merge their own PR.
 - Behind `main`? Merge `main` into your branch (no rebase of pushed work). Never push to `main`, never force-push, never commit secrets or `.env` files.
 - Never credit an AI tool as an author: no `Co-Authored-By` trailers for coding agents, no "Generated with …" lines, in commits, PRs, issues or docs.
 - Guards check every commit (Git hooks from `npm install`) and every committable file (`npm test`): no keys or tokens, no home-folder paths, no AI attribution, nothing over 1 MB (CONTRIBUTING "Guards"). Fix the cause; never weaken a guard, never `--no-verify`, never change `core.hooksPath`.

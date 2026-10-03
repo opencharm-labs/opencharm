@@ -27,7 +27,7 @@ Thanks for helping. OpenCharm is built spec by spec, by people and by coding age
 3. `npm run check` must pass locally and in CI.
 4. The change updates `OPENCHARM.md` (what the product is), the README next to the code it changes, and any other doc it makes wrong.
 5. Every change reaches `main` through a pull request: contributors from a fork, the maintainer and coding agents from a branch in this repository (`main` is the only long-lived branch; nobody pushes to it).
-6. The maintainer reviews it and merges it with a merge commit once the checks pass; the branch is then deleted. If `main` moved on meanwhile, merge `main` into the branch (no force-push).
+6. Its title is a conventional commit (`fix(cli): …`): the maintainer reviews it and squash-merges it once the checks pass, so each pull request becomes one commit on `main`, and the branch is then deleted. If `main` moved on meanwhile, merge `main` into the branch (no force-push).
 
 Coding agents (Claude Code, Codex, OpenClaw workers, Hermes) read [AGENTS.md](AGENTS.md) and the skills in `.agents/skills/`. Issues created with the "Spec task" form are ready for an agent to pick up.
 
@@ -89,7 +89,7 @@ If a guard trips:
 
 In the GitHub settings of `opencharm-labs/opencharm` and `opencharm-labs/opencharm-starter`:
 
-- Pull requests: merge commits only (each branch's conventional commits stay in the history), with "Pull request title" as the default merge message; "Always suggest updating pull request branches" and "Automatically delete head branches" on.
+- Pull requests: squash merging only (merge commits and rebase off), with "Pull request title and commit details" as the default message, so `main` gets one conventional commit per pull request; "Always suggest updating pull request branches" and "Automatically delete head branches" on.
 - Features: Projects off; in the starter, issues off (reports go to this repo) and "Template repository" on.
 - Code security: Dependabot alerts; secret scanning with push protection (blocks a push that contains a key); private vulnerability reporting (`SECURITY.md` points people to it).
 - Actions: the workflow token stays read-only by default; each workflow asks for what it needs.
