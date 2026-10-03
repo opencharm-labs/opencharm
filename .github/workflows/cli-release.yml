@@ -4,7 +4,9 @@ name: CLI release
 # folders the CLI ships). If so, `build` stamps the version, builds the emulator and the CLI and runs
 # the CLI's tests; `publish` publishes `opencharm` to npm with provenance, then tags cli@<version> and
 # creates the GitHub release with the notes (CONTRIBUTING "Releasing"). A failed run can be re-run, or
-# started again by hand on main (Actions → CLI release → Run workflow).
+# started again by hand on main (Actions → CLI release → Run workflow); a version published but never
+# tagged is repaired by the next run. npm downloads come from the setup action's cache, checked
+# against the lockfile's integrity hashes; nothing built is cached.
 # Security: `build` runs third-party code (npm ci, emsdk, tests) with a read-only token and no OIDC;
 # `publish` holds the npm (OIDC) and tag rights and runs no installed packages. Auth to npm: trusted
 # publishing only (set up on npmjs.com for this workflow; the package refuses tokens).
@@ -37,6 +39,8 @@ jobs:
       version: ${{ steps.plan.outputs.version }}
       tag: ${{ steps.plan.outputs.tag }}
       build: ${{ steps.published.outputs.build }}
+      target: ${{ steps.published.outputs.target }}
+      repair: ${{ steps.published.outputs.repair }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -46,46 +50,39 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
-      # Provenance names the run's commit (github.sha): if main moved on before this run started, stand
-      # down, and the newer commit's release covers this one.
       - id: plan
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          # A run started by hand releases only a commit whose CI passed on main.
-          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
-            PASSED=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --commit "$SHA" --event push \
-              --status success --json databaseId -q length)
-            if [ "$PASSED" = 0 ]; then
-              echo "::error::CI hasn't passed on $SHA as a push to main: fix main first"
-              exit 1
-            fi
-          fi
-          if [ "$SHA" != "$GITHUB_SHA" ]; then
-            echo "::warning::main moved on to $GITHUB_SHA before this release started; its release covers $SHA. If that commit's CI fails, run this workflow by hand on main once main is green."
-            echo "version=" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          node tools/release/scripts/next-release.ts cli --head "$SHA" --notes "$RUNNER_TEMP/release/notes.md"
-      # Already on npm? Then there's nothing to build, only the tag; from another commit, stop.
+        uses: ./.github/actions/release-plan
+        with:
+          unit: cli
+          notes: ${{ runner.temp }}/release/notes.md
+      # Already on npm? Only "not found" (E404) means not published: a registry hiccup stops the run.
+      # From this commit, there's nothing to build, only the tag. From an earlier commit on main (a
+      # run published, then failed to tag), repair: tag that commit with its own notes, and start a
+      # fresh release for what came after.
       - id: published
         if: steps.plan.outputs.version != ''
         env:
           VERSION: ${{ steps.plan.outputs.version }}
         run: |
-          if ! npm view "opencharm@$VERSION" version >/dev/null 2>&1; then
-            echo "build=true" >> "$GITHUB_OUTPUT"
+          if PUBLISHED=$(npm view "opencharm@$VERSION" gitHead 2>"$RUNNER_TEMP/npm-view.log"); then
+            :
+          elif grep -q E404 "$RUNNER_TEMP/npm-view.log"; then
+            { echo "build=true"; echo "target=$SHA"; } >> "$GITHUB_OUTPUT"
             exit 0
+          else
+            cat "$RUNNER_TEMP/npm-view.log"
+            echo "::error::Couldn't ask npm whether opencharm@$VERSION exists: re-run later"
+            exit 1
           fi
-          PUBLISHED=$(npm view "opencharm@$VERSION" gitHead)
           if [ "$PUBLISHED" = "$SHA" ]; then
             echo "opencharm@$VERSION is already on npm from this commit: tagging only"
-            echo "build=false" >> "$GITHUB_OUTPUT"
-          elif [ -z "$PUBLISHED" ]; then
-            echo "::error::opencharm@$VERSION is on npm without a recorded commit: find it in the package's provenance on npmjs.com, then gh release create cli@$VERSION --target <commit> --title 'cli: $VERSION' --generate-notes"
-            exit 1
+            { echo "build=false"; echo "target=$SHA"; } >> "$GITHUB_OUTPUT"
+          elif [ -n "$PUBLISHED" ] && git merge-base --is-ancestor "$PUBLISHED" "$SHA"; then
+            echo "::warning::opencharm@$VERSION was published from $PUBLISHED but never tagged: tagging it, then starting a fresh release"
+            node tools/release/scripts/next-release.ts cli --head "$PUBLISHED" --notes "$RUNNER_TEMP/release/notes.md" > /dev/null
+            { echo "build=false"; echo "target=$PUBLISHED"; echo "repair=true"; } >> "$GITHUB_OUTPUT"
           else
-            echo "::error::opencharm@$VERSION is on npm from $PUBLISHED, not $SHA: gh release create cli@$VERSION --target $PUBLISHED --title 'cli: $VERSION' --generate-notes"
+            echo "::error::opencharm@$VERSION is on npm from '${PUBLISHED:-an unrecorded commit}', not an ancestor of $SHA: find the commit in the package's provenance on npmjs.com and tag it by hand (gh release create cli@$VERSION --target <commit> --title 'cli: $VERSION' --generate-notes)"
             exit 1
           fi
       - if: steps.published.outputs.build == 'true'
@@ -122,6 +119,7 @@ jobs:
     permissions:
       contents: write
       id-token: write
+      actions: write
     steps:
       # The commit itself (for npm's gitHead and the tag), with no install: only the built package runs here.
       - uses: actions/checkout@v7
@@ -154,11 +152,17 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.build.outputs.tag }}
           VERSION: ${{ needs.build.outputs.version }}
+          TARGET: ${{ needs.build.outputs.target }}
         run: |
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "$TAG already exists"
             exit 0
           fi
           echo "Install or update: npm i -g opencharm (Node 24). Published from CI with npm provenance." >> "$RUNNER_TEMP/release/notes.md"
-          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$SHA" \
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$TARGET" \
             --title "cli: $VERSION" --notes-file "$RUNNER_TEMP/release/notes.md" --latest
+      # After a repair, what came after the repaired release is still unreleased: plan it afresh.
+      - if: needs.build.outputs.repair == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run cli-release.yml --repo "$GITHUB_REPOSITORY" --ref main

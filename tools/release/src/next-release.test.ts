@@ -25,15 +25,19 @@ describe("parseCommit", () => {
     });
   });
 
-  it("marks a breaking change by ! or by a BREAKING CHANGE footer", () => {
+  it("marks a breaking change only by the title's !, the pull request's own word", () => {
     expect(
       parseCommit(commit("feat(cli)!: drop the old config"))?.breaking
     ).toBe(true);
+    // A squash body lists the branch's own commits; a footer in one of them doesn't make the PR breaking.
     expect(
       parseCommit(
-        commit("feat(cli): new config", "BREAKING CHANGE: the old one is gone")
+        commit(
+          "fix(cli): new flag",
+          "* wip\n\nBREAKING CHANGE: renamed, then undone"
+        )
       )?.breaking
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("reads GitHub's revert title as a revert", () => {

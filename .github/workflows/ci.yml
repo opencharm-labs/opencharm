@@ -12,11 +12,11 @@ on:
   schedule:
     - cron: "17 6 * * 1"
   workflow_dispatch:
-# Per event as well as per branch: a weekly or manual run on main never cancels a merge's run, whose
-# success is what starts the releases.
+# Per event as well as per branch, and only pull requests cancel their older runs: every merge's run
+# on main finishes, because its success is what releases that merge.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 permissions:
   contents: read
 jobs:
@@ -27,6 +27,7 @@ jobs:
       emulator: ${{ steps.areas.outputs.emulator }}
       website: ${{ steps.areas.outputs.website }}
       desktop: ${{ steps.areas.outputs.desktop }}
+      deps: ${{ steps.areas.outputs.deps }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -55,10 +56,15 @@ jobs:
           area emulator '^firmware/|^packages/(cli|charmd|protocol|design)/'
           area website '^apps/web/|^packages/design/'
           area desktop '^apps/desktop/|^firmware/|^brand/icon/|^packages/design/'
+          # Dependencies changed (any package.json or the lockfile): the audit then gates the change.
+          if [ "$CHANGED" = ALL ] || grep -qE '(^|/)package\.json$|^package-lock\.json$' <<<"$CHANGED"; then
+            echo "deps=true" >> "$GITHUB_OUTPUT"
+          fi
 
   # Everything that needs only Node and Python, with one install: what `npm run check` runs locally,
   # plus the full build, the bundled CLI on its own and the audit of what we ship.
   checks:
+    needs: changes
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -75,19 +81,17 @@ jobs:
       - run: npm run build
       # The bundle must run on its own: catches dependencies that break when inlined.
       - run: node packages/cli/dist/main.mjs faces --no-color
-      # Known vulnerabilities in what we ship (production dependencies, high or worse): a pull request
-      # can't bring one in, and the weekly run goes red when a new advisory appears. On a push to main
-      # it only warns, because that run's success is what releases, and an advisory nobody can fix yet
-      # mustn't hold back every release.
+      # Known vulnerabilities in what we ship (production dependencies, high or worse). It fails a pull
+      # request that changes dependencies (so none can bring one in) and the weekly run (so a new advisory
+      # shows); otherwise it warns: an advisory nobody can fix yet mustn't block every other change, nor
+      # a push to main, whose success is what releases. Dependabot alerts track them too.
       - env:
           EVENT: ${{ github.event_name }}
+          DEPS: ${{ needs.changes.outputs.deps }}
         run: |
           if npm audit --omit=dev --audit-level=high; then exit 0; fi
-          if [ "$EVENT" = push ]; then
-            echo "::warning::npm audit found a high or critical advisory (see this step's log and Dependabot alerts)"
-          else
-            exit 1
-          fi
+          if [ "$EVENT" != push ] && [ "$DEPS" = true ]; then exit 1; fi
+          echo "::warning::npm audit found a high or critical advisory (see this step's log and Dependabot alerts)"
 
   firmware:
     needs: changes

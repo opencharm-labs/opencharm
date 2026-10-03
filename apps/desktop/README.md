@@ -69,7 +69,7 @@ npm run test:rust -w apps/desktop
 
 ## Releases
 
-The app releases itself from `main` (CONTRIBUTING, "Releasing"): when a merged pull request's title is a `fix`, `feat` or `perf` and it touches `apps/desktop`, `firmware`, `brand/icon` or `packages/design` (the face engine its pages include), `.github/workflows/desktop-release.yml` builds the emulator once, then macOS (Apple silicon and Intel) and Windows with `tauri build`, and a final job attaches the installers, `SHA256SUMS.txt` and build-provenance attestations to a draft and publishes it as `desktop@<version>`. The version comes from the tag (the code says `0.0.0`); a build from source offers no updates. The update check looks for `desktop@` releases in `opencharm-labs/opencharm`.
+The app releases itself from `main` (CONTRIBUTING, "Releasing"): when a merged pull request's title is a `fix`, `feat` or `perf` and it touches `apps/desktop`, `firmware/core`, `firmware/sim`, `brand/icon` or `packages/design` (the face engine its pages include), `.github/workflows/desktop-release.yml` builds the emulator once, then macOS (Apple silicon and Intel) and Windows with `tauri build`, and a final job attaches the installers, `SHA256SUMS.txt` and build-provenance attestations to a draft and publishes it as `desktop@<version>`. The version comes from the tag (the code says `0.0.0`); a build from source offers no updates. The update check looks for `desktop@` releases in `opencharm-labs/opencharm`.
 
 ## Resource use
 
