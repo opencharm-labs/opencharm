@@ -4,6 +4,7 @@
 import { execFileSync } from "node:child_process";
 import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
+import { parseArgs } from "node:util";
 
 import {
   type Git,
@@ -16,13 +17,12 @@ import {
 const FIELD = "\x1f";
 const RECORD = "\x1e";
 
+// Generous: squash commits carry their branch's messages, and releases can be far apart.
 function git(...args: string[]): string {
-  return execFileSync("git", args, { encoding: "utf8" });
-}
-
-function flag(name: string): string | undefined {
-  const i = process.argv.indexOf(name);
-  return i > 0 ? process.argv[i + 1] : undefined;
+  return execFileSync("git", args, {
+    encoding: "utf8",
+    maxBuffer: 256 * 1024 * 1024,
+  });
 }
 
 function repository(head: string): Git {
@@ -46,24 +46,37 @@ function repository(head: string): Git {
   };
 }
 
-const unit = process.argv[2] as Unit;
-if (!Object.hasOwn(UNITS, unit)) {
-  console.error(
-    `Usage: next-release <${Object.keys(UNITS).join("|")}> [--head <sha>] [--notes <file>]`
-  );
+const USAGE = `Usage: next-release <${Object.keys(UNITS).join("|")}> [--head <sha>] [--notes <file>]`;
+let parsed: ReturnType<typeof parse>;
+function parse() {
+  return parseArgs({
+    allowPositionals: true,
+    strict: true,
+    options: { head: { type: "string" }, notes: { type: "string" } },
+  });
+}
+try {
+  parsed = parse();
+} catch (error) {
+  console.error(`${(error as Error).message}\n${USAGE}`);
+  process.exit(2);
+}
+const unit = parsed.positionals[0] as Unit;
+if (parsed.positionals.length !== 1 || !Object.hasOwn(UNITS, unit)) {
+  console.error(USAGE);
   process.exit(2);
 }
 const plan = planRelease(
   unit,
   process.env.GITHUB_REPOSITORY ?? "opencharm-labs/opencharm",
-  repository(flag("--head") ?? "HEAD")
+  repository(parsed.values.head ?? "HEAD")
 );
 console.log(
   plan.version
     ? `${unit}: ${plan.previous} → ${plan.version}\n\n${plan.notes}`
     : `${unit}: nothing to release since ${unit}@${plan.previous}`
 );
-const notes = flag("--notes");
+const notes = parsed.values.notes;
 if (notes) {
   mkdirSync(dirname(notes), { recursive: true });
   writeFileSync(notes, plan.notes);

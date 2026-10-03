@@ -18,6 +18,8 @@ on:
 # Real releases run one at a time, in order (a newer one waiting replaces an older one waiting: it
 # covers the same commits and more). Runs that release nothing get a group of their own, so they never
 # displace a waiting release.
+# The release condition appears here and in the first job's `if` (GitHub allows no variables in either):
+# keep the two identical.
 concurrency:
   group: ${{ github.workflow }}-${{ ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')) && 'release' || github.run_id }}
   cancel-in-progress: false
@@ -46,7 +48,7 @@ jobs:
       - id: plan
         run: |
           if [ "$SHA" != "$GITHUB_SHA" ]; then
-            echo "main moved on to $GITHUB_SHA; its release covers $SHA"
+            echo "::warning::main moved on to $GITHUB_SHA before this release started; its release covers $SHA. If that commit's CI fails, run this workflow by hand on main once main is green."
             echo "version=" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -149,15 +151,22 @@ jobs:
       - uses: actions/attest-build-provenance@v4
         with:
           subject-path: ${{ runner.temp }}/assets/*
-      # A fresh draft each run (earlier desktop drafts, from failed runs, are removed), filled with every
-      # file, then published: publishing creates the tag, so a desktop@ tag always means a complete release.
+      # Skipped if already released. Otherwise a fresh draft (earlier drafts from failed runs of this
+      # workflow are removed), filled with every file, then published: publishing creates the tag, so a
+      # desktop@ tag always means a complete release.
       - env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.plan.outputs.tag }}
           VERSION: ${{ needs.plan.outputs.version }}
         run: |
+          if gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" >/dev/null 2>&1; then
+            echo "$TAG is already released"
+            exit 0
+          fi
+          # Only drafts this workflow made (marked below); a draft someone writes by hand is left alone.
+          MARK="<!-- desktop-release.yml -->"
           DRAFTS=$(gh api "repos/$GITHUB_REPOSITORY/releases" --paginate \
-            -q '.[] | select(.draft and (.tag_name | startswith("desktop@"))) | .id')
+            -q ".[] | select(.draft and (.body // \"\" | contains(\"$MARK\"))) | .id")
           for id in $DRAFTS; do
             gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/$id"
             echo "Deleted earlier draft $id"
@@ -171,6 +180,8 @@ jobs:
             echo "Install and first-run notes: $README"
             echo "Unsigned for now: compare SHA256SUMS.txt, or run gh attestation verify <file> --repo $GITHUB_REPOSITORY."
             echo "Provided as is, with no warranty."
+            echo
+            echo "$MARK"
           } >> "$RUNNER_TEMP/notes/notes.md"
           ID=$(gh api -X POST "repos/$GITHUB_REPOSITORY/releases" -f tag_name="$TAG" -f target_commitish="$SHA" \
             -f name="desktop: $VERSION" -F draft=true -F prerelease=true -F body=@"$RUNNER_TEMP/notes/notes.md" -q .id)

@@ -73,6 +73,15 @@ describe("nextVersion", () => {
     expect(nextVersion("0.1.3", parsed("fix!: x"))).toBe("0.2.0");
   });
 
+  it("releases nothing for a breaking change in docs, CI or a chore", () => {
+    expect(
+      nextVersion(
+        "0.1.0",
+        parsed("ci!: drop the old workflow", "docs!: rename a page")
+      )
+    ).toBeUndefined();
+  });
+
   it("bumps the major for a breaking change from 1.0 on", () => {
     expect(nextVersion("1.4.2", parsed("feat!: x"))).toBe("2.0.0");
     expect(nextVersion("1.4.2", parsed("feat: x"))).toBe("1.5.0");
@@ -163,13 +172,30 @@ describe("reverts", () => {
   });
 });
 
+describe("release notes for reverts", () => {
+  it("leave out a revert of something that never released", () => {
+    const parsed = [
+      parseCommit(commit("fix: a crash (#50)")),
+      parseCommit(commit('Revert "docs: reword the README" (#51)')),
+    ].filter((c) => c !== undefined);
+    const notes = releaseNotes(parsed, {
+      repo: "o/r",
+      unit: "cli",
+      previous: "0.1.0",
+      version: "0.1.1",
+    });
+    expect(notes).not.toContain("reword the README");
+    expect(notes).toContain("a crash (#50)");
+  });
+});
+
 describe("what each unit ships", () => {
   it("counts the face engine for the desktop app, whose pages include it", () => {
     expect(UNITS.desktop).toContain("packages/design");
   });
 
-  it("counts the lockfile for the CLI, whose bundle inlines its dependencies", () => {
-    expect(UNITS.cli).toContain("package-lock.json");
+  it("doesn't count the lockfile: the CLI's dependencies are external, installed from their ranges", () => {
+    expect(UNITS.cli).not.toContain("package-lock.json");
   });
 });
 

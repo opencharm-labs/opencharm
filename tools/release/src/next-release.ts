@@ -31,8 +31,9 @@ type Plan = {
 
 type Version = [number, number, number];
 
-// What each unit ships, so only changes there count for it. The CLI bundles charmd, protocol, design,
-// the emulator (firmware) and the dependencies the lockfile pins; the desktop app is its own code, the
+// What each unit ships, so only changes there count for it. The CLI bundles charmd, protocol, design
+// and the emulator (firmware); its npm dependencies are external, installed from their ranges, so the
+// lockfile never ships. The desktop app is its own code, the
 // emulator, the app icon and the face engine (packages/design).
 const UNITS: Record<Unit, readonly string[]> = {
   cli: [
@@ -41,7 +42,6 @@ const UNITS: Record<Unit, readonly string[]> = {
     "packages/protocol",
     "packages/design",
     "firmware",
-    "package-lock.json",
   ],
   desktop: ["apps/desktop", "firmware", "brand/icon", "packages/design"],
 };
@@ -99,6 +99,13 @@ function parseCommit(raw: RawCommit): Commit | undefined {
   };
 }
 
+// Only these change what people install: docs, CI, tests and chores never release, even when breaking,
+// and neither does a revert of one of them.
+function releases(c: Commit): boolean {
+  if (c.type === "revert") return !c.reverts || RELEASING.includes(c.reverts);
+  return ["feat", "fix", "perf"].includes(c.type);
+}
+
 // Semver, with the usual rule below 1.0: a breaking change bumps the minor, not the major.
 function nextVersion(
   current: string,
@@ -107,13 +114,10 @@ function nextVersion(
   const version = parse(current);
   if (!version) throw new Error(`Not a released version: ${current}`);
   const [major, minor, patch] = version;
-  const breaking = commits.some((c) => c.breaking);
-  const feature = commits.some((c) => c.type === "feat");
-  const fix = commits.some(
-    (c) =>
-      ["fix", "perf"].includes(c.type) ||
-      (c.type === "revert" && (!c.reverts || RELEASING.includes(c.reverts)))
-  );
+  const releasing = commits.filter(releases);
+  const breaking = releasing.some((c) => c.breaking);
+  const feature = releasing.some((c) => c.type === "feat");
+  const fix = releasing.length > 0;
   if (breaking && major > 0) return `${major + 1}.0.0`;
   if (breaking || feature) return `${major}.${minor + 1}.0`;
   if (fix) return `${major}.${minor}.${patch + 1}`;
@@ -136,6 +140,7 @@ function releaseNotes(
   release: { repo: string; unit: Unit; previous: string; version: string }
 ): string {
   const lines: string[] = [];
+  commits = commits.filter(releases);
   const breaking = commits.filter((c) => c.breaking);
   const groups: Array<[string, readonly Commit[]]> = [
     ...(breaking.length

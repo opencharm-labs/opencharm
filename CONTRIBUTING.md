@@ -57,10 +57,10 @@ The MVP is done when all of this works, in the emulator first, then on the Waves
 
 **How a merge becomes a release.** After every push to `main` whose CI passed, `cli-release.yml` and `desktop-release.yml` each ask `tools/release` whether their unit has something new: the conventional-commit titles merged since its last tag, counting only the folders it ships.
 
-| Unit        | Tag             | Counts changes in                                                                                                                        | Publishes                                                                                                                                              |
-| ----------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| CLI         | `cli@x.y.z`     | `packages/cli`, `charmd`, `protocol`, `design`, `firmware`, `package-lock.json` (it bundles them and the dependencies the lockfile pins) | `opencharm` on npm, with provenance                                                                                                                    |
-| Desktop app | `desktop@x.y.z` | `apps/desktop`, `firmware`, `brand/icon`, `packages/design` (its pages include the face engine)                                          | installers for macOS (Apple silicon, Intel) and Windows on GitHub Releases, with `SHA256SUMS.txt` and build attestations; a pre-release while unsigned |
+| Unit        | Tag             | Counts changes in                                                                                                                                               | Publishes                                                                                                                                              |
+| ----------- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| CLI         | `cli@x.y.z`     | `packages/cli`, `charmd`, `protocol`, `design`, `firmware` (it bundles them; its npm dependencies are installed from their ranges, so the lockfile never ships) | `opencharm` on npm, with provenance                                                                                                                    |
+| Desktop app | `desktop@x.y.z` | `apps/desktop`, `firmware`, `brand/icon`, `packages/design` (its pages include the face engine)                                                                 | installers for macOS (Apple silicon, Intel) and Windows on GitHub Releases, with `SHA256SUMS.txt` and build attestations; a pre-release while unsigned |
 
 | PR title                                                                                        | Release                         |
 | ----------------------------------------------------------------------------------------------- | ------------------------------- |
@@ -73,7 +73,7 @@ If there is something, the workflow stamps the version into the build, builds an
 
 **Versions live in tags only.** The repository's `package.json` files (and the desktop app's `Cargo.toml`) say `0.0.0`, so the code never states a version that could drift; CI stamps the real one into what it builds. From source, `opencharm --version` says `0.0.0`, and the desktop app offers no updates. The GitHub Releases page is the changelog.
 
-**Commands.** `npm run release:next -- cli` (or `desktop`) prints what `main` would release now. If a release fails, re-run it (Actions → CLI release or Desktop release → Re-run, or Run workflow on `main`; other branches can't release): every step skips what's already done. A CLI version already on npm from a different commit stops the run with the command to tag that commit by hand; the desktop app reuses its draft only for the same version and commit and deletes any other desktop draft. To leave something out of a release, don't merge it yet.
+**Commands.** `npm run release:next -- cli` (or `desktop`) prints what `main` would release now. If a release fails, re-run it (Actions → CLI release or Desktop release → Re-run, or Run workflow on `main`; other branches can't release). The CLI skips what's done (a version already on npm from this commit, an existing tag); a version already on npm from a different commit stops the run with the command to tag that commit by hand. The desktop app does nothing if the version is already released, and otherwise starts from a fresh draft (removing earlier drafts this workflow made; a draft written by hand is left alone). If `main` moved on before a release run started, that run stands down with a warning and the newer commit's release covers it; should the newer commit's CI fail, run the workflow by hand on `main` once it's green. A breaking change only releases in a releasing type (`feat!`, `fix!`); `docs!` or `ci!` release nothing. To leave something out of a release, don't merge it yet.
 
 **Security of the release jobs.** The jobs that install and run third-party code (`npm ci`, Emscripten, the tests, the CLI and desktop builds) have a read-only token, no npm publishing right and no token on disk. Only two short jobs can write: the CLI's `publish` (npm through OIDC, the tag) and the desktop app's `publish` (checksums, attestations, the release); neither runs an installed package. The release planner runs on plain Node, with nothing installed. A release run also stands down if `main` moved on before it started, so provenance always names the commit that was built; the newer commit's release covers it.
 
@@ -95,7 +95,7 @@ The guards:
 - no AI tool credited as an author
 - no file over 1 MB, except a short list kept on purpose
 
-CI also runs `npm audit --omit=dev --audit-level=high` on every change and weekly (`ci.yml`).
+CI also runs `npm audit --omit=dev --audit-level=high` on every change and weekly (`ci.yml`), reported as a warning: an advisory nobody can fix yet mustn't turn `main` red and hold back every release. Dependabot alerts track them.
 
 If a guard trips:
 

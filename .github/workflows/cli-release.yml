@@ -17,6 +17,8 @@ on:
 # Real releases run one at a time, in order (a newer one waiting replaces an older one waiting: it
 # covers the same commits and more). Runs that release nothing get a group of their own, so they never
 # displace a waiting release.
+# The release condition appears here and in the first job's `if` (GitHub allows no variables in either):
+# keep the two identical.
 concurrency:
   group: ${{ github.workflow }}-${{ ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')) && 'release' || github.run_id }}
   cancel-in-progress: false
@@ -45,7 +47,7 @@ jobs:
       - id: plan
         run: |
           if [ "$SHA" != "$GITHUB_SHA" ]; then
-            echo "main moved on to $GITHUB_SHA; its release covers $SHA"
+            echo "::warning::main moved on to $GITHUB_SHA before this release started; its release covers $SHA. If that commit's CI fails, run this workflow by hand on main once main is green."
             echo "version=" >> "$GITHUB_OUTPUT"
             exit 0
           fi
