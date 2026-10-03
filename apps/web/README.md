@@ -8,7 +8,7 @@ npm run dev -w apps/web      # http://localhost:3000
 
 ## Deploy (once)
 
-1. On vercel.com, import `opencharm-labs/opencharm` and set **Root Directory** to `apps/web`. No environment variables are needed.
+1. On vercel.com, import `opencharm-labs/opencharm` and set **Root Directory** to `apps/web`. No environment variables are needed. `vercel.json` installs from the repository root with `npm ci`, like CI: run from `apps/web`, npm would install only this workspace and miss the shared tools at the root (TypeScript, `@types/node`, Vitest, Playwright), and the build fails.
 2. Add the domain `opencharm.dev` in **Domains** and point your DNS provider at Vercel as it shows.
 
 ## Checks
