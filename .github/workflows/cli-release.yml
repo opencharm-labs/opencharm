@@ -30,9 +30,13 @@ jobs:
   build:
     if: (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
     outputs:
       version: ${{ steps.plan.outputs.version }}
       tag: ${{ steps.plan.outputs.tag }}
+      build: ${{ steps.published.outputs.build }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -45,24 +49,56 @@ jobs:
       # Provenance names the run's commit (github.sha): if main moved on before this run started, stand
       # down, and the newer commit's release covers this one.
       - id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          # A run started by hand releases only a commit whose CI passed on main.
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            PASSED=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --commit "$SHA" --event push \
+              --status success --json databaseId -q length)
+            if [ "$PASSED" = 0 ]; then
+              echo "::error::CI hasn't passed on $SHA as a push to main: fix main first"
+              exit 1
+            fi
+          fi
           if [ "$SHA" != "$GITHUB_SHA" ]; then
             echo "::warning::main moved on to $GITHUB_SHA before this release started; its release covers $SHA. If that commit's CI fails, run this workflow by hand on main once main is green."
             echo "version=" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           node tools/release/scripts/next-release.ts cli --head "$SHA" --notes "$RUNNER_TEMP/release/notes.md"
-      - if: steps.plan.outputs.version != ''
+      # Already on npm? Then there's nothing to build, only the tag; from another commit, stop.
+      - id: published
+        if: steps.plan.outputs.version != ''
+        env:
+          VERSION: ${{ steps.plan.outputs.version }}
+        run: |
+          if ! npm view "opencharm@$VERSION" version >/dev/null 2>&1; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          PUBLISHED=$(npm view "opencharm@$VERSION" gitHead)
+          if [ "$PUBLISHED" = "$SHA" ]; then
+            echo "opencharm@$VERSION is already on npm from this commit: tagging only"
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          elif [ -z "$PUBLISHED" ]; then
+            echo "::error::opencharm@$VERSION is on npm without a recorded commit: find it in the package's provenance on npmjs.com, then gh release create cli@$VERSION --target <commit> --title 'cli: $VERSION' --generate-notes"
+            exit 1
+          else
+            echo "::error::opencharm@$VERSION is on npm from $PUBLISHED, not $SHA: gh release create cli@$VERSION --target $PUBLISHED --title 'cli: $VERSION' --generate-notes"
+            exit 1
+          fi
+      - if: steps.published.outputs.build == 'true'
         uses: ./.github/actions/setup
-      - if: steps.plan.outputs.version != ''
+      - if: steps.published.outputs.build == 'true'
         run: sudo apt-get update && sudo apt-get install -y ninja-build
-      - if: steps.plan.outputs.version != ''
+      - if: steps.published.outputs.build == 'true'
         run: |
           git clone --depth 1 https://github.com/emscripten-core/emsdk.git "$RUNNER_TEMP/emsdk"
           "$RUNNER_TEMP/emsdk/emsdk" install 6.0.10
           "$RUNNER_TEMP/emsdk/emsdk" activate 6.0.10
       # The repository says 0.0.0; the release build carries its real version.
-      - if: steps.plan.outputs.version != ''
+      - if: steps.published.outputs.build == 'true'
         env:
           VERSION: ${{ steps.plan.outputs.version }}
         run: |
@@ -99,31 +135,20 @@ jobs:
         with:
           name: cli-release
           path: ${{ runner.temp }}/release
-      - run: |
+      - if: needs.build.outputs.build == 'true'
+        run: |
           rm -rf packages/cli
           cp -R "$RUNNER_TEMP/release/cli" packages/cli
       # Trusted publishing needs npm 11.5.1 or later; fail clearly instead of falling back to a token.
-      - run: |
+      - if: needs.build.outputs.build == 'true'
+        run: |
           NPM=$(npm --version)
           node -e "const [a,b,c]=process.argv[1].split('.').map(Number); process.exit(a>11||(a===11&&(b>5||(b===5&&c>=1)))?0:1)" "$NPM" \
             || { echo "npm $NPM is too old for trusted publishing (needs 11.5.1+)"; exit 1; }
-      # A re-run never tags a commit npm didn't get: if the version is already out from another commit,
-      # stop and say how to tag it.
-      - env:
-          VERSION: ${{ needs.build.outputs.version }}
-        run: |
-          if npm view "opencharm@$VERSION" version >/dev/null 2>&1; then
-            PUBLISHED=$(npm view "opencharm@$VERSION" gitHead)
-            if [ "$PUBLISHED" != "$SHA" ]; then
-              echo "opencharm@$VERSION is on npm from $PUBLISHED, not $SHA. Tag that commit by hand:"
-              echo "  gh release create cli@$VERSION --target $PUBLISHED --title 'cli: $VERSION' --generate-notes"
-              exit 1
-            fi
-            echo "opencharm@$VERSION is already on npm from this commit"
-          else
-            # --provenance makes a publish without provenance fail, never slip through.
-            npm publish ./packages/cli --provenance --access public --ignore-scripts
-          fi
+      # --provenance makes a publish without provenance fail, never slip through. (build decided above
+      # whether npm already has this version from this commit.)
+      - if: needs.build.outputs.build == 'true'
+        run: npm publish ./packages/cli --provenance --access public --ignore-scripts
       # Tagged once the package is out, so a tag always means a published version.
       - env:
           GH_TOKEN: ${{ github.token }}

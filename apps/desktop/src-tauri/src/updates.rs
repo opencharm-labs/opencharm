@@ -1,4 +1,4 @@
-//! A new release, offered rather than installed: the page asks GitHub's release list once a day (the
+//! A new release, offered rather than installed: the page asks GitHub for the desktop@ tags once a day (the
 //! only call the app makes on its own; Settings can turn it off), and this picks the newest desktop
 //! release above this one. The builds aren't signed, so people download it themselves.
 

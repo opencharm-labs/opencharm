@@ -31,6 +31,9 @@ jobs:
   plan:
     if: (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
     outputs:
       version: ${{ steps.plan.outputs.version }}
       tag: ${{ steps.plan.outputs.tag }}
@@ -46,13 +49,30 @@ jobs:
       # Attestations name the run's commit (github.sha): if main moved on before this run started,
       # stand down, and the newer commit's release covers this one.
       - id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          # A run started by hand releases only a commit whose CI passed on main.
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            PASSED=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --commit "$SHA" --event push \
+              --status success --json databaseId -q length)
+            if [ "$PASSED" = 0 ]; then
+              echo "::error::CI hasn't passed on $SHA as a push to main: fix main first"
+              exit 1
+            fi
+          fi
           if [ "$SHA" != "$GITHUB_SHA" ]; then
             echo "::warning::main moved on to $GITHUB_SHA before this release started; its release covers $SHA. If that commit's CI fails, run this workflow by hand on main once main is green."
             echo "version=" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           node tools/release/scripts/next-release.ts desktop --head "$SHA" --notes "$RUNNER_TEMP/notes/notes.md"
+          # Already released (a re-run after success)? Then there's nothing to build.
+          TAG=$(grep '^tag=' "$GITHUB_OUTPUT" | tail -n 1 | cut -d= -f2)
+          if [ -n "$TAG" ] && gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" >/dev/null 2>&1; then
+            echo "$TAG is already released"
+            { echo "version="; echo "tag="; } >> "$GITHUB_OUTPUT"
+          fi
       - if: steps.plan.outputs.version != ''
         uses: actions/upload-artifact@v7
         with:

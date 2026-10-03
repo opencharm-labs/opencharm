@@ -190,6 +190,14 @@ describe("release notes for reverts", () => {
 });
 
 describe("what each unit ships", () => {
+  it("counts only the firmware it ships: the core and the emulator, not the board port", () => {
+    for (const unit of [UNITS.cli, UNITS.desktop]) {
+      expect(unit).toContain("firmware/core");
+      expect(unit).toContain("firmware/sim");
+      expect(unit).not.toContain("firmware");
+    }
+  });
+
   it("counts the face engine for the desktop app, whose pages include it", () => {
     expect(UNITS.desktop).toContain("packages/design");
   });

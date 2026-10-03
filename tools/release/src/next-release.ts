@@ -32,7 +32,7 @@ type Plan = {
 type Version = [number, number, number];
 
 // What each unit ships, so only changes there count for it. The CLI bundles charmd, protocol, design
-// and the emulator (firmware); its npm dependencies are external, installed from their ranges, so the
+// and the emulator (firmware/core, firmware/sim; not the board port); its npm dependencies are external, installed from their ranges, so the
 // lockfile never ships. The desktop app is its own code, the
 // emulator, the app icon and the face engine (packages/design).
 const UNITS: Record<Unit, readonly string[]> = {
@@ -41,9 +41,16 @@ const UNITS: Record<Unit, readonly string[]> = {
     "packages/charmd",
     "packages/protocol",
     "packages/design",
-    "firmware",
+    "firmware/core",
+    "firmware/sim",
   ],
-  desktop: ["apps/desktop", "firmware", "brand/icon", "packages/design"],
+  desktop: [
+    "apps/desktop",
+    "firmware/core",
+    "firmware/sim",
+    "brand/icon",
+    "packages/design",
+  ],
 };
 
 const SECTIONS: ReadonlyArray<[string, string]> = [

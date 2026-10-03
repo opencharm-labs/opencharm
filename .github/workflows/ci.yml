@@ -75,10 +75,19 @@ jobs:
       - run: npm run build
       # The bundle must run on its own: catches dependencies that break when inlined.
       - run: node packages/cli/dist/main.mjs faces --no-color
-      # Known vulnerabilities in what we ship (production dependencies, high or worse), reported as a
-      # warning: an advisory nobody can fix yet must not turn main red and hold back every release.
-      # Dependabot alerts track them.
-      - run: npm audit --omit=dev --audit-level=high || echo "::warning::npm audit found a high or critical advisory (see this step's log and Dependabot alerts)"
+      # Known vulnerabilities in what we ship (production dependencies, high or worse): a pull request
+      # can't bring one in, and the weekly run goes red when a new advisory appears. On a push to main
+      # it only warns, because that run's success is what releases, and an advisory nobody can fix yet
+      # mustn't hold back every release.
+      - env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          if npm audit --omit=dev --audit-level=high; then exit 0; fi
+          if [ "$EVENT" = push ]; then
+            echo "::warning::npm audit found a high or critical advisory (see this step's log and Dependabot alerts)"
+          else
+            exit 1
+          fi
 
   firmware:
     needs: changes

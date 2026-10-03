@@ -16,6 +16,15 @@ import {
 
 const FIELD = "\x1f";
 const RECORD = "\x1e";
+const USAGE = `Usage: next-release <${Object.keys(UNITS).join("|")}> [--head <sha>] [--notes <file>]`;
+
+function options() {
+  return parseArgs({
+    allowPositionals: true,
+    strict: true,
+    options: { head: { type: "string" }, notes: { type: "string" } },
+  });
+}
 
 // Generous: squash commits carry their branch's messages, and releases can be far apart.
 function git(...args: string[]): string {
@@ -46,17 +55,9 @@ function repository(head: string): Git {
   };
 }
 
-const USAGE = `Usage: next-release <${Object.keys(UNITS).join("|")}> [--head <sha>] [--notes <file>]`;
-let parsed: ReturnType<typeof parse>;
-function parse() {
-  return parseArgs({
-    allowPositionals: true,
-    strict: true,
-    options: { head: { type: "string" }, notes: { type: "string" } },
-  });
-}
+let parsed: ReturnType<typeof options>;
 try {
-  parsed = parse();
+  parsed = options();
 } catch (error) {
   console.error(`${(error as Error).message}\n${USAGE}`);
   process.exit(2);

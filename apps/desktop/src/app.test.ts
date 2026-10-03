@@ -22,7 +22,7 @@ describe("the desktop app", () => {
     expect(existsSync(join(APP, "web", "settings.html"))).toBe(true);
   });
 
-  it("takes its version from package.json, the one number to bump for a release", () => {
+  it("takes its version from package.json, which CI stamps from the release tag", () => {
     expect(conf.version).toBe("../package.json");
   });
 

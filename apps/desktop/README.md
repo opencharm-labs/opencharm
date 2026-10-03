@@ -19,7 +19,7 @@ Download the latest **OpenCharm Desktop** from [Releases](https://github.com/ope
 - **Provenance:** GitHub attests that each file was built by this repository's release workflow from a given commit. Check it with `gh attestation verify <file> --repo opencharm-labs/opencharm`.
 - **Build it yourself** (below).
 
-**Updates:** once a day the app asks GitHub's public release list whether there's a newer version (nothing about you is sent). If there is, the menu-bar menu and Settings offer it, and you download it the same way. Turn this off in Settings. After an update, macOS may ask again for the microphone and the keychain, because an unsigned app's identity changes with each build.
+**Updates:** once a day the app asks GitHub for the public list of `desktop@` release tags whether there's a newer version (nothing about you is sent). If there is, the menu-bar menu and Settings offer it, and you download it the same way. Turn this off in Settings. After an update, macOS may ask again for the microphone and the keychain, because an unsigned app's identity changes with each build.
 
 It needs Node 24 and the OpenCharm CLI (`npm install -g opencharm`): the app runs charmd with it, next to your agent.
 
