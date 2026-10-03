@@ -16,7 +16,7 @@ The simplest way to use a charm: your agent lives in a folder you own, run on yo
 - **`opencharm init [dir]`** (`packages/cli/src/commands/init.ts`) clones the starter (`git clone --depth 1 --origin upstream`, so fixes can be pulled later; `--from <url or path>` for forks), then fits `opencharm.json` to this machine: `local` voice on macOS, `fake` elsewhere; `--agent` picks an ACP preset (Claude Code by default). The CLI bundles no template. The charm's name lives in `charm/AGENTS.md`.
 - **`opencharm serve`** from the workspace runs the agent in `charm/`.
 - Naming: "workspace" everywhere current (CLI, `OPENCHARM.md`, READMEs, skills, code comments).
-- The starter's git flow: work lands on `develop`; the maintainer opens the PR to `main`.
+- The starter's git flow: trunk-based, like the main repo: a short branch from `main`, then a pull request to `main` that the maintainer merges.
 
 ## Decisions
 

@@ -1,3 +1,5 @@
+<!-- Title: a conventional commit (`fix(cli): …`, `feat(design): …`). The pull request is squash-merged, so the title becomes its commit on main. -->
+
 ## Why
 
 The problem this solves, for whom. Feature: link its spec (`specs/NNN-<slug>/spec.md`). Fix, perf, docs, CI or chore: no spec; link the issue if there is one. Closes #

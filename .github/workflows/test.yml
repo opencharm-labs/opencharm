@@ -2,7 +2,7 @@ name: Test
 on:
   pull_request:
   push:
-    branches: [main, develop]
+    branches: [main]
 # A superseded push should not keep a runner busy; the newest commit wins.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

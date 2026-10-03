@@ -1,10 +1,9 @@
 # Keeps the GitHub Actions current (an outdated runtime breaks CI without warning). Pull requests go
-# to develop, like every change; npm and Cargo advisories arrive as Dependabot alerts and `npm audit`.
+# to main, like every change; npm and Cargo advisories arrive as Dependabot alerts and `npm audit`.
 version: 2
 updates:
   - package-ecosystem: github-actions
     directories: ["/", "/.github/actions/setup"]
-    target-branch: develop
     schedule:
       interval: monthly
     groups:

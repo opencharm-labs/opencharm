@@ -2,7 +2,7 @@ name: Desktop
 on:
   pull_request:
   push:
-    branches: [main, develop]
+    branches: [main]
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
