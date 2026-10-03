@@ -24,7 +24,7 @@ Thanks for helping. OpenCharm is built spec by spec, by people and by coding age
 
 1. A new feature starts from a numbered spec in `specs/`. Fixes, refactors, performance work, docs, CI and cleanups don't get a spec: they go on a `fix/`, `perf/`, `docs/`, `chore/` or `ci/` branch with the docs they touch updated in the same change ([what gets a spec](specs/README.md#what-gets-a-spec)).
 2. Branch `spec/NNN-<slug>`, one spec per branch, conventional commits.
-3. `npm run check` must pass locally and in CI. CI is one workflow, `.github/workflows/ci.yml`: the same checks on every change, plus the firmware, emulator, website and desktop jobs only when their files change (the desktop app on macOS and Windows only on pull requests). Its `ci` job is the single result to look at.
+3. `npm run check` must pass locally and in CI, and the branch gets an independent, adversarial review before its pull request (AGENTS.md, "Working rules for agents"): findings are reproduced, then fixed or rejected with a reason in the pull request's Evidence. CI is one workflow, `.github/workflows/ci.yml`: the same checks on every change, plus the firmware, emulator, website and desktop jobs only when their files change (the desktop app on macOS and Windows only on pull requests). Its `ci` job is the single result to look at.
 4. The change updates `OPENCHARM.md` (what the product is), the README next to the code it changes, and any other doc it makes wrong.
 5. Every change reaches `main` through a pull request: contributors from a fork, the maintainer and coding agents from a branch in this repository (`main` is the only long-lived branch; nobody pushes to it).
 6. Its title is a conventional commit (`fix(cli): …`): the maintainer reviews it and squash-merges it once the checks pass, so each pull request becomes one commit on `main`, and the branch is then deleted. If `main` moved on meanwhile, merge `main` into the branch (no force-push).
@@ -57,14 +57,14 @@ The MVP is done when all of this works, in the emulator first, then on the Waves
 
 **How a merge becomes a release.** After every push to `main` whose CI passed, `cli-release.yml` and `desktop-release.yml` each ask `tools/release` whether their unit has something new: the conventional-commit titles merged since its last tag, counting only the folders it ships.
 
-| Unit        | Tag             | Counts changes in                                                            | Publishes                                                                                                                                              |
-| ----------- | --------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| CLI         | `cli@x.y.z`     | `packages/cli`, `charmd`, `protocol`, `design`, `firmware` (it bundles them) | `opencharm` on npm, with provenance                                                                                                                    |
-| Desktop app | `desktop@x.y.z` | `apps/desktop`, `firmware`, `brand/icon`                                     | installers for macOS (Apple silicon, Intel) and Windows on GitHub Releases, with `SHA256SUMS.txt` and build attestations; a pre-release while unsigned |
+| Unit        | Tag             | Counts changes in                                                                                                                        | Publishes                                                                                                                                              |
+| ----------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| CLI         | `cli@x.y.z`     | `packages/cli`, `charmd`, `protocol`, `design`, `firmware`, `package-lock.json` (it bundles them and the dependencies the lockfile pins) | `opencharm` on npm, with provenance                                                                                                                    |
+| Desktop app | `desktop@x.y.z` | `apps/desktop`, `firmware`, `brand/icon`                                                                                                 | installers for macOS (Apple silicon, Intel) and Windows on GitHub Releases, with `SHA256SUMS.txt` and build attestations; a pre-release while unsigned |
 
 | PR title                                                           | Release                         |
 | ------------------------------------------------------------------ | ------------------------------- |
-| `fix: …`, `perf: …`, `revert: …`                                   | patch: 0.1.0 → 0.1.1            |
+| `fix: …`, `perf: …`, `revert: …`, or GitHub's `Revert "…"`         | patch: 0.1.0 → 0.1.1            |
 | `feat: …`                                                          | minor: 0.1.1 → 0.2.0            |
 | `feat!: …` or a `BREAKING CHANGE:` footer                          | minor below 1.0, major from 1.0 |
 | `docs:`, `ci:`, `chore:`, `test:`, `refactor:`, `build:`, `style:` | none                            |
@@ -73,7 +73,9 @@ If there is something, the workflow stamps the version into the build, builds an
 
 **Versions live in tags only.** The repository's `package.json` files (and the desktop app's `Cargo.toml`) say `0.0.0`, so the code never states a version that could drift; CI stamps the real one into what it builds. From source, `opencharm --version` says `0.0.0`, and the desktop app offers no updates. The GitHub Releases page is the changelog.
 
-**Commands.** `npm run release:next -- cli` (or `desktop`) prints what `main` would release now. If a release fails, re-run the workflow (Actions → CLI release or Desktop release → Re-run, or Run workflow): every step skips what's already done. To leave something out of a release, don't merge it yet.
+**Commands.** `npm run release:next -- cli` (or `desktop`) prints what `main` would release now. If a release fails, re-run it (Actions → CLI release or Desktop release → Re-run, or Run workflow on `main`; other branches can't release): every step skips what's already done. A CLI version already on npm from a different commit stops the run with the command to tag that commit by hand; the desktop app reuses its draft only for the same version and commit and deletes any other desktop draft. To leave something out of a release, don't merge it yet.
+
+**Security of the release jobs.** The jobs that install and run third-party code (`npm ci`, Emscripten, the tests, the desktop builds) never hold the npm publishing right, and no job keeps the GitHub token on disk. The CLI's `publish` job, the only one that can publish to npm (OIDC) and tag, runs no installed package: it publishes the folder `build` produced.
 
 **npm.** `opencharm` trusts only `cli-release.yml` (trusted publishing, with "Allow npm publish" on) and its publishing access is "Require two-factor authentication and disallow tokens": there is no npm token anywhere. The name was claimed on 3 October 2026 with an empty `0.0.0` published by hand (trusted publishing needs the package to exist); `0.1.0` (3 October 2026) is the first release with code.
 

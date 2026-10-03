@@ -29,8 +29,9 @@ type Plan = {
 
 type Version = [number, number, number];
 
-// What each unit ships, so only changes there count for it. The CLI bundles charmd, protocol, design
-// and the emulator (firmware); the desktop app is its own code, the emulator and the app icon.
+// What each unit ships, so only changes there count for it. The CLI bundles charmd, protocol, design,
+// the emulator (firmware) and the dependencies the lockfile pins; the desktop app is its own code, the
+// emulator and the app icon.
 const UNITS: Record<Unit, readonly string[]> = {
   cli: [
     "packages/cli",
@@ -38,6 +39,7 @@ const UNITS: Record<Unit, readonly string[]> = {
     "packages/protocol",
     "packages/design",
     "firmware",
+    "package-lock.json",
   ],
   desktop: ["apps/desktop", "firmware", "brand/icon"],
 };
@@ -50,6 +52,8 @@ const SECTIONS: ReadonlyArray<[string, string]> = [
 ];
 
 const TITLE = /^(\w+)(?:\(([^)]*)\))?(!)?: (.+)$/;
+// GitHub's Revert button titles the pull request this way.
+const GITHUB_REVERT = /^Revert ".+"/;
 const RELEASED = /^(\d+)\.(\d+)\.(\d+)$/;
 
 function parse(version: string): Version | undefined {
@@ -64,7 +68,16 @@ function compare(a: Version, b: Version): number {
 }
 
 function parseCommit(raw: RawCommit): Commit | undefined {
-  const match = TITLE.exec(raw.subject.trim());
+  const subject = raw.subject.trim();
+  if (GITHUB_REVERT.test(subject))
+    return {
+      sha: raw.sha,
+      type: "revert",
+      scope: undefined,
+      breaking: false,
+      description: subject,
+    };
+  const match = TITLE.exec(subject);
   if (!match?.[1] || !match[4]) return undefined;
   return {
     sha: raw.sha,
@@ -115,7 +128,7 @@ function releaseNotes(
       : []),
     ...SECTIONS.map(([type, title]): [string, Commit[]] => [
       title,
-      commits.filter((c) => c.type === type),
+      commits.filter((c) => c.type === type && !c.breaking),
     ]),
   ];
   for (const [title, list] of groups) {

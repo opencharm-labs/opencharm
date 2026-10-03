@@ -46,7 +46,7 @@ function repository(head: string): Git {
 }
 
 const unit = process.argv[2] as Unit;
-if (!(unit in UNITS)) {
+if (!Object.hasOwn(UNITS, unit)) {
   console.error(
     `Usage: next-release <${Object.keys(UNITS).join("|")}> [--head <sha>] [--notes <file>]`
   );

@@ -4,7 +4,7 @@ name: Desktop release
 # the folders the app ships). If so, it builds macOS (Apple silicon and Intel) and Windows with the
 # version stamped in, attaches the installers, checksums and build attestations to a draft release,
 # and publishes it, which creates the desktop@<version> tag (CONTRIBUTING "Releasing"). A failed run
-# leaves only a draft; re-running it (or Actions → Desktop release → Run workflow) picks it up again.
+# leaves only a draft; re-running it (or Actions → Desktop release → Run workflow, on main) picks it up again.
 # The builds are unsigned for now (apps/desktop/README.md). Built from scratch on purpose: no caches,
 # so what we publish never depends on an earlier run.
 on:
@@ -18,35 +18,63 @@ concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false
 permissions:
-  contents: write
+  contents: read
 env:
   SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
 jobs:
   plan:
-    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    if: (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.plan.outputs.version }}
       tag: ${{ steps.plan.outputs.tag }}
-      release: ${{ steps.draft.outputs.id }}
     steps:
       - uses: actions/checkout@v7
         with:
           ref: ${{ env.SHA }}
           fetch-depth: 0
+          persist-credentials: false
       - uses: ./.github/actions/setup
       - id: plan
-        run: npx tsx tools/release/scripts/next-release.ts desktop --head "$SHA" --notes "$RUNNER_TEMP/notes.md"
-      # The draft holds the installers until they're all there; a re-run reuses it.
+        run: npx tsx tools/release/scripts/next-release.ts desktop --head "$SHA" --notes "$RUNNER_TEMP/notes/notes.md"
+      - if: steps.plan.outputs.version != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-notes
+          path: ${{ runner.temp }}/notes
+  # The draft holds the installers until they're all there. A re-run reuses the draft for this version
+  # and commit; any other desktop draft (an earlier failed run) is deleted, so a tag never lands on a
+  # commit its installers weren't built from.
+  draft:
+    needs: plan
+    if: needs.plan.outputs.version != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      id: ${{ steps.draft.outputs.id }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: desktop-notes
+          path: ${{ runner.temp }}/notes
       - id: draft
-        if: steps.plan.outputs.version != ''
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.plan.outputs.tag }}
-          VERSION: ${{ steps.plan.outputs.version }}
+          TAG: ${{ needs.plan.outputs.tag }}
+          VERSION: ${{ needs.plan.outputs.version }}
         run: |
-          ID=$(gh api "repos/$GITHUB_REPOSITORY/releases" --paginate \
-            -q ".[] | select(.draft and .tag_name == \"$TAG\") | .id" | head -n 1)
+          ID=""
+          while read -r id tag target; do
+            [ -z "$id" ] && continue
+            if [ "$tag" = "$TAG" ] && [ "$target" = "$SHA" ] && [ -z "$ID" ]; then
+              ID=$id
+            else
+              gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/$id"
+              echo "Deleted stale draft $tag ($target)"
+            fi
+          done < <(gh api "repos/$GITHUB_REPOSITORY/releases" --paginate \
+            -q '.[] | select(.draft and (.tag_name | startswith("desktop@"))) | "\(.id) \(.tag_name) \(.target_commitish)"')
           if [ -z "$ID" ]; then
             README="https://github.com/$GITHUB_REPOSITORY/blob/main/apps/desktop/README.md"
             {
@@ -57,11 +85,9 @@ jobs:
               echo "Install and first-run notes: $README"
               echo "Unsigned for now: compare SHA256SUMS.txt, or run gh attestation verify <file> --repo $GITHUB_REPOSITORY."
               echo "Provided as is, with no warranty."
-            } >> "$RUNNER_TEMP/notes.md"
-            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$SHA" --draft --prerelease \
-              --title "desktop: $VERSION" --notes-file "$RUNNER_TEMP/notes.md"
-            ID=$(gh api "repos/$GITHUB_REPOSITORY/releases" --paginate \
-              -q ".[] | select(.draft and .tag_name == \"$TAG\") | .id" | head -n 1)
+            } >> "$RUNNER_TEMP/notes/notes.md"
+            ID=$(gh api -X POST "repos/$GITHUB_REPOSITORY/releases" -f tag_name="$TAG" -f target_commitish="$SHA" \
+              -f name="desktop: $VERSION" -F draft=true -F prerelease=true -F body=@"$RUNNER_TEMP/notes/notes.md" -q .id)
           fi
           echo "id=$ID" >> "$GITHUB_OUTPUT"
   emulator:
@@ -72,6 +98,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ env.SHA }}
+          persist-credentials: false
       - uses: ./.github/actions/setup
       - run: sudo apt-get update && sudo apt-get install -y ninja-build
       - run: |
@@ -87,7 +114,9 @@ jobs:
           path: packages/cli/sim
           if-no-files-found: error
   build:
-    needs: [plan, emulator]
+    needs: [plan, draft, emulator]
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
@@ -103,6 +132,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ env.SHA }}
+          persist-credentials: false
       - uses: ./.github/actions/setup
       - uses: actions/download-artifact@v8
         with:
@@ -123,12 +153,12 @@ jobs:
           projectPath: apps/desktop
           tauriScript: npx tauri
           args: --target ${{ matrix.target }}
-          releaseId: ${{ needs.plan.outputs.release }}
+          releaseId: ${{ needs.draft.outputs.id }}
   # Unsigned builds earn trust another way: checksums to compare, and a signed statement from GitHub
   # that these files were built by this workflow from this commit
   # (gh attestation verify <file> --repo <owner>/<repo>).
   publish:
-    needs: [plan, build]
+    needs: [plan, draft, build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -137,7 +167,7 @@ jobs:
     steps:
       - env:
           GH_TOKEN: ${{ github.token }}
-          ID: ${{ needs.plan.outputs.release }}
+          ID: ${{ needs.draft.outputs.id }}
         run: |
           mkdir assets
           gh api "repos/$GITHUB_REPOSITORY/releases/$ID/assets" --paginate \
@@ -153,7 +183,7 @@ jobs:
       # Publishing the draft creates the tag: a desktop@ tag always means a complete release.
       - env:
           GH_TOKEN: ${{ github.token }}
-          ID: ${{ needs.plan.outputs.release }}
+          ID: ${{ needs.draft.outputs.id }}
           TAG: ${{ needs.plan.outputs.tag }}
         run: |
           OLD=$(gh api "repos/$GITHUB_REPOSITORY/releases/$ID/assets" --paginate -q '.[] | select(.name == "SHA256SUMS.txt") | .id')

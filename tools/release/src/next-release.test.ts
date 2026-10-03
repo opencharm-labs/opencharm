@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   type RawCommit,
+  UNITS,
   latestVersion,
   nextVersion,
   parseCommit,
@@ -33,6 +34,15 @@ describe("parseCommit", () => {
         commit("feat(cli): new config", "BREAKING CHANGE: the old one is gone")
       )?.breaking
     ).toBe(true);
+  });
+
+  it("reads GitHub's revert title as a revert", () => {
+    expect(
+      parseCommit(commit('Revert "feat(cli): a risky thing" (#30)'))
+    ).toMatchObject({
+      type: "revert",
+      description: 'Revert "feat(cli): a risky thing" (#30)',
+    });
   });
 
   it("ignores a title that isn't a conventional commit", () => {
@@ -116,6 +126,28 @@ describe("releaseNotes", () => {
         "",
       ].join("\n")
     );
+  });
+});
+
+describe("release notes for a breaking change", () => {
+  it("lists it once, under breaking changes", () => {
+    const parsed = [parseCommit(commit("feat(cli)!: new config (#40)"))].filter(
+      (c) => c !== undefined
+    );
+    const notes = releaseNotes(parsed, {
+      repo: "o/r",
+      unit: "cli",
+      previous: "0.1.0",
+      version: "0.2.0",
+    });
+    expect(notes.match(/new config/g)).toHaveLength(1);
+    expect(notes).toContain("### Breaking changes");
+  });
+});
+
+describe("what each unit ships", () => {
+  it("counts the lockfile for the CLI, whose bundle inlines its dependencies", () => {
+    expect(UNITS.cli).toContain("package-lock.json");
   });
 });
 

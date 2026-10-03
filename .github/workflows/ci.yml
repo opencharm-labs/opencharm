@@ -12,8 +12,10 @@ on:
   schedule:
     - cron: "17 6 * * 1"
   workflow_dispatch:
+# Per event as well as per branch: a weekly or manual run on main never cancels a merge's run, whose
+# success is what starts the releases.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 permissions:
   contents: read
