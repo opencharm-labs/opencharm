@@ -129,9 +129,11 @@ async function startEmulator(
   };
 }
 
-function trace(page: Page): Promise<Trace> {
+// Undefined until sim.js has run: it awaits config.json and the WebAssembly loader first, and the
+// page's load event doesn't wait for a module's top-level await.
+function trace(page: Page): Promise<Trace | undefined> {
   return page.evaluate(
-    () => (globalThis as unknown as { __charm: Trace }).__charm
+    () => (globalThis as unknown as { __charm?: Trace }).__charm
   );
 }
 
@@ -144,10 +146,10 @@ async function waitFor(
   const until = Date.now() + ms;
   for (;;) {
     const t = await trace(page);
-    if (check(t)) return t;
+    if (t && check(t)) return t;
     if (Date.now() > until)
       throw new Error(
-        `timed out waiting for ${what}: ${JSON.stringify(t.messages.slice(-5))}`
+        `timed out waiting for ${what}: ${t ? JSON.stringify(t.messages.slice(-5)) : "the emulator never started"}`
       );
     await new Promise((r) => setTimeout(r, 100));
   }
