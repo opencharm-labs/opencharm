@@ -36,14 +36,22 @@ fn commit() -> String {
 fn main() {
     println!("cargo:rustc-env=OPENCHARM_COMMIT={}", commit());
     println!("cargo:rerun-if-env-changed=OPENCHARM_COMMIT");
-    // A new commit moves the branch's ref (HEAD only names the branch); staging rewrites the index.
+    // A new commit moves the branch's ref (HEAD only names the branch), which may live in its own file
+    // or, once git packs it, in packed-refs; staging rewrites the index. Only files that exist are
+    // watched: Cargo treats a missing one as always changed.
     let branch = git(&["symbolic-ref", "-q", "HEAD"]);
-    for path in ["HEAD".to_string(), "index".to_string()]
-        .into_iter()
-        .chain(branch)
+    for path in [
+        "HEAD".to_string(),
+        "index".to_string(),
+        "packed-refs".to_string(),
+    ]
+    .into_iter()
+    .chain(branch)
     {
         if let Some(file) = git(&["rev-parse", "--git-path", &path]) {
-            println!("cargo:rerun-if-changed={file}");
+            if std::path::Path::new(&file).exists() {
+                println!("cargo:rerun-if-changed={file}");
+            }
         }
     }
     tauri_build::build()
