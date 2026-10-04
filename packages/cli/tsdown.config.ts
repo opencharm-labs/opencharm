@@ -2,9 +2,11 @@ import { execFileSync } from "node:child_process";
 
 import { defineConfig } from "tsdown";
 
-// The short commit, "-dirty" with uncommitted changes, "unknown" without git: the same rule as
+// OPENCHARM_COMMIT when CI sets it, else the short commit, "-dirty" with tracked changes, "unknown"
+// without git: the same rule as
 // gitCommit in src/identity.ts (this config is loaded natively, before TypeScript sources resolve).
 function gitCommit(): string {
+  if (process.env.OPENCHARM_COMMIT) return process.env.OPENCHARM_COMMIT;
   const git = (...args: string[]) =>
     execFileSync("git", args, {
       cwd: import.meta.dirname,
@@ -13,7 +15,9 @@ function gitCommit(): string {
     }).trim();
   try {
     const commit = git("rev-parse", "--short", "HEAD");
-    return git("status", "--porcelain") ? `${commit}-dirty` : commit;
+    return git("status", "--porcelain", "--untracked-files=no")
+      ? `${commit}-dirty`
+      : commit;
   } catch {
     return "unknown";
   }

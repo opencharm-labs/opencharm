@@ -19,11 +19,15 @@ function git(cwd: string, ...args: string[]): string {
   }).trim();
 }
 
-// The short commit at cwd, "-dirty" with uncommitted changes, "unknown" without git or a checkout.
+// OPENCHARM_COMMIT when CI sets it (exact even after CI stamps a version into package.json); else the
+// short commit at cwd, "-dirty" with tracked changes, "unknown" without git or a checkout. The same
+// rule as the desktop app's build.rs, the firmware's CMake and the website.
 function gitCommit(cwd: string): string {
+  if (process.env.OPENCHARM_COMMIT) return process.env.OPENCHARM_COMMIT;
   try {
     const commit = git(cwd, "rev-parse", "--short", "HEAD");
-    const dirty = git(cwd, "status", "--porcelain").length > 0;
+    const dirty =
+      git(cwd, "status", "--porcelain", "--untracked-files=no").length > 0;
     return dirty ? `${commit}-dirty` : commit;
   } catch {
     return "unknown";
@@ -50,13 +54,18 @@ function formatIdentity(unit: string, version: string, commit: string): string {
   return `${unit}@${version} (${commit})`;
 }
 
+let cached: Identity | undefined;
+
+// Computed once: running from source, it asks git.
 function identity(): Identity {
+  if (cached) return cached;
   const commit =
     typeof __OPENCHARM_COMMIT__ === "string"
       ? __OPENCHARM_COMMIT__
       : gitCommit(dirname(fileURLToPath(import.meta.url)));
   const version = `cli@${pkg.version}`;
-  return { version, commit, text: `${version} (${commit})` };
+  cached = { version, commit, text: `${version} (${commit})` };
+  return cached;
 }
 
 export { formatIdentity, gitCommit, identity, starterCommit };

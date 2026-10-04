@@ -1,3 +1,5 @@
+import { dirname, resolve } from "node:path";
+
 import { loadConfig } from "@opencharm-labs/charmd/config";
 import { startDaemon } from "@opencharm-labs/charmd/daemon";
 
@@ -13,12 +15,18 @@ async function runServe(
   let config;
   let daemon;
   try {
-    config = loadConfig(flagValue(args, "--config"));
+    const configPath = flagValue(args, "--config");
+    config = loadConfig(configPath);
     daemon = await startDaemon(config, {
       quiet: true,
       identity: identity().text,
+      // The workspace is the folder of the config charmd loaded (--config), else the agent's.
       starter: starterCommit(
-        config.agent.adapter === "acp" ? config.agent.cwd : process.cwd()
+        configPath
+          ? dirname(resolve(configPath))
+          : config.agent.adapter === "acp"
+            ? config.agent.cwd
+            : process.cwd()
       ),
       // The charm's tools for ACP agents: this same CLI as `opencharm mcp`. execArgv keeps loaders
       // such as tsx in development; a debugger flag must not be copied into every child.

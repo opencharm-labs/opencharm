@@ -21,10 +21,11 @@ function git(...args: string[]): string | undefined {
 
 function fromDescribe(
   describe: string | undefined,
-  commit: string
+  commit: string,
+  dirtyTree = false
 ): BuildIdentity {
   const match = describe ? DESCRIBE.exec(describe) : null;
-  const dirty = match?.[3] ? "-dirty" : "";
+  const dirty = match?.[3] || dirtyTree ? "-dirty" : "";
   const version = match?.[1]
     ? `${match[1]}${match[2] ? `+${match[2]}` : ""}`
     : "web@unknown";
@@ -32,21 +33,26 @@ function fromDescribe(
   return { version, commit: full, text: `${version} (${full})` };
 }
 
-// Vercel clones without tags (and shallow), so fetch them first; without git, its commit variable.
+// OPENCHARM_COMMIT when CI sets it, else git (Vercel's commit variable without it). Vercel clones
+// without tags (and shallow), so on CI or Vercel only, fetch them first; never on a contributor's
+// machine. "-dirty" means tracked changes, as everywhere.
 function buildIdentity(): BuildIdentity {
   const commit =
+    process.env.OPENCHARM_COMMIT ??
     git("rev-parse", "--short", "HEAD") ??
     process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ??
     "unknown";
-  const describe = () =>
-    git("describe", "--tags", "--match", "web@*", "--dirty");
+  const describe = () => git("describe", "--tags", "--match", "web@*");
   let found = describe();
-  if (!found && git("rev-parse", "--is-inside-work-tree") === "true") {
+  if (!found && (process.env.VERCEL || process.env.CI)) {
     git("fetch", "--quiet", "--tags", "--unshallow");
     git("fetch", "--quiet", "--tags");
     found = describe();
   }
-  return fromDescribe(found, commit);
+  const dirty =
+    !process.env.OPENCHARM_COMMIT &&
+    (git("status", "--porcelain", "--untracked-files=no") ?? "").length > 0;
+  return fromDescribe(found, commit, dirty);
 }
 
 export { buildIdentity, fromDescribe };

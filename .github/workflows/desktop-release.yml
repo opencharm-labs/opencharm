@@ -67,6 +67,10 @@ jobs:
         with:
           ref: ${{ env.SHA }}
           persist-credentials: false
+      # The exact commit for every build's identity (spec 015): stamping the version edits package.json,
+      # which would otherwise read as -dirty.
+      - shell: bash
+        run: echo "OPENCHARM_COMMIT=${SHA::7}" >> "$GITHUB_ENV"
       - uses: ./.github/actions/setup
       - run: sudo apt-get update && sudo apt-get install -y ninja-build
       - run: |
@@ -99,6 +103,10 @@ jobs:
         with:
           ref: ${{ env.SHA }}
           persist-credentials: false
+      # The exact commit for every build's identity (spec 015): stamping the version edits package.json,
+      # which would otherwise read as -dirty.
+      - shell: bash
+        run: echo "OPENCHARM_COMMIT=${SHA::7}" >> "$GITHUB_ENV"
       - uses: ./.github/actions/setup
       - uses: actions/download-artifact@v8
         with:

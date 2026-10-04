@@ -74,3 +74,43 @@ describe("unknown fields", () => {
     expect(result.ok).toBe(true);
   });
 });
+
+describe("a charm's build (spec 015)", () => {
+  // The shared hello with a different build: these parse into something other than their input.
+  const hello = (build: object) => {
+    const base = loadFixtures("valid").find((f) => f.name === "client-hello")!;
+    return JSON.stringify({ ...(JSON.parse(base.raw) as object), build });
+  };
+
+  it("keeps a future kind and ignores fields it doesn't know, so newer charms still connect", () => {
+    const parsed = parseClientMessage(
+      hello({
+        kind: "phone",
+        version: "cli@9.0.0",
+        commit: "abc1234",
+        board_rev: "B",
+      })
+    );
+    expect(
+      parsed.ok && parsed.message.type === "hello" && parsed.message.build
+    ).toEqual({
+      kind: "phone",
+      version: "cli@9.0.0",
+      commit: "abc1234",
+    });
+  });
+
+  it("drops a build it can't print safely, and still accepts the hello", () => {
+    const parsed = parseClientMessage(
+      hello({
+        kind: "emulator",
+        version: "cli@0.2.0\u001b]52;c;aGk=\u0007",
+        commit: "abc1234",
+      })
+    );
+    expect(parsed.ok).toBe(true);
+    expect(
+      parsed.ok && parsed.message.type === "hello" && parsed.message.build
+    ).toBeUndefined();
+  });
+});

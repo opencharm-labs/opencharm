@@ -58,11 +58,8 @@ struct ServerMessage {
 // Returns false for anything that is not a valid message from charmd; never throws.
 bool parse_server_message(std::string_view json, ServerMessage& out);
 
-#ifndef CHARM_COMMIT
-#define CHARM_COMMIT "unknown"
-#endif
-// The commit this core was built from (CMake stamps it; spec 015).
-inline constexpr const char* kBuildCommit = CHARM_COMMIT;
+// The commit this core was built from (spec 015), in a source file CMake generates.
+extern const char kBuildCommit[];
 
 // What the charm runs, sent in hello (spec 015): kind is "emulator", "desktop" or "board"; version
 // is the release identity of what ships it (e.g. "cli@0.2.0"). Empty kind = not sent.

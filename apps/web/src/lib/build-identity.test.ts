@@ -23,6 +23,12 @@ describe("the site's build identity (spec 015)", () => {
     );
   });
 
+  it("marks local changes even without a release to count from", () => {
+    expect(fromDescribe(undefined, "abc1234", true).text).toBe(
+      "web@unknown (abc1234-dirty)"
+    );
+  });
+
   it("says unknown without a release to count from", () => {
     expect(fromDescribe(undefined, "abc1234").text).toBe(
       "web@unknown (abc1234)"
