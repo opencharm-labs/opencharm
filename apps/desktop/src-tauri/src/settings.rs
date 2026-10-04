@@ -147,7 +147,24 @@ impl Settings {
             .and_then(|text| serde_json::from_str(&text).ok())
             .unwrap_or_default();
         settings.migrate();
+        settings.repair();
         settings
+    }
+
+    /// A voice or language this platform can't use (a macOS voice copied to Windows, say) falls back
+    /// to the default instead of reaching charmd.
+    fn repair(&mut self) {
+        if !LISTENS.contains(&self.listen.as_str()) {
+            self.listen = DEFAULT_LISTEN.into();
+        }
+        if !SPEAKS.contains(&self.speak.as_str())
+            || (self.speak == "system" && !cfg!(target_os = "macos"))
+        {
+            self.speak = DEFAULT_SPEAK.into();
+        }
+        if !LANGUAGES.contains(&self.language.as_str()) {
+            self.language = DEFAULT_LANGUAGE.into();
+        }
     }
 
     /// The old single voice keeps what it meant: "local" stays on this computer (the macOS voice
@@ -372,6 +389,11 @@ mod tests {
         assert_eq!(
             load(r#"{"voice":"local","sayVoice":"Alice"}"#),
             ("local".into(), picked.into(), None)
+        );
+        // Values this platform can't use fall back to the defaults.
+        assert_eq!(
+            load(r#"{"listen":"nope","speak":"loud","language":"xx"}"#),
+            ("local".into(), "microsoft".into(), None)
         );
         // New installs, and anything saved since, use the new defaults and never write `voice`.
         assert_eq!(load("{}"), ("local".into(), "microsoft".into(), None));

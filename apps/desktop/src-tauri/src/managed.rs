@@ -259,9 +259,14 @@ pub fn build_config(settings: &Settings, folder: &Folder, data: &Path) -> (Value
     let state = data.join("charmd");
     // Listening and speaking as chosen in Settings; a workspace's own options for the same choice
     // (Microsoft voices per language, a macOS voice) are kept.
-    let workspace_voice = folder.workspace.as_ref().and_then(|w| w.get("voice"));
+    let workspace_voice = folder
+        .workspace
+        .as_ref()
+        .and_then(|w| w.get("voice"))
+        .map(voice_sides);
     let side = |name: &str, chosen: &str| {
         workspace_voice
+            .as_ref()
             .and_then(|v| v.get(name))
             .filter(|block| block["provider"] == json!(chosen))
             .cloned()
@@ -294,25 +299,115 @@ pub fn build_config(settings: &Settings, folder: &Folder, data: &Path) -> (Value
 
 /// Whether this `opencharm` knows the voice update (spec 003): it has `opencharm voice`. The CLI
 /// updates on its own (npm), so the app may be newer than it; an older one refuses the new config.
+/// Asked once per `opencharm` (its path and modification time), and never for more than 5 s: a probe
+/// that hangs counts as current, since an old charmd would refuse the new config loudly anyway.
 pub fn cli_has_voice_update(cli: &Path, env: &HashMap<String, String>) -> bool {
-    quiet(&mut Command::new(cli))
+    type Probed = Mutex<HashMap<PathBuf, (Option<std::time::SystemTime>, bool)>>;
+    static PROBED: std::sync::OnceLock<Probed> = std::sync::OnceLock::new();
+    let modified = std::fs::metadata(cli).and_then(|m| m.modified()).ok();
+    let cache = PROBED.get_or_init(Default::default);
+    if let Some((when, answer)) = cache.lock().unwrap().get(cli) {
+        if *when == modified {
+            return *answer;
+        }
+    }
+    let answer = match quiet(&mut Command::new(cli))
         .arg("voice")
         .env_clear()
         .envs(env)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
-        .status()
-        .is_ok_and(|status| status.success())
+        .spawn()
+    {
+        Err(_) => false,
+        Ok(mut child) => {
+            let deadline = Instant::now() + Duration::from_secs(5);
+            loop {
+                match child.try_wait() {
+                    Ok(Some(status)) => break status.success(),
+                    Ok(None) if Instant::now() < deadline => {
+                        std::thread::sleep(Duration::from_millis(50))
+                    }
+                    _ => {
+                        let _ = child.kill();
+                        let _ = child.wait();
+                        break true;
+                    }
+                }
+            }
+        }
+    };
+    cache
+        .lock()
+        .unwrap()
+        .insert(cli.to_path_buf(), (modified, answer));
+    answer
+}
+
+/// A workspace's voice as `listen` and `speak`, converting the one-provider shape the way charmd
+/// does (packages/charmd/src/config/config.ts, normalizeVoice), so its own options are kept.
+fn voice_sides(voice: &Value) -> Value {
+    if voice.get("listen").is_some() || voice.get("speak").is_some() {
+        return voice.clone();
+    }
+    let keys = |block: &mut Value| {
+        for key in ["apiKey", "apiKeyEnv", "baseUrl"] {
+            if let Some(value) = voice.get(key) {
+                block[key] = value.clone();
+            }
+        }
+    };
+    let text = |key: &str| voice.get(key).and_then(Value::as_str);
+    match text("provider") {
+        Some("openai") => {
+            let mut listen = json!({ "provider": "openai" });
+            let mut speak = json!({ "provider": "openai" });
+            keys(&mut listen);
+            keys(&mut speak);
+            if let Some(model) = text("sttModel") {
+                listen["model"] = json!(model);
+            }
+            if let Some(model) = text("ttsModel") {
+                speak["model"] = json!(model);
+            }
+            if let Some(name) = text("voice") {
+                speak["voice"] = json!(name);
+            }
+            json!({ "listen": listen, "speak": speak })
+        }
+        Some("fake") => {
+            let mut listen = json!({ "provider": "fake" });
+            if let Some(transcript) = text("transcript") {
+                listen["transcript"] = json!(transcript);
+            }
+            json!({ "listen": listen, "speak": { "provider": "fake" } })
+        }
+        Some("local") => json!({
+            "listen": match text("whisperModel") {
+                Some(model) => json!({ "provider": "whisper", "model": model }),
+                None => json!({ "provider": "local" }),
+            },
+            "speak": match text("sayVoice") {
+                Some(say) => json!({ "provider": "system", "voice": say }),
+                None => json!({ "provider": "local" }),
+            },
+        }),
+        _ => json!({}),
+    }
 }
 
 /// The voice for an `opencharm` from before the voice update: one provider for both sides, as close
 /// to the choices as it allows (`local` there means whisper and `say`).
-pub fn older_voice(config: &Value) -> Value {
+pub fn older_voice(config: &Value, has_openai_key: bool) -> Value {
     let voice = &config["voice"];
     let sides = [&voice["listen"]["provider"], &voice["speak"]["provider"]];
     if sides.contains(&&json!("openai")) {
         return json!({ "provider": "openai" });
+    }
+    // An older `local` is whisper and `say`: macOS only. Elsewhere, OpenAI with a saved key, or none.
+    if !cfg!(target_os = "macos") {
+        return json!({ "provider": if has_openai_key { "openai" } else { "fake" } });
     }
     if sides.iter().all(|side| *side == &json!("fake")) {
         return json!({ "provider": "fake" });
@@ -1015,20 +1110,58 @@ mod tests {
             json!({ "voice": { "listen": { "provider": listen }, "speak": speak, "language": "it" } })
         };
         assert_eq!(
-            older_voice(&config("local", "microsoft", None)),
-            json!({ "provider": "local" })
-        );
-        assert_eq!(
-            older_voice(&config("local", "system", Some("Alice"))),
-            json!({ "provider": "local", "sayVoice": "Alice" })
-        );
-        assert_eq!(
-            older_voice(&config("openai", "local", None)),
+            older_voice(&config("openai", "local", None), false),
             json!({ "provider": "openai" })
         );
+        if cfg!(target_os = "macos") {
+            assert_eq!(
+                older_voice(&config("local", "microsoft", None), false),
+                json!({ "provider": "local" })
+            );
+            assert_eq!(
+                older_voice(&config("local", "system", Some("Alice")), false),
+                json!({ "provider": "local", "sayVoice": "Alice" })
+            );
+            assert_eq!(
+                older_voice(&config("fake", "fake", None), false),
+                json!({ "provider": "fake" })
+            );
+        } else {
+            // The older local voice is macOS only.
+            assert_eq!(
+                older_voice(&config("local", "microsoft", None), false),
+                json!({ "provider": "fake" })
+            );
+            assert_eq!(
+                older_voice(&config("local", "microsoft", None), true),
+                json!({ "provider": "openai" })
+            );
+        }
+    }
+
+    #[test]
+    fn an_older_workspace_keeps_its_own_voice_options() {
+        let dir = momo("momo-older");
+        std::fs::write(
+            dir.join("opencharm.json"),
+            r#"{ "voice": { "provider": "openai", "apiKeyEnv": "MY_KEY", "baseUrl": "https://example.com/v1", "sttModel": "s", "voice": "nova" },
+                 "agent": { "adapter": "acp", "agent": "claude", "cwd": "charm" } }"#,
+        )
+        .unwrap();
+        let folder = inspect_folder(&dir.to_string_lossy());
+        let openai = Settings {
+            listen: "openai".into(),
+            speak: "openai".into(),
+            ..Settings::default()
+        };
+        let (config, _) = build_config(&openai, &folder, Path::new("/d"));
         assert_eq!(
-            older_voice(&config("fake", "fake", None)),
-            json!({ "provider": "fake" })
+            config["voice"]["listen"],
+            json!({ "provider": "openai", "apiKeyEnv": "MY_KEY", "baseUrl": "https://example.com/v1", "model": "s" })
+        );
+        assert_eq!(
+            config["voice"]["speak"],
+            json!({ "provider": "openai", "apiKeyEnv": "MY_KEY", "baseUrl": "https://example.com/v1", "voice": "nova" })
         );
     }
 }

@@ -268,8 +268,13 @@ fn apply_managed(app: &AppHandle) {
         }
         let (mut config, label) = managed::build_config(&settings, &folder, &managed.data);
         let current = managed::cli_has_voice_update(&cli, &env);
+        // Settings may have changed while the CLI was asked: the newer apply wins, this one stops.
+        if *saved.settings.lock().unwrap() != settings {
+            return;
+        }
         if !current {
-            config["voice"] = managed::older_voice(&config);
+            let has_key = matches!(pairing::secret("openai"), Ok(Some(_)));
+            config["voice"] = managed::older_voice(&config, has_key);
         }
         let config_path = managed.data.join("charmd.json");
         let pid_file = managed.data.join("charmd.pid");
