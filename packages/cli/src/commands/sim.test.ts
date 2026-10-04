@@ -6,6 +6,7 @@ import { join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
+import { identity } from "../identity";
 import { createSimServer } from "./sim";
 
 let server: Server | undefined;
@@ -52,10 +53,11 @@ describe("the emulator server", () => {
     ).toContain("javascript");
   });
 
-  it("tells the page where charmd is", async () => {
+  it("tells the page where charmd is, and which CLI ships the emulator (spec 015)", async () => {
     const base = await start(built(), "ws://127.0.0.1:9999/charm");
     expect(await (await fetch(`${base}/config.json`)).json()).toEqual({
       url: "ws://127.0.0.1:9999/charm",
+      version: identity().version,
     });
   });
 

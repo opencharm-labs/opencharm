@@ -14,6 +14,9 @@ import type { LookMessage } from "../look";
 import type { CharmRecord, StateStore } from "../store/state-store";
 import type { TurnController } from "../turn/turn";
 
+type CharmBuild = NonNullable<
+  Extract<ClientMessage, { type: "hello" }>["build"]
+>;
 type SessionState =
   "awaiting_hello" | "unpaired" | "locked" | "unlocked" | "closed";
 type Outbound = {
@@ -69,6 +72,8 @@ class Session {
   readonly sessionId = randomBytes(8).toString("hex");
   #state: SessionState = "awaiting_hello";
   #charmId: string | undefined;
+  // What the charm said it runs, in its hello (spec 015); undefined for firmware that doesn't say.
+  #build: CharmBuild | undefined;
   #queue: Promise<void> = Promise.resolve();
   #turn: TurnController | undefined;
   #asks: Promise<unknown> = Promise.resolve();
@@ -82,6 +87,10 @@ class Session {
 
   get state(): SessionState {
     return this.#state;
+  }
+
+  get build(): CharmBuild | undefined {
+    return this.#build;
   }
 
   get charmId(): string | undefined {
@@ -178,6 +187,7 @@ class Session {
         this.#close(CLOSE_POLICY);
         return;
       }
+      this.#build = message.build;
       this.#onHello();
       return;
     }

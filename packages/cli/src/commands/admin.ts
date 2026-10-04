@@ -11,6 +11,7 @@ type CharmRow = {
   state: string;
   blocked: boolean;
   failedTries: number;
+  build?: { kind: string; version: string; commit: string };
 };
 type LookRow = {
   name: string;
@@ -147,7 +148,13 @@ async function look(
   );
 }
 
-function printStatus(ctx: CliContext, charms: CharmRow[]): void {
+function printStatus(
+  ctx: CliContext,
+  charms: CharmRow[],
+  charmd: string | undefined
+): void {
+  // What's running, for bug reports (spec 015).
+  if (charmd) ctx.out.write(`charmd ${charmd}\n`);
   if (charms.length === 0) {
     ctx.out.write(
       "No charms paired yet. Start one and run: opencharm pair <code>\n"
@@ -160,8 +167,12 @@ function printStatus(ctx: CliContext, charms: CharmRow[]): void {
       : charm.failedTries > 0
         ? `${charm.failedTries} wrong PIN(s)`
         : "";
+    const build = charm.build
+      ? `${charm.build.kind} ${charm.build.version} (${charm.build.commit})`
+      : "";
+    const details = [note, build].filter(Boolean).join("  ");
     ctx.out.write(
-      `${charm.name.padEnd(16)} ${charm.state.padEnd(10)} ${note}\n`.trimEnd() +
+      `${charm.name.padEnd(16)} ${charm.state.padEnd(10)} ${details}`.trimEnd() +
         "\n"
     );
   }
@@ -187,10 +198,10 @@ async function runAdminCommand(
       return;
     }
     if (command === "status") {
-      const { charms } = (await deps.send(deps.socket, { cmd: "status" })) as {
-        charms: CharmRow[];
-      };
-      printStatus(ctx, charms);
+      const { charms, charmd } = (await deps.send(deps.socket, {
+        cmd: "status",
+      })) as { charms: CharmRow[]; charmd?: string };
+      printStatus(ctx, charms, charmd);
       return;
     }
     const charm = firstPositional(args);

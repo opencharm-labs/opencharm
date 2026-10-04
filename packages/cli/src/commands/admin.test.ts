@@ -122,6 +122,31 @@ describe("opencharm status", () => {
     expect(out()).toMatch(/pip\s+unlocked/);
   });
 
+  it("shows what charmd and each connected charm run (spec 015)", async () => {
+    const { ctx, out } = context();
+    const send = vi.fn().mockResolvedValue({
+      charmd: "cli@0.2.0 (abc1234)",
+      charms: [
+        {
+          id: "c_1",
+          name: "pip",
+          blocked: false,
+          failedTries: 0,
+          connected: true,
+          state: "unlocked",
+          build: { kind: "emulator", version: "cli@0.2.0", commit: "abc1234" },
+        },
+      ],
+    });
+    await runAdminCommand(ctx, "status", [], {
+      socket: SOCKET,
+      send,
+      prompt: vi.fn(),
+    });
+    expect(out()).toContain("charmd cli@0.2.0 (abc1234)");
+    expect(out()).toMatch(/pip\s+unlocked\s+emulator cli@0\.2\.0 \(abc1234\)/);
+  });
+
   it("says so when nothing is paired", async () => {
     const { ctx, out } = context();
     const send = vi.fn().mockResolvedValue({ charms: [] });

@@ -13,13 +13,14 @@ type CharmStatus = {
   failedTries: number;
   connected: boolean;
   state: string;
+  build: { kind: string; version: string; commit: string } | undefined;
 };
 type AdminActions = {
   pair: (input: unknown) => Promise<{ id: string; name: string }>;
   lock: (input: unknown) => Promise<{ connected: number }>;
   unlock: (input: unknown) => Promise<{ connected: number }>;
   revoke: (input: unknown) => Promise<{ connected: number }>;
-  status: () => { charms: CharmStatus[] };
+  status: () => { charmd: string; charms: CharmStatus[] };
   devFace: (input: unknown) => Promise<{ connected: number }>;
   devSay: (input: unknown) => Promise<{ connected: number }>;
   devAsk: (input: unknown) => Promise<{ answer: "yes" | "no" }>;
@@ -31,6 +32,8 @@ type AdminDeps = {
   sessions: () => Iterable<Session>;
   look: CharmLook;
   agentCanChangeLook: boolean;
+  // What this charmd is (spec 015): the CLI that runs it passes its identity.
+  identity?: string;
 };
 
 const pairInput = z.object({
@@ -91,6 +94,7 @@ function createAdminActions({
   sessions,
   look,
   agentCanChangeLook,
+  identity,
 }: AdminDeps): AdminActions {
   function sessionsOf(charmId: string): Session[] {
     return [...sessions()].filter(
@@ -213,6 +217,7 @@ function createAdminActions({
     },
     status() {
       return {
+        charmd: identity ?? "unknown",
         charms: store.list().map((charm) => {
           const live = sessionsOf(charm.id).at(-1);
           return {
@@ -222,6 +227,7 @@ function createAdminActions({
             failedTries: charm.failedTries,
             connected: live !== undefined,
             state: live?.state ?? "offline",
+            build: live?.build,
           };
         }),
       };

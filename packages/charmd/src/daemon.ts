@@ -26,6 +26,8 @@ type DaemonOptions = {
     heartbeatMs?: number;
   };
   quiet?: boolean;
+  // What this charmd is (spec 015), e.g. "cli@0.2.0 (abc1234)": logged at start and in status.
+  identity?: string;
   // Where per-turn timing entries go; defaults to JSON lines on stdout unless quiet.
   log?: (entry: Record<string, unknown>) => void;
   // How to start `opencharm mcp` (the charm's tools for ACP agents); the CLI passes itself.
@@ -82,6 +84,7 @@ async function startDaemon(
     sessions: () => sessions.values(),
     look,
     agentCanChangeLook,
+    identity: options.identity,
   });
   // Claim the admin socket first: it doubles as the "one charmd per state file" lock.
   const adminServer = await startAdminServer(config.adminSocket, admin);
@@ -183,7 +186,10 @@ async function startDaemon(
     : config.listen.host;
   const url = `ws://${host}:${port}/charm`;
   websocketUrl = config.publicUrl ?? url;
-  if (!options.quiet) console.log(`charmd listening on ${url}`);
+  if (!options.quiet)
+    console.log(
+      `charmd ${options.identity ?? ""} listening on ${url}`.replace("  ", " ")
+    );
 
   return {
     url,

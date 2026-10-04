@@ -34,7 +34,8 @@ const HELLO = {
 // A stand-in for the charm's firmware: enough of the device side of the protocol to drive charmd in tests.
 async function connectFakeCharm(
   url: string,
-  token?: string
+  token?: string,
+  options: { build?: { kind: string; version: string; commit: string } } = {}
 ): Promise<FakeCharm> {
   const ws = new WebSocket(url, {
     headers: {
@@ -105,7 +106,7 @@ async function connectFakeCharm(
       });
     },
   };
-  charm.send(HELLO);
+  charm.send(options.build ? { ...HELLO, build: options.build } : HELLO);
   return charm;
 }
 
