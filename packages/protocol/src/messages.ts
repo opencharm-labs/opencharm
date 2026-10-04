@@ -37,10 +37,12 @@ const plain = (max: number) =>
     .min(1)
     .max(max)
     .regex(/^[\w.@+-]+$/);
-const build = z
-  .object({ kind: plain(16), version: plain(64), commit: plain(40) })
-  .optional()
-  .catch(undefined);
+const charmBuild = z.object({
+  kind: plain(16),
+  version: plain(64),
+  commit: plain(40),
+});
+const build = charmBuild.optional().catch(undefined);
 const clientHello = z.object({
   type: z.literal("hello"),
   version: z.number().int().positive(),
@@ -208,9 +210,11 @@ function messageKind(message: Kinded): string {
 
 export {
   CLIENT_KINDS,
+  charmBuild,
   CLIENT_SCHEMAS,
   SERVER_KINDS,
   SERVER_SCHEMAS,
   messageKind,
 };
 export type { ClientMessage, ServerMessage };
+export type CharmBuild = z.infer<typeof charmBuild>;

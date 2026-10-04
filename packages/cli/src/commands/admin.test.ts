@@ -149,20 +149,11 @@ describe("opencharm status", () => {
     expect(out()).toMatch(/pip\s+unlocked\s+emulator cli@0\.2\.0 \(abc1234\)/);
   });
 
-  it("refuses a status answer it can't trust, instead of printing it (spec 015)", async () => {
+  it("refuses a status answer whose charm list it can't trust, instead of printing it (spec 015)", async () => {
     const { ctx, out, err } = context();
-    const send = vi.fn().mockResolvedValue({
-      charmd: { not: "a string" },
-      charms: [
-        {
-          name: "pip",
-          state: "unlocked",
-          blocked: false,
-          failedTries: 0,
-          build: { kind: "emulator" },
-        },
-      ],
-    });
+    const send = vi
+      .fn()
+      .mockResolvedValue({ charmd: "cli@0.2.0 (abc1234)", charms: "nope" });
     await runAdminCommand(ctx, "status", [], {
       socket: SOCKET,
       send,
@@ -170,6 +161,23 @@ describe("opencharm status", () => {
     });
     expect(out()).toBe("");
     expect(err()).toContain("Unexpected answer from charmd");
+  });
+
+  it("still lists the charms when charmd's identity line is unusual, leaving that line out (spec 015)", async () => {
+    const { ctx, out } = context();
+    const send = vi.fn().mockResolvedValue({
+      charmd: "cli@0.2.0 (feature/x)\u001b[2J",
+      charms: [
+        { name: "pip", state: "unlocked", blocked: false, failedTries: 0 },
+      ],
+    });
+    await runAdminCommand(ctx, "status", [], {
+      socket: SOCKET,
+      send,
+      prompt: vi.fn(),
+    });
+    expect(out()).not.toContain("charmd");
+    expect(out()).toMatch(/pip\s+unlocked/);
   });
 
   it("says so when nothing is paired", async () => {

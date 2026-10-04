@@ -5,6 +5,7 @@ import type { PairingRegistry } from "../auth/pairing";
 import type { Session } from "../device/session";
 import { type CharmLook, type Look, lookFields } from "../look";
 import type { StateStore } from "../store/state-store";
+import type { CharmBuild } from "@opencharm-labs/protocol/messages";
 
 type CharmStatus = {
   id: string;
@@ -13,7 +14,7 @@ type CharmStatus = {
   failedTries: number;
   connected: boolean;
   state: string;
-  build: { kind: string; version: string; commit: string } | undefined;
+  build: CharmBuild | undefined;
 };
 type AdminActions = {
   pair: (input: unknown) => Promise<{ id: string; name: string }>;

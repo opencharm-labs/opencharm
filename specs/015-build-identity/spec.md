@@ -14,12 +14,12 @@ When something goes wrong, we need to know exactly what was running: which CLI a
   - the CLI (`cli@x.y.z`, npm) and the desktop app (`desktop@x.y.z`), as today
   - the website, a new unit: `web@x.y.z`, released by a merged `fix`/`feat`/`perf` touching `apps/web` or `packages/design`; a tag and a GitHub release with notes, no publish step (Vercel deploys every merge)
 - **Each build carries its identity** (version and commit stamped at build time):
-  - CLI and charmd: `opencharm --version`; charmd logs it at start and reports it in `status`
+  - CLI and charmd: `opencharm --version`; `opencharm serve` prints it at start, and `status` reports it
   - desktop app: shown in Settings ("About")
   - emulator: the identity of the CLI or desktop app that ships it, in its side panel (settings), never on the charm's screen
   - website: a small label in the footer and `/version.json` (`{ "version", "commit" }`); a deploy that isn't a release says `web@0.3.1+2 (abc1234)`: two commits after `web@0.3.1`
-  - firmware core: `charm::kBuild`, compiled in (the emulator today; the board with spec 009)
-- **The charm says what it runs:** the charm's `hello` gets an optional `build: { kind, version, commit }`, with `kind` one of `emulator`, `desktop`, `board` (packages/protocol, fixtures for both sides; the protocol version stays 1). charmd logs it on connect and lists it per charm in `opencharm status`.
+  - firmware core: `charm::kBuildCommit`, the commit it was built from, and `AppOptions::build` (`kind`, `version`, `commit`) for its `hello` (the emulator today; the board with spec 009)
+- **The charm says what it runs:** the charm's `hello` gets an optional `build: { kind, version, commit }`, such as `emulator`, `desktop` or `board`, in plain characters only (packages/protocol, fixtures for both sides; the protocol version stays 1). Unknown kinds and fields are kept or ignored, and a build that doesn't fit is dropped, so a charm is never refused over it. charmd keeps it and `opencharm status` lists it per charm.
 - **The starter:** `opencharm status` says which starter commit the workspace began from (`workspace from starter abc1234`), read from git: `init` keeps the starter as the `upstream` remote, so it's the last commit the workspace shares with it. Nothing is written to the workspace.
 - **Bug reports:** the bug form asks for `opencharm status` output (every identity in one go) and, for the website, its footer label.
 
@@ -34,14 +34,14 @@ When something goes wrong, we need to know exactly what was running: which CLI a
 
 ## Not in scope
 
-- A release unit for the board firmware (`firmware@x.y.z`) and its settings: with spec 009, which builds the board port. This spec puts `kBuild` in the firmware core and the field in `hello`, so 009 only fills them in.
+- A release unit for the board firmware (`firmware@x.y.z`) and its settings: with spec 009, which builds the board port. This spec puts `kBuildCommit` and `AppOptions::build` in the firmware core and the field in `hello`, so 009 only fills them in.
 - Crash reporting or telemetry: nothing is sent anywhere; identities appear only where the person looks (their terminal, Settings, the page).
 
 ## Acceptance
 
 - [x] `opencharm --version` prints `<version> (<commit>)`; a release build prints its tag's version (`cli-release.yml` stamps both; a test on the version string).
 - [x] `opencharm status` lists charmd's identity and each connected charm's `build` (charmd test with the fake charm).
-- [x] The emulator and the desktop charm send `build` in `hello`; charmd logs it (protocol fixtures read by the TypeScript and C++ tests; firmware core test for `kBuild`).
+- [x] The emulator and the desktop charm send `build` in `hello`, and `opencharm status` shows it (protocol fixtures read by the TypeScript and C++ tests; firmware core test for `kBuildCommit`; emulator e2e).
 - [x] The desktop app's Settings show its identity (desktop test).
 - [x] `web@x.y.z` is released by the release flow like the other units (`tools/release` tests), and the site's footer and `/version.json` show the identity (website e2e test).
 - [x] `opencharm status` names the starter commit a workspace began from (init test with a temp starter; status test).

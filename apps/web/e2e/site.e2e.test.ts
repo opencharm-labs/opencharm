@@ -146,7 +146,8 @@ describe("the site in Chrome", () => {
     const response = await fetch(`${base}/version.json`);
     expect(response.headers.get("content-type")).toContain("application/json");
     const build = (await response.json()) as { version: string; text: string };
-    expect(build.version).toMatch(/^web@(\d+\.\d+\.\d+(\+\d+)?|unknown)$/);
+    // The checkout has the tags (CI fetches the full history), so the version is never unknown.
+    expect(build.version).toMatch(/^web@\d+\.\d+\.\d+(\+\d+)?$/);
     const { page } = await visit(1440);
     await expect
       .poll(() => page.getByLabel("Project details").textContent())

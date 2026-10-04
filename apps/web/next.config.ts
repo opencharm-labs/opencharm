@@ -41,8 +41,7 @@ const SECURITY_HEADERS = [
 
 const nextConfig: NextConfig = {
   env: {
-    OPENCHARM_WEB_VERSION: BUILD.version,
-    OPENCHARM_WEB_COMMIT: BUILD.commit,
+    OPENCHARM_WEB_IDENTITY: JSON.stringify(BUILD),
   },
   // Memoises components at build time, so the page needs no hand-written useMemo or useCallback.
   reactCompiler: true,

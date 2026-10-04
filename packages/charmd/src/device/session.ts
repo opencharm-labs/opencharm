@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 
 import { AUDIO_DOWN, LIMITS } from "@opencharm-labs/protocol/constants";
 import type {
+  CharmBuild,
   ClientMessage,
   ServerMessage,
 } from "@opencharm-labs/protocol/messages";
@@ -14,9 +15,6 @@ import type { LookMessage } from "../look";
 import type { CharmRecord, StateStore } from "../store/state-store";
 import type { TurnController } from "../turn/turn";
 
-type CharmBuild = NonNullable<
-  Extract<ClientMessage, { type: "hello" }>["build"]
->;
 type SessionState =
   "awaiting_hello" | "unpaired" | "locked" | "unlocked" | "closed";
 type Outbound = {

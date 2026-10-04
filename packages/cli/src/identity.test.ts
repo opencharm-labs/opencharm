@@ -14,6 +14,12 @@ describe("identity", () => {
     );
   });
 
+  it("builds its text with formatIdentity, the one place the format lives", () => {
+    const id = identity();
+    const [unit, version] = id.version.split("@");
+    expect(id.text).toBe(formatIdentity(unit!, version!, id.commit));
+  });
+
   it("knows the CLI's version and the commit it runs from", () => {
     const id = identity();
     expect(id.version).toMatch(/^cli@\d+\.\d+\.\d+$/);

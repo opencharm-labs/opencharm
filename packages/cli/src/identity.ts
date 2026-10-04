@@ -71,7 +71,11 @@ function identity(): Identity {
       ? __OPENCHARM_COMMIT__
       : gitCommit(dirname(fileURLToPath(import.meta.url)));
   const version = `cli@${pkg.version}`;
-  cached = { version, commit, text: `${version} (${commit})` };
+  cached = {
+    version,
+    commit,
+    text: formatIdentity("cli", pkg.version, commit),
+  };
   return cached;
 }
 

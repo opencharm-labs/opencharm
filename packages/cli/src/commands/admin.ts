@@ -1,3 +1,4 @@
+import { charmBuild } from "@opencharm-labs/protocol/messages";
 import { z } from "zod";
 
 import { VALUE_FLAGS, firstPositional, flagValue } from "../args";
@@ -8,27 +9,27 @@ type AdminDeps = {
   send: (socket: string, request: Record<string, unknown>) => Promise<unknown>;
   prompt: (question: string) => Promise<string>;
 };
-// What `status` prints comes from the admin socket: checked before it reaches the terminal (spec 015),
-// with the same plain characters the protocol allows in a charm's build.
-const plain = z.string().regex(/^[\w.@+-]{1,64}$/);
+// What `status` prints comes from the admin socket: checked before it reaches the terminal (spec 015).
+// A charm's build uses the protocol's own schema; an informational line that doesn't fit is left out
+// rather than hiding the charms.
 const statusSchema = z.object({
   charmd: z
     .string()
     .regex(/^[\w.@+() -]{1,96}$/)
-    .optional(),
+    .optional()
+    .catch(undefined),
   starter: z
     .string()
     .regex(/^[0-9a-f]{4,40}$/)
-    .optional(),
+    .optional()
+    .catch(undefined),
   charms: z.array(
     z.object({
       name: z.string(),
       state: z.string(),
       blocked: z.boolean(),
       failedTries: z.number(),
-      build: z
-        .object({ kind: plain, version: plain, commit: plain })
-        .optional(),
+      build: charmBuild.optional().catch(undefined),
     })
   ),
 });

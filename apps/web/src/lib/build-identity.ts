@@ -37,6 +37,9 @@ function fromDescribe(
 // without tags (and shallow), so on CI or Vercel only, fetch them first; never on a contributor's
 // machine. "-dirty" means tracked changes, as everywhere.
 function buildIdentity(): BuildIdentity {
+  // Next evaluates its config in several processes; the first computes, the rest inherit it.
+  const known = process.env.OPENCHARM_WEB_IDENTITY;
+  if (known) return JSON.parse(known) as BuildIdentity;
   const fromCi = process.env.OPENCHARM_COMMIT || undefined;
   const commit =
     fromCi ??
@@ -53,7 +56,9 @@ function buildIdentity(): BuildIdentity {
   const dirty =
     !fromCi &&
     (git("status", "--porcelain", "--untracked-files=no") ?? "").length > 0;
-  return fromDescribe(found, commit, dirty);
+  const identity = fromDescribe(found, commit, dirty);
+  process.env.OPENCHARM_WEB_IDENTITY = JSON.stringify(identity);
+  return identity;
 }
 
 export { buildIdentity, fromDescribe };
