@@ -44,12 +44,12 @@ The app's charmd listens on port 8790, with its own config, state and log, so a 
 
 - **The window** floats above the menu bar on every Space and comes to the front when it opens. It measures the real notch, or draws a black pill without one; on Windows the pill sits at the top centre, the same layout as the Mac's.
 - **Its own charmd** (spec 013) is started with the installed `opencharm` CLI, found through the login shell or a path in Settings. It keeps its state and admin socket in the app's data folder.
-- **Settings:** under your agent: a folder, the agent (an ACP preset, a custom ACP command, or an OpenAI-compatible server), the voice (local, OpenAI with the key in the keychain, or none), a status line and Restart. Then **Your charm** (spec 014):
+- **Settings:** under your agent: a folder, the agent (an ACP preset, a custom ACP command, or an OpenAI-compatible server), **Listening** (on this computer, OpenAI with the key in the keychain, or none), **Speaking** (Microsoft's free voices, the default: the text of each spoken reply goes to Microsoft, through an unofficial service; on this computer, private; a macOS voice; OpenAI; or none) and the **language** to fall back on (it answers in the language you speak), a status line and Restart. The first start downloads the voice models (about 620 MB). An `opencharm` older than the app gets the voice it understands, and the status line says to update it (`npm install -g opencharm`). Then **Your charm** (spec 014):
   - its name, its colour (the six identity colours; the charm in Settings and by the notch follows it) and its greeting
-  - its voice for the local voice: the Mac's voices, those of your system language first, with **Try it**
+  - its macOS voice, when Speaking is "A macOS voice": those of your system language first, with **Try it**
   - when it falls asleep (2, 4, 10 or 30 minutes alone, or never), calm motion, and whether the agent may change its look (`set_look`)
 
-  In a workspace these are saved in its `opencharm.json` (the `charm` block and `voice.sayVoice`, every other key kept); for any other folder, in the app's settings. A change to the look reaches the charm at once through charmd's admin socket, without a restart; a new voice, or the agent's permission, restarts the app's charmd.
+  In a workspace these are saved in its `opencharm.json` (the `charm` block and the macOS voice in `voice.speak.voice`, or `voice.sayVoice` in an older workspace; every other key kept); for any other folder, in the app's settings. A change to the look reaches the charm at once through charmd's admin socket, without a restart; a new voice, or the agent's permission, restarts the app's charmd.
 
   Then the talk key and start at login. Advanced: another charmd's address, the CLI's path, forget the pairing.
 
