@@ -6,4 +6,4 @@
 - `device/`: hard fork of 78/xiaozhi-esp32 (MIT, keep its licence and credit), ESP-IDF 6.0; implements the HAL.
 - `sim/`: the same core compiled to WebAssembly (Emscripten); the browser implements the HAL. Skill `opencharm-emulator`.
 - Faces, colours and states come from `packages/design/faces.json` via a generated header; never hand-copy them.
-- The mic opens only while the key is held; this rule lives in firmware, not in charmd.
+- The mic is on only while the key is down, and nothing leaves the charm unless it's a hold; this rule lives in firmware, not in charmd.

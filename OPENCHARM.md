@@ -102,7 +102,7 @@ Skills (text files the agent learns; examples, not promises): cook hands-free, t
 | **Press the key** | Everything else: wake, stop talking, dismiss, no.      |
 | **Tap the face**  | It reacts. That's all.                                 |
 
-No swipes needed. Rule: if someone can't use it ten seconds after picking it up, we've failed. The mic opens only while the key is held (after 200 ms; shorter is a press). Physical reactions (IMU): pick up → greeting, face-down → asleep and muted (the agent keeps running), shake → dizzy.
+No swipes needed. Rule: if someone can't use it ten seconds after picking it up, we've failed. The mic is on only while the key is down, and nothing leaves the charm unless it's a hold (200 ms; shorter is a press, and what the mic heard is dropped); the audio from key-down is kept so the first word isn't cut. Physical reactions (IMU): pick up → greeting, face-down → asleep and muted (the agent keeps running), shake → dizzy.
 
 ### 4.2 Three screen layouts
 
