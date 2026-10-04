@@ -70,7 +70,7 @@ describe("the desktop app", () => {
     expect(read(APP, "src-tauri", "src", "lib.rs")).toContain("app_identity,");
   });
 
-    it("is built and published by the release workflow", () => {
+  it("is built and published by the release workflow", () => {
     const release = read(REPO, ".github", "workflows", "desktop-release.yml");
     expect(release).toContain("npm run bundle -w apps/desktop");
     expect(release).toContain("aarch64-apple-darwin");
