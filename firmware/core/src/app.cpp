@@ -101,6 +101,13 @@ void App::render() {
 }
 
 void App::go(Screen screen) {
+  // Leaving the face lets go of the key: its release may come on another screen, where it isn't
+  // seen, and a hold must never carry over (it would start a talk with the key up). The mic stops.
+  if (screen != Screen::Face) {
+    end_talk(false);
+    key_down_ = false;
+    key_answered_ = false;
+  }
   screen_ = screen;
   render();
 }
@@ -330,6 +337,7 @@ void App::on_key(bool down, uint32_t now) {
   activity(now);
   if (screen_ != Screen::Face) return;
   if (down) {
+    if (key_down_) return;  // already down (two inputs for one key): nothing new
     key_down_ = true;
     key_down_at_ = now;
     key_answered_ = false;

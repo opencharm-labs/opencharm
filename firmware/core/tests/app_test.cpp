@@ -662,3 +662,52 @@ TEST_CASE("calm motion: the key doesn't squash the face") {
   CHECK_FALSE(r.view.saw("squish"));
   CHECK(r.view.last() == "face listening");
 }
+
+TEST_CASE("a hold cut short by a lock never becomes a talk after unlocking") {
+  Rig r;
+  r.unlocked();
+  r.at(10000);
+  r.app.on_key(true, r.now);
+  r.server(R"({"type":"charm","op":"locked","reason":"boot","tries_left":5})");
+  CHECK(r.hal.events.back() == "mic_stop");
+  r.at(10100);
+  r.app.on_key(false, r.now);  // released on the PIN screen
+  r.app.on_pin_entered("4829", r.now);
+  r.server(R"({"type":"charm","op":"unlocked"})");
+  r.at(11000);
+  CHECK_FALSE(r.app.talking());
+  CHECK(r.hal.audio_out == 0);
+  CHECK_FALSE(r.hal.sent_contains(R"("type":"listen")"));
+}
+
+TEST_CASE("a hold cut short by a lost connection never becomes a talk after reconnecting") {
+  Rig r;
+  r.unlocked();
+  r.at(10000);
+  r.app.on_key(true, r.now);
+  r.app.on_disconnected(r.now);
+  r.at(10100);
+  r.app.on_key(false, r.now);
+  r.unlocked();
+  r.at(11000);
+  CHECK_FALSE(r.app.talking());
+  CHECK_FALSE(r.hal.sent_contains(R"("type":"listen")"));
+}
+
+TEST_CASE("a pairing code arriving mid-press turns the mic off") {
+  Rig r;
+  r.unlocked();
+  r.at(10000);
+  r.app.on_key(true, r.now);
+  r.server(R"({"type":"charm","op":"pair_code","code":"123456","expires_in":300})");
+  CHECK(r.hal.events.back() == "mic_stop");
+}
+
+TEST_CASE("a second key-down without a release changes nothing") {
+  Rig r;
+  r.unlocked();
+  r.at(10000);
+  r.app.on_key(true, r.now);
+  r.app.on_key(true, r.now + 10);
+  CHECK(r.hal.events == std::vector<std::string>{"mic_start"});
+}

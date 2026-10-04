@@ -17,7 +17,7 @@ One behaviour, three platforms: `firmware/core` (portable C++17) runs on the cha
 
 ## Rules the core keeps (tests enforce them)
 
-1. The mic opens only after the key is held 200 ms on the unlocked face, frames leave only while the key is down, key up always stops it.
+1. The mic is on only while the key is down on the unlocked face; its frames wait in a bounded pre-roll and leave only once the key has been held 200 ms (then with `listen start`); a press drops them; key up, a question, or leaving the face always stops it, and a hold never carries over to another screen.
 2. Every server message goes through `parse_server_message` (never throws); the same fixtures as `packages/protocol` test it.
 3. No exceptions, no RTTI, no threads, no blocking calls, no ESP-IDF includes in `core/`.
 4. Orange (`kSignal`) appears only as the needs-you ring.
