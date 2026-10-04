@@ -56,6 +56,8 @@ pub struct Status {
     pub name: String,
     pub agent: String,
     pub folder: String,
+    /// Something to do that doesn't stop it, e.g. an `opencharm` older than the app.
+    pub note: String,
 }
 
 /// Everything needed to start charmd once.
@@ -255,18 +257,28 @@ fn agent_config(settings: &Settings, folder: &Folder) -> (Value, String) {
 /// charmd's config for these settings and this folder; `data` is the app's data folder.
 pub fn build_config(settings: &Settings, folder: &Folder, data: &Path) -> (Value, String) {
     let state = data.join("charmd");
-    // A workspace's voice options (e.g. its `say` voice) are kept when its provider is the one chosen.
-    let mut voice = folder
+    // Listening and speaking as chosen in Settings; a workspace's own options for the same choice
+    // (Microsoft voices per language, a macOS voice) are kept.
+    let workspace_voice = folder
         .workspace
         .as_ref()
         .and_then(|w| w.get("voice"))
-        .filter(|v| v["provider"] == json!(settings.voice))
-        .cloned()
-        .unwrap_or_else(|| json!({ "provider": settings.voice }));
+        .map(voice_sides);
+    let side = |name: &str, chosen: &str| {
+        workspace_voice
+            .as_ref()
+            .and_then(|v| v.get(name))
+            .filter(|block| block["provider"] == json!(chosen))
+            .cloned()
+            .unwrap_or_else(|| json!({ "provider": chosen }))
+    };
+    let listen = side("listen", &settings.listen);
+    let mut speak = side("speak", &settings.speak);
     let (look, say_voice) = look_of(settings, Some(folder));
-    if settings.voice == "local" && !say_voice.is_empty() {
-        voice["sayVoice"] = json!(say_voice);
+    if settings.speak == "system" && !say_voice.is_empty() {
+        speak["voice"] = json!(say_voice);
     }
+    let voice = json!({ "listen": listen, "speak": speak, "language": settings.language });
     let (agent, label) = agent_config(settings, folder);
     let admin = if cfg!(windows) {
         PIPE.to_string()
@@ -285,11 +297,141 @@ pub fn build_config(settings: &Settings, folder: &Folder, data: &Path) -> (Value
     (config, label)
 }
 
-/// The workspace's local voice block, the only one that holds a `say` voice.
-fn local_voice(workspace: &Value) -> Option<&Value> {
-    workspace
-        .get("voice")
-        .filter(|v| v["provider"] == json!("local"))
+/// Whether this `opencharm` knows the voice update (spec 003): it has `opencharm voice`. The CLI
+/// updates on its own (npm), so the app may be newer than it; an older one refuses the new config.
+/// Asked once per `opencharm` (its path and modification time), and never for more than 5 s: a probe
+/// that hangs counts as current, since an old charmd would refuse the new config loudly anyway.
+pub fn cli_has_voice_update(cli: &Path, env: &HashMap<String, String>) -> bool {
+    type Probed = Mutex<HashMap<PathBuf, (Option<std::time::SystemTime>, bool)>>;
+    static PROBED: std::sync::OnceLock<Probed> = std::sync::OnceLock::new();
+    let modified = std::fs::metadata(cli).and_then(|m| m.modified()).ok();
+    let cache = PROBED.get_or_init(Default::default);
+    if let Some((when, answer)) = cache.lock().unwrap().get(cli) {
+        if *when == modified {
+            return *answer;
+        }
+    }
+    let answer = match quiet(&mut Command::new(cli))
+        .arg("voice")
+        .env_clear()
+        .envs(env)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+    {
+        Err(_) => false,
+        Ok(mut child) => {
+            let deadline = Instant::now() + Duration::from_secs(5);
+            loop {
+                match child.try_wait() {
+                    Ok(Some(status)) => break status.success(),
+                    Ok(None) if Instant::now() < deadline => {
+                        std::thread::sleep(Duration::from_millis(50))
+                    }
+                    _ => {
+                        let _ = child.kill();
+                        let _ = child.wait();
+                        break true;
+                    }
+                }
+            }
+        }
+    };
+    cache
+        .lock()
+        .unwrap()
+        .insert(cli.to_path_buf(), (modified, answer));
+    answer
+}
+
+/// A workspace's voice as `listen` and `speak`, converting the one-provider shape the way charmd
+/// does (packages/charmd/src/config/config.ts, normalizeVoice), so its own options are kept.
+fn voice_sides(voice: &Value) -> Value {
+    if voice.get("listen").is_some() || voice.get("speak").is_some() {
+        return voice.clone();
+    }
+    let keys = |block: &mut Value| {
+        for key in ["apiKey", "apiKeyEnv", "baseUrl"] {
+            if let Some(value) = voice.get(key) {
+                block[key] = value.clone();
+            }
+        }
+    };
+    let text = |key: &str| voice.get(key).and_then(Value::as_str);
+    match text("provider") {
+        Some("openai") => {
+            let mut listen = json!({ "provider": "openai" });
+            let mut speak = json!({ "provider": "openai" });
+            keys(&mut listen);
+            keys(&mut speak);
+            if let Some(model) = text("sttModel") {
+                listen["model"] = json!(model);
+            }
+            if let Some(model) = text("ttsModel") {
+                speak["model"] = json!(model);
+            }
+            if let Some(name) = text("voice") {
+                speak["voice"] = json!(name);
+            }
+            json!({ "listen": listen, "speak": speak })
+        }
+        Some("fake") => {
+            let mut listen = json!({ "provider": "fake" });
+            if let Some(transcript) = text("transcript") {
+                listen["transcript"] = json!(transcript);
+            }
+            json!({ "listen": listen, "speak": { "provider": "fake" } })
+        }
+        Some("local") => json!({
+            "listen": match text("whisperModel") {
+                Some(model) => json!({ "provider": "whisper", "model": model }),
+                None => json!({ "provider": "local" }),
+            },
+            "speak": match text("sayVoice") {
+                Some(say) => json!({ "provider": "system", "voice": say }),
+                None => json!({ "provider": "local" }),
+            },
+        }),
+        _ => json!({}),
+    }
+}
+
+/// The voice for an `opencharm` from before the voice update: one provider for both sides, as close
+/// to the choices as it allows (`local` there means whisper and `say`).
+pub fn older_voice(config: &Value, has_openai_key: bool) -> Value {
+    let voice = &config["voice"];
+    let sides = [&voice["listen"]["provider"], &voice["speak"]["provider"]];
+    if sides.contains(&&json!("openai")) {
+        return json!({ "provider": "openai" });
+    }
+    // An older `local` is whisper and `say`: macOS only. Elsewhere, OpenAI with a saved key, or none.
+    if !cfg!(target_os = "macos") {
+        return json!({ "provider": if has_openai_key { "openai" } else { "fake" } });
+    }
+    if sides.iter().all(|side| *side == &json!("fake")) {
+        return json!({ "provider": "fake" });
+    }
+    match voice["speak"]["voice"].as_str() {
+        Some(say) => json!({ "provider": "local", "sayVoice": say }),
+        None => json!({ "provider": "local" }),
+    }
+}
+
+/// The workspace's `say` voice: its macOS speaking voice, or before the voice update its local
+/// voice's `sayVoice`. None when the workspace can't hold one.
+fn workspace_say_voice(workspace: &Value) -> Option<String> {
+    let voice = workspace.get("voice")?;
+    if let Some(speak) = voice
+        .get("speak")
+        .filter(|s| s["provider"] == json!("system"))
+    {
+        return Some(speak["voice"].as_str().unwrap_or("").to_string());
+    }
+    voice
+        .get("provider")
+        .filter(|p| *p == &json!("local"))
+        .map(|_| voice["sayVoice"].as_str().unwrap_or("").to_string())
 }
 
 /// The look as charmd's `charm` block: an empty name or greeting is left to charmd's default.
@@ -321,10 +463,7 @@ pub fn look_of(settings: &Settings, folder: Option<&Folder>) -> (Look, String) {
         .get("charm")
         .and_then(|charm| serde_json::from_value(charm.clone()).ok())
         .unwrap_or_default();
-    let say_voice = match local_voice(workspace) {
-        Some(voice) => voice["sayVoice"].as_str().unwrap_or("").to_string(),
-        None => settings.say_voice.clone(),
-    };
+    let say_voice = workspace_say_voice(workspace).unwrap_or_else(|| settings.say_voice.clone());
     (look, say_voice)
 }
 
@@ -345,11 +484,24 @@ pub fn save_workspace_look(dir: &Path, look: &Look, say_voice: &str) -> Result<(
     };
     root.insert("charm".into(), charm_block(look, block));
     if let Some(Value::Object(voice)) = root.get_mut("voice") {
-        if voice.get("provider") == Some(&json!("local")) {
+        // The workspace's macOS voice, or before the voice update its local voice's `sayVoice`.
+        let legacy = voice.get("provider") == Some(&json!("local"));
+        let block = match voice.get_mut("speak") {
+            Some(Value::Object(speak)) if speak.get("provider") == Some(&json!("system")) => {
+                Some((speak, "voice"))
+            }
+            _ => None,
+        };
+        let block = match block {
+            Some(found) => Some(found),
+            None if legacy => Some((voice, "sayVoice")),
+            None => None,
+        };
+        if let Some((block, key)) = block {
             if say_voice.is_empty() {
-                voice.remove("sayVoice");
+                block.remove(key);
             } else {
-                voice.insert("sayVoice".into(), json!(say_voice));
+                block.insert(key.into(), json!(say_voice));
             }
         }
     }
@@ -659,9 +811,44 @@ mod tests {
             config["agent"]["projects"][0],
             dir.join("../app").to_string_lossy().as_ref()
         );
-        if cfg!(target_os = "macos") {
-            assert_eq!(config["voice"]["sayVoice"], "Samantha");
-        }
+        // The app's voice choices (the defaults): Parakeet listens, Microsoft's voices speak.
+        assert_eq!(
+            config["voice"],
+            json!({ "listen": { "provider": "local" }, "speak": { "provider": "microsoft" }, "language": "en" })
+        );
+    }
+
+    #[test]
+    fn keeps_a_workspaces_own_options_for_the_same_voice() {
+        let dir = momo("momo-voices");
+        std::fs::write(
+            dir.join("opencharm.json"),
+            r#"{ "voice": { "listen": { "provider": "local" },
+                            "speak": { "provider": "microsoft", "voices": { "it": "it-IT-ElsaNeural" } } },
+                 "agent": { "adapter": "acp", "agent": "claude", "cwd": "charm" } }"#,
+        )
+        .unwrap();
+        let folder = inspect_folder(&dir.to_string_lossy());
+        let italian = Settings {
+            language: "it".into(),
+            ..Settings::default()
+        };
+        let (config, _) = build_config(&italian, &folder, Path::new("/d"));
+        assert_eq!(
+            config["voice"],
+            json!({
+                "listen": { "provider": "local" },
+                "speak": { "provider": "microsoft", "voices": { "it": "it-IT-ElsaNeural" } },
+                "language": "it"
+            })
+        );
+        // Another choice in the app wins, without the workspace's options for the other voice.
+        let local = Settings {
+            speak: "local".into(),
+            ..Settings::default()
+        };
+        let (config, _) = build_config(&local, &folder, Path::new("/d"));
+        assert_eq!(config["voice"]["speak"], json!({ "provider": "local" }));
     }
 
     #[test]
@@ -670,7 +857,8 @@ mod tests {
         let folder = inspect_folder(&dir.to_string_lossy());
         let settings = Settings {
             agent: "codex".into(),
-            voice: "openai".into(),
+            listen: "openai".into(),
+            speak: "openai".into(),
             ..Settings::default()
         };
         let (config, label) = build_config(&settings, &folder, Path::new("/data"));
@@ -680,7 +868,10 @@ mod tests {
             config["agent"]["cwd"],
             dir.join("charm").to_string_lossy().as_ref()
         );
-        assert_eq!(config["voice"], json!({ "provider": "openai" }));
+        assert_eq!(
+            config["voice"],
+            json!({ "listen": { "provider": "openai" }, "speak": { "provider": "openai" }, "language": "en" })
+        );
     }
 
     #[test]
@@ -839,22 +1030,23 @@ mod tests {
         .unwrap();
         let folder = inspect_folder(&dir.to_string_lossy());
         let local = Settings {
-            voice: "local".into(),
+            speak: "system".into(),
             ..Settings::default()
         };
         let (config, _) = build_config(&local, &folder, Path::new("/d"));
         assert_eq!(config["charm"]["colour"], "lime");
         assert_eq!(config["charm"]["greeting"], "Ciao!");
         assert!(config["charm"].get("name").is_none());
+        // The workspace's macOS voice (kept by an older workspace as its local voice's sayVoice).
         assert_eq!(
-            config["voice"],
-            json!({ "provider": "local", "sayVoice": "Alice" })
+            config["voice"]["speak"],
+            json!({ "provider": "system", "voice": "Alice" })
         );
 
         // A plain folder: the app's look and voice.
         let repo = inspect_folder(&temp("config-repo").to_string_lossy());
         let mine = Settings {
-            voice: "local".into(),
+            speak: "system".into(),
             look: Look {
                 name: "Pip".into(),
                 motion: "calm".into(),
@@ -866,13 +1058,13 @@ mod tests {
         let (config, _) = build_config(&mine, &repo, Path::new("/d"));
         assert_eq!(config["charm"]["name"], "Pip");
         assert_eq!(config["charm"]["motion"], "calm");
-        assert_eq!(config["voice"]["sayVoice"], "Daniel");
+        assert_eq!(config["voice"]["speak"]["voice"], "Daniel");
         let openai = Settings {
-            voice: "openai".into(),
+            speak: "openai".into(),
             ..mine
         };
         let (config, _) = build_config(&openai, &repo, Path::new("/d"));
-        assert_eq!(config["voice"], json!({ "provider": "openai" }));
+        assert_eq!(config["voice"]["speak"], json!({ "provider": "openai" }));
     }
 
     #[test]
@@ -906,5 +1098,70 @@ mod tests {
         let path = std::env::join_paths([Path::new("/nowhere"), &dir]).unwrap();
         assert_eq!(find_cli(&path.to_string_lossy()), Some(dir.join(name)));
         assert_eq!(find_cli("/nowhere"), None);
+    }
+
+    #[test]
+    fn an_older_opencharm_gets_the_voice_it_understands() {
+        let config = |listen: &str, speak: &str, say: Option<&str>| {
+            let mut speak = json!({ "provider": speak });
+            if let Some(say) = say {
+                speak["voice"] = json!(say);
+            }
+            json!({ "voice": { "listen": { "provider": listen }, "speak": speak, "language": "it" } })
+        };
+        assert_eq!(
+            older_voice(&config("openai", "local", None), false),
+            json!({ "provider": "openai" })
+        );
+        if cfg!(target_os = "macos") {
+            assert_eq!(
+                older_voice(&config("local", "microsoft", None), false),
+                json!({ "provider": "local" })
+            );
+            assert_eq!(
+                older_voice(&config("local", "system", Some("Alice")), false),
+                json!({ "provider": "local", "sayVoice": "Alice" })
+            );
+            assert_eq!(
+                older_voice(&config("fake", "fake", None), false),
+                json!({ "provider": "fake" })
+            );
+        } else {
+            // The older local voice is macOS only.
+            assert_eq!(
+                older_voice(&config("local", "microsoft", None), false),
+                json!({ "provider": "fake" })
+            );
+            assert_eq!(
+                older_voice(&config("local", "microsoft", None), true),
+                json!({ "provider": "openai" })
+            );
+        }
+    }
+
+    #[test]
+    fn an_older_workspace_keeps_its_own_voice_options() {
+        let dir = momo("momo-older");
+        std::fs::write(
+            dir.join("opencharm.json"),
+            r#"{ "voice": { "provider": "openai", "apiKeyEnv": "MY_KEY", "baseUrl": "https://example.com/v1", "sttModel": "s", "voice": "nova" },
+                 "agent": { "adapter": "acp", "agent": "claude", "cwd": "charm" } }"#,
+        )
+        .unwrap();
+        let folder = inspect_folder(&dir.to_string_lossy());
+        let openai = Settings {
+            listen: "openai".into(),
+            speak: "openai".into(),
+            ..Settings::default()
+        };
+        let (config, _) = build_config(&openai, &folder, Path::new("/d"));
+        assert_eq!(
+            config["voice"]["listen"],
+            json!({ "provider": "openai", "apiKeyEnv": "MY_KEY", "baseUrl": "https://example.com/v1", "model": "s" })
+        );
+        assert_eq!(
+            config["voice"]["speak"],
+            json!({ "provider": "openai", "apiKeyEnv": "MY_KEY", "baseUrl": "https://example.com/v1", "voice": "nova" })
+        );
     }
 }
