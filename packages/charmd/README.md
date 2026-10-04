@@ -30,7 +30,11 @@ charmd is the program between a charm and the agent you run. It is the charm's d
 {
   "listen": { "host": "127.0.0.1", "port": 8787 },
   "statePath": "state.json",
-  "voice": { "provider": "local" },
+  "voice": {
+    "listen": { "provider": "local" },
+    "speak": { "provider": "microsoft" },
+    "language": "en"
+  },
   "agent": { "adapter": "acp", "agent": "claude", "cwd": "." },
   "turnTimeoutSeconds": 60,
   "logTranscripts": false,
@@ -97,21 +101,43 @@ The charm is an **MCP server** for the agent, `opencharm mcp` (stdio, no depende
 
 ## Voice
 
-- `local`: macOS `say` speaks (in English by default: voice Samantha, whatever the system language; `voice.sayVoice` picks another installed voice), whisper.cpp (`whisper-cli`, model `~/.opencharm/models/ggml-base.en.bin`) listens; everything stays on the machine.
+Listening and speaking are chosen separately (spec 003); evidence for the defaults is in "Research notes, 4 October 2026" below.
+
+| `voice.listen.provider` | What listens                                                                                                                          |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `local` (default)       | NVIDIA Parakeet TDT 0.6B v3 on this computer (sherpa-onnx, kept in memory): 25 European languages, no setting needed                  |
+| `whisper`               | whisper.cpp (`whisper-cli`), a process per turn; `model` (default `~/.opencharm/models/ggml-base.en.bin`, English only) and `command` |
+| `openai`                | OpenAI with your key (`apiKey`, `apiKeyEnv`, `baseUrl`, `model`)                                                                      |
+
+| `voice.speak.provider` | What speaks                                                                                                                                                    |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `microsoft` (default)  | Microsoft's neural voices through Edge's read-aloud service, no key: Ava Multilingual (English), Isabella (Italian), one per language; `voices` overrides them |
+| `local`                | Supertonic 3 on this computer (sherpa-onnx): private; `speaker` 0–9 (default 5)                                                                                |
+| `system`               | macOS `say`; `voice` picks an installed voice (default Samantha)                                                                                               |
+| `openai`               | OpenAI with your key (`model`, `voice`)                                                                                                                        |
+
+- **What leaves the computer:** with the defaults, the text of each spoken reply goes to Microsoft; the audio of what you say never does. Microsoft's service is unofficial (no licence, no key) and may change or stop.
+- **Never silent:** a speaking voice that fails or has no audio within 3 s hands that sentence to the local voice (then `say` on macOS) and rests for a minute.
+- **Language:** each sentence is spoken by the voice for its language, guessed from its words (English, Italian, Spanish, French, German, Portuguese); unsure, it keeps the language before it, starting from the transcript's, else `voice.language` (default `en`). The agent isn't told: it already answers in the language it's spoken to.
+- **Models:** Parakeet (487 MB download, CC-BY-4.0, NVIDIA) and Supertonic 3 (129 MB, OpenRAIL-M, Supertone: free to use, with use restrictions such as no impersonation) download on charmd's first start into `~/.opencharm/models`, from sherpa-onnx's GitHub releases, each checked against a pinned SHA-256. Until then a turn says how far the download got. `opencharm voice install` gets them ahead of time.
+- The old one-provider shape still works: `{"provider": "local"}` is Parakeet + Supertonic (whisper and `say` when `whisperModel` / `sayVoice` are set); `openai` and `fake` serve both sides.
 - `openai` (see "Research notes" below): Opus packets are forwarded, never decoded. The charm's 16 kHz packets are wrapped in Ogg for speech-to-text; text-to-speech Ogg Opus is unwrapped into packets the charm plays at 24 kHz (Opus is sample-rate independent). Defaults (unverified until a key is used): `gpt-4o-mini-transcribe` for speech-to-text, `gpt-4o-mini-tts` with `response_format: "opus"` for text-to-speech.
-- Only the `local` and `fake` voices decode and encode Opus (`opusscript`), because `say` and whisper.cpp work on PCM.
+- Microsoft's voice sends Opus in WebM (`src/audio/webm-opus.ts`), rewrapped as packets with no decoding; the local voices decode and encode Opus (`opusscript`), because the models work on PCM.
 
 ## A turn (spec 003)
 
-Key held → `listening` face; released → `thinking` face → Ogg → speech-to-text → `stt` (text shown briefly) → the agent streams → split into sentences → text-to-speech per sentence, each with `tts sentence_start` (synthesis of the next overlaps playback of the current; Opus frames paced at real time with a 3-frame lead) → `tts stop` → `idle`. The first sentence plays while the agent is still writing.
+Key held → `listening` face; released → `thinking` face → Ogg → speech-to-text → `stt` (text shown briefly) → the agent streams → split into sentences (the first one may be a clause of 20 characters or more, so it starts sooner) → text-to-speech per sentence, each with `tts sentence_start` (every sentence starts synthesizing as soon as it's written and plays from its first packet; Opus frames paced at real time with a 3-frame lead) → `tts stop` → `idle`. The first sentence plays while the agent is still writing.
 
 - Abort or a new key hold cancels everything in flight. Nothing heard → `idle` without asking the agent.
 - Failures: agent unreachable or an error → `failed` face + one line ("Can't reach Hermes"); no reply within 60 s → `failed`. "I'll tell you when it's done" arrives with notifications (post-MVP).
 - Speaking is not a face: charmd sends `tts start`/`stop` and the charm shows its speech layout. The agent can set a face at any time (`show_face`).
 - Audio frames share the per-connection queue with text, so a frame sent right after `listen start` is never dropped.
-- Each turn logs one JSON line (`sttMs`, `firstAudioMs`, `totalMs`, `outcome`; key released → first audio played); transcripts only with `logTranscripts: true`.
+- Each turn logs one JSON line, all from the key's release: `sttMs`, `agentFirstMs` (the agent's first words), `firstSentenceMs`, `firstAudioMs`, `totalMs`, `outcome`; transcripts only with `logTranscripts: true`.
+- When a charm unlocks, its agent and the voice warm up; charmd loads the voice models when it starts.
 
 **Measured** on a MacBook (1 October 2026), `local` voice + Claude Code over ACP: speech-to-text about 0.6 s; key released → first audio about 3.1 s warm with the default model, 2.6 s with `"model": "haiku"` in the home's settings; 6.7–8 s for the first turn after charmd starts (the first run ever also downloads the adapter, about 18 s). Turns that use tools (writing a note) take 4–9 s. OpenAI voice and Hermes are not yet measured (no key or install here). Targets are in [OPENCHARM.md](../../OPENCHARM.md) ("Speed budget").
+
+**Measured again** with the new voice (4 October 2026, the same Mac, Claude Code, warm; questions spoken by Microsoft's voice, in English and Italian): speech-to-text 0.12–0.2 s; the agent's first words 0.76–0.96 s and its first sentence 1.3–1.6 s; first audio 1.8–2.8 s. The voice's own share (listening plus Microsoft's first audio, about 0.5 s but sometimes over 1 s) was about 0.6 s.
 
 **At rest**: charmd does no work between turns. Its only timer is one WebSocket ping every 30 s for all connections. A charm that stops answering (out of Wi-Fi, a laptop asleep) is dropped instead of holding its session. Measured on the desktop charm (1 October 2026): 0% CPU.
 

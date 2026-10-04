@@ -23,6 +23,11 @@ const statusSchema = z.object({
     .regex(/^[0-9a-f]{4,40}$/)
     .optional()
     .catch(undefined),
+  voice: z
+    .string()
+    .regex(/^[\w.+()%· -]{1,160}$/)
+    .optional()
+    .catch(undefined),
   charms: z.array(
     z.object({
       name: z.string(),
@@ -173,10 +178,12 @@ function printStatus(
   ctx: CliContext,
   charms: CharmRow[],
   charmd: string | undefined,
-  starter: string | undefined
+  starter: string | undefined,
+  voice?: string
 ): void {
   // What's running, for bug reports (spec 015).
   if (charmd) ctx.out.write(`charmd ${charmd}\n`);
+  if (voice) ctx.out.write(`voice ${voice}\n`);
   if (starter) ctx.out.write(`workspace from starter ${starter}\n`);
   if (charms.length === 0) {
     ctx.out.write(
@@ -231,8 +238,8 @@ async function runAdminCommand(
         );
         return;
       }
-      const { charms, charmd, starter } = answer.data;
-      printStatus(ctx, charms, charmd, starter);
+      const { charms, charmd, starter, voice } = answer.data;
+      printStatus(ctx, charms, charmd, starter, voice);
       return;
     }
     const charm = firstPositional(args);

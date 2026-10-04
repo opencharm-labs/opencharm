@@ -21,7 +21,9 @@ const secret = {
   apiKeyEnv: z.string().min(1).optional(),
 };
 
-const voiceSchema = z.discriminatedUnion("provider", [
+// The original shape: one provider for both listening and speaking. Still read, and mapped to
+// `listen` + `speak` by normalizeVoice.
+const legacyVoiceSchema = z.discriminatedUnion("provider", [
   z
     .object({ provider: z.literal("fake"), transcript: z.string().optional() })
     .strict(),
@@ -40,6 +42,80 @@ const voiceSchema = z.discriminatedUnion("provider", [
       sttModel: z.string().optional(),
       ttsModel: z.string().optional(),
       voice: z.string().optional(),
+    })
+    .strict(),
+]);
+
+// A language is its two-letter code ("en", "it"): the transcript's, the reply's, the voice's.
+const languageCode = z.string().regex(/^[a-z]{2}$/);
+
+const listenSchema = z.discriminatedUnion("provider", [
+  // Parakeet on this computer (spec 003): the default.
+  z.object({ provider: z.literal("local") }).strict(),
+  z
+    .object({
+      provider: z.literal("whisper"),
+      model: z.string().optional(),
+      command: z.string().optional(),
+    })
+    .strict(),
+  z
+    .object({
+      provider: z.literal("openai"),
+      ...secret,
+      baseUrl: z.url().optional(),
+      model: z.string().optional(),
+    })
+    .strict(),
+  z
+    .object({ provider: z.literal("fake"), transcript: z.string().optional() })
+    .strict(),
+]);
+
+const speakSchema = z.discriminatedUnion("provider", [
+  // Microsoft's neural voices through Edge's read-aloud service: no key; the reply's text goes to Microsoft.
+  z
+    .object({
+      provider: z.literal("microsoft"),
+      voices: z
+        .record(
+          languageCode,
+          z.string().regex(/^[A-Za-z]{2,3}-[A-Za-z]{2,4}-\w+$/)
+        )
+        .optional(),
+    })
+    .strict(),
+  // Supertonic 3 on this computer: private, and the fallback when another voice fails.
+  z
+    .object({
+      provider: z.literal("local"),
+      speaker: z.number().int().min(0).max(9).optional(),
+    })
+    .strict(),
+  // macOS `say`.
+  z
+    .object({ provider: z.literal("system"), voice: z.string().optional() })
+    .strict(),
+  z
+    .object({
+      provider: z.literal("openai"),
+      ...secret,
+      baseUrl: z.url().optional(),
+      model: z.string().optional(),
+      voice: z.string().optional(),
+    })
+    .strict(),
+  z.object({ provider: z.literal("fake") }).strict(),
+]);
+
+const voiceSchema = z.union([
+  legacyVoiceSchema,
+  z
+    .object({
+      listen: listenSchema,
+      speak: speakSchema,
+      // The language to fall back on when a transcript or a sentence doesn't say which it is.
+      language: languageCode.default("en"),
     })
     .strict(),
 ]);
@@ -123,7 +199,13 @@ const schema = z
   .strict();
 
 type ParsedConfig = z.infer<typeof schema>;
-type VoiceConfig = ParsedConfig["voice"];
+type ListenConfig = z.infer<typeof listenSchema>;
+type SpeakConfig = z.infer<typeof speakSchema>;
+type VoiceConfig = {
+  listen: ListenConfig;
+  speak: SpeakConfig;
+  language: string;
+};
 type CharmConfig = ParsedConfig["charm"];
 // OpenClaw is an OpenAI-compatible agent whose model name is derived from its agent id; an ACP
 // agent is resolved to the command that starts it.
@@ -144,9 +226,10 @@ type AgentConfig =
       model: string;
     })
   | AcpConfig;
-type CharmdConfig = Omit<ParsedConfig, "adminSocket" | "agent"> & {
+type CharmdConfig = Omit<ParsedConfig, "adminSocket" | "agent" | "voice"> & {
   adminSocket: string;
   agent: AgentConfig;
+  voice: VoiceConfig;
 };
 
 function defaultAdminSocket(statePath: string): string {
@@ -195,6 +278,55 @@ function resolveAgent(agent: ParsedConfig["agent"], base: string): AgentConfig {
   };
 }
 
+// The old one-provider shape keeps meaning what it meant: "local" stays on this computer (Parakeet and
+// Supertonic, or whisper and `say` when their options are set); "openai" and "fake" serve both sides.
+function normalizeVoice(voice: ParsedConfig["voice"]): VoiceConfig {
+  if ("listen" in voice) return voice;
+  switch (voice.provider) {
+    case "fake":
+      return {
+        listen: {
+          provider: "fake",
+          ...(voice.transcript ? { transcript: voice.transcript } : {}),
+        },
+        speak: { provider: "fake" },
+        language: "en",
+      };
+    case "local":
+      return {
+        listen: voice.whisperModel
+          ? { provider: "whisper", model: voice.whisperModel }
+          : { provider: "local" },
+        speak: voice.sayVoice
+          ? { provider: "system", voice: voice.sayVoice }
+          : { provider: "local" },
+        language: "en",
+      };
+    case "openai": {
+      const { sttModel, ttsModel, voice: name } = voice;
+      const rest = {
+        ...(voice.apiKey ? { apiKey: voice.apiKey } : {}),
+        ...(voice.apiKeyEnv ? { apiKeyEnv: voice.apiKeyEnv } : {}),
+        ...(voice.baseUrl ? { baseUrl: voice.baseUrl } : {}),
+      };
+      return {
+        listen: {
+          provider: "openai",
+          ...rest,
+          ...(sttModel ? { model: sttModel } : {}),
+        },
+        speak: {
+          provider: "openai",
+          ...rest,
+          ...(ttsModel ? { model: ttsModel } : {}),
+          ...(name ? { voice: name } : {}),
+        },
+        language: "en",
+      };
+    }
+  }
+}
+
 function parseConfig(input: unknown, baseDir?: string): CharmdConfig {
   const result = schema.safeParse(input);
   if (!result.success) {
@@ -221,6 +353,7 @@ function parseConfig(input: unknown, baseDir?: string): CharmdConfig {
     statePath,
     adminSocket: config.adminSocket ?? defaultAdminSocket(statePath),
     agent,
+    voice: normalizeVoice(config.voice),
   };
 }
 
@@ -238,4 +371,12 @@ function loadConfig(path?: string, options: LoadOptions = {}): CharmdConfig {
 }
 
 export { loadConfig, parseConfig };
-export type { AcpConfig, AgentConfig, CharmConfig, CharmdConfig, VoiceConfig };
+export type {
+  AcpConfig,
+  AgentConfig,
+  CharmConfig,
+  CharmdConfig,
+  ListenConfig,
+  SpeakConfig,
+  VoiceConfig,
+};

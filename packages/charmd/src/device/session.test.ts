@@ -311,6 +311,7 @@ describe("frame order", () => {
           },
           abort: () => undefined,
           dispose: () => undefined,
+          warm: () => undefined,
         }) as unknown as import("../turn/turn").TurnController,
     });
     await session.onText(HELLO);

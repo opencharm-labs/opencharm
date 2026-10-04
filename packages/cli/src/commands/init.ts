@@ -12,19 +12,24 @@ import type { CliContext } from "../context";
 type InitOptions = {
   // A git URL or path; forks of the starter work too.
   from?: string;
-  platform: NodeJS.Platform;
   agent?: string;
   // The charm's identity (spec 014), written to the charm block.
   name?: string;
   colour?: string;
 };
 type StarterConfig = {
-  voice?: { provider?: string };
+  voice?: Record<string, unknown>;
   agent?: { agent?: string };
   charm?: Record<string, unknown>;
 };
 
 const STARTER = "https://github.com/opencharm-labs/opencharm-starter.git";
+// The best voice with no key and no setup, on every platform (spec 003): Parakeet listens on this
+// computer, Microsoft's voices speak (the reply's text goes to Microsoft; init says so).
+const DEFAULT_VOICE = {
+  listen: { provider: "local" },
+  speak: { provider: "microsoft" },
+};
 
 // Checked before cloning, with charmd's own rules, so a bad flag leaves nothing behind.
 function checkLook(options: InitOptions): Record<string, string> {
@@ -71,16 +76,14 @@ function initWorkspace(target: string, options: InitOptions): void {
       `${from} has no opencharm.json: is it an OpenCharm starter? (${target} was cloned; delete it)`
     );
   const config = JSON.parse(readFileSync(path, "utf8")) as StarterConfig;
-  // Local speech needs macOS `say`; elsewhere start with the fake voice and switch to openai later.
-  const voice = options.platform === "darwin" ? "local" : "fake";
   const hasLook = Object.keys(look).length > 0;
   if (
-    config.voice?.provider === voice &&
+    JSON.stringify(config.voice) === JSON.stringify(DEFAULT_VOICE) &&
     config.agent?.agent === agent &&
     !hasLook
   )
     return;
-  config.voice = { ...config.voice, provider: voice };
+  config.voice = DEFAULT_VOICE;
   config.agent = { ...config.agent, agent };
   if (hasLook) config.charm = { ...config.charm, ...look };
   writeFileSync(path, `${JSON.stringify(config, null, 2)}\n`);
@@ -95,7 +98,6 @@ function runInit(ctx: CliContext, args: readonly string[]): void {
       agent: flagValue(args, "--agent"),
       name,
       colour: flagValue(args, "--colour") ?? flagValue(args, "--color"),
-      platform: process.platform,
     });
   } catch (error) {
     ctx.err.write(
@@ -114,7 +116,8 @@ function runInit(ctx: CliContext, args: readonly string[]): void {
   opencharm sim            no charm yet? it appears in your browser (another terminal)
   opencharm pair <code>    the code on the charm (or the emulator); you choose its PIN
 
-  The charm is called ${charm}: its name, colour and greeting are in opencharm.json ("charm"). README.md has the voice setup.
+  The charm is called ${charm}: its name, colour and greeting are in opencharm.json ("charm").
+  ${ctx.style.dim('Voice: it listens on this computer; it speaks with Microsoft\'s free voices, so the text of each spoken reply goes to Microsoft. To keep everything here, set "speak": { "provider": "local" } in opencharm.json. The first start downloads the voice models (about 620 MB): opencharm voice.')}
 `);
 }
 

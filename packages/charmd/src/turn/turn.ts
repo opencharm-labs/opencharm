@@ -1,11 +1,10 @@
 import type { ServerMessage } from "@opencharm-labs/protocol/messages";
 
 import type { AgentAdapter } from "../agent/types";
-import {
-  opusPacketSamples48k,
-  readOggOpus,
-  writeOggOpus,
-} from "../audio/ogg-opus";
+import { opusPacketSamples48k, writeOggOpus } from "../audio/ogg-opus";
+import { guessLanguage } from "../voice/language";
+import { VoiceNotReady } from "../voice/models";
+import { PacketStream, packetsOf } from "../voice/packets";
 import type { VoiceProvider } from "../voice/types";
 import { ACP_AGENTS } from "../agent/acp-agents";
 import { SentenceSplitter, cleanForSpeech } from "./sentences";
@@ -45,7 +44,7 @@ class StageError extends Error {
     readonly stage: Stage,
     cause: unknown
   ) {
-    super(cause instanceof Error ? cause.message : String(cause));
+    super(cause instanceof Error ? cause.message : String(cause), { cause });
   }
 }
 
@@ -119,6 +118,12 @@ class TurnController {
     this.#controller = undefined;
     if (this.#speaking) this.#deps.send({ type: "tts", state: "stop" });
     this.#speaking = false;
+  }
+
+  // A charm just unlocked: start the agent and load the voice now, not on the first question.
+  warm(): void {
+    this.#deps.agent.warm?.(this.#deps.sessionKey);
+    void this.#deps.voice.warm?.().catch(() => undefined);
   }
 
   listenStart(): void {
@@ -227,7 +232,8 @@ class TurnController {
         live,
         timings,
         started,
-        timeoutGuard
+        timeoutGuard,
+        guessLanguage(heard) ?? this.#deps.voice.language ?? "en"
       );
       if (!live()) return;
       if (this.#speaking) this.#deps.send({ type: "tts", state: "stop" });
@@ -274,10 +280,14 @@ class TurnController {
     live: () => boolean,
     timings: Record<string, number>,
     started: number,
-    timeoutGuard: Promise<never>
+    timeoutGuard: Promise<never>,
+    language: string
   ): Promise<string> {
     const now = this.#deps.now ?? Date.now;
-    const queue: Array<Promise<{ text: string; ogg: Buffer }>> = [];
+    // Each sentence is spoken in its own language when it shows one, else in the one before it.
+    let speaking = language;
+    // Every sentence starts synthesizing as soon as it's written; each plays from its first packet.
+    const queue: Array<{ text: string; packets: PacketStream }> = [];
     let wake: () => void = () => undefined;
     let sourceDone = false;
     let said = "";
@@ -285,11 +295,15 @@ class TurnController {
       const text = cleanForSpeech(sentence);
       if (!text) return;
       said += `${text} `;
-      const pending = inStage("tts", () =>
-        this.#deps.voice.synthesize(text, signal)
-      ).then((audio) => ({ text, ogg: audio }));
-      pending.catch(() => undefined);
-      queue.push(pending);
+      speaking = guessLanguage(text) ?? speaking;
+      const sentenceLanguage = speaking;
+      timings.firstSentenceMs ??= now() - started;
+      queue.push({
+        text,
+        packets: new PacketStream(
+          packetsOf(this.#deps.voice, text, signal, sentenceLanguage)
+        ),
+      });
       wake();
     };
     const produce = (async () => {
@@ -297,6 +311,7 @@ class TurnController {
       await inStage("agent", async () => {
         for await (const chunk of source) {
           if (!live()) return;
+          timings.agentFirstMs ??= now() - started;
           for (const sentence of splitter.push(chunk)) enqueue(sentence);
         }
       });
@@ -314,8 +329,9 @@ class TurnController {
           await new Promise<void>((resolve) => (wake = resolve));
           continue;
         }
-        const { text, ogg } = await Promise.race([
-          queue[index++]!,
+        const { text, packets } = queue[index++]!;
+        await Promise.race([
+          inStage("tts", () => packets.first()),
           timeoutGuard,
         ]);
         if (!live()) return;
@@ -326,7 +342,10 @@ class TurnController {
           this.#deps.send({ type: "tts", state: "start" });
         }
         this.#deps.send({ type: "tts", state: "sentence_start", text });
-        await this.#sendPaced(readOggOpus(ogg).packets, live);
+        await Promise.race([
+          inStage("tts", () => this.#sendPaced(packets, live)),
+          timeoutGuard,
+        ]);
       }
     };
     await Promise.all([Promise.race([produce, timeoutGuard]), play()]);
@@ -365,7 +384,8 @@ class TurnController {
         live,
         {},
         Date.now(),
-        timeoutGuard
+        timeoutGuard,
+        guessLanguage(text) ?? this.#deps.voice.language ?? "en"
       );
       if (!live()) return;
       if (this.#speaking) this.#deps.send({ type: "tts", state: "stop" });
@@ -385,6 +405,9 @@ class TurnController {
 
   #failureLine(error: unknown): string {
     if (error instanceof TurnTimeout) return "That took too long.";
+    // A model still downloading says how far it got ("Parakeet (listening) is still downloading (45%)").
+    if (error instanceof StageError && error.cause instanceof VoiceNotReady)
+      return error.cause.message;
     if (error instanceof StageError && error.stage === "stt")
       return "I couldn't hear that.";
     if (error instanceof StageError && error.stage === "tts")
@@ -392,12 +415,16 @@ class TurnController {
     return `Can't reach ${AGENT_LABELS[this.#deps.agent.name] ?? "your agent"}`;
   }
 
-  async #sendPaced(packets: Buffer[], live: () => boolean): Promise<void> {
+  async #sendPaced(
+    packets: AsyncIterable<Buffer>,
+    live: () => boolean
+  ): Promise<void> {
     const sleep = this.#deps.sleep ?? sleepMs;
-    for (const [index, packet] of packets.entries()) {
+    let index = 0;
+    for await (const packet of packets) {
       if (!live()) return;
       this.#deps.sendAudio(packet);
-      if (index >= LEAD_FRAMES - 1)
+      if (index++ >= LEAD_FRAMES - 1)
         await sleep(opusPacketSamples48k(packet) / 48);
     }
   }

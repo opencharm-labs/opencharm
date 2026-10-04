@@ -16,6 +16,7 @@ import { Session } from "./device/session";
 import { CharmLook, readAgentName } from "./look";
 import { StateStore } from "./store/state-store";
 import { TurnController } from "./turn/turn";
+import { MODELS, modelState } from "./voice/models";
 import { createAgentFromConfig, createVoiceFromConfig } from "./wiring";
 import type { ToolsCommand } from "./wiring";
 
@@ -62,6 +63,8 @@ async function startDaemon(
   });
   const sessions = new Map<string, Session>();
   const voice = createVoiceFromConfig(config);
+  // Load the local models now (downloading them the first time), not during the first question.
+  void voice.warm?.().catch(() => undefined);
   const log =
     options.log ??
     ((entry: Record<string, unknown>) => {
@@ -88,6 +91,19 @@ async function startDaemon(
     agentCanChangeLook,
     identity: options.identity,
     starter: options.starter,
+    voice: () => {
+      const downloading = (["parakeet", "supertonic"] as const).flatMap(
+        (id) => {
+          const state = modelState(id);
+          return state.state === "downloading" && state.total
+            ? [
+                `${MODELS[id].label} downloading ${Math.floor((state.received * 100) / state.total)}%`,
+              ]
+            : [];
+        }
+      );
+      return [voice.name, ...downloading].join(" · ");
+    },
   });
   // Claim the admin socket first: it doubles as the "one charmd per state file" lock.
   const adminServer = await startAdminServer(config.adminSocket, admin);

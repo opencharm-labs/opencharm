@@ -17,6 +17,7 @@ import { runHelp } from "./commands/help";
 import { runInit } from "./commands/init";
 import { serveMcp } from "./commands/mcp";
 import { runServe } from "./commands/serve";
+import { runVoice } from "./commands/voice";
 import { runSetup } from "./commands/setup";
 import { runSim } from "./commands/sim";
 import { runStates } from "./commands/states";
@@ -78,6 +79,9 @@ async function main(argv: readonly string[]): Promise<void> {
       return;
     case "serve":
       await runServe(ctx, rest);
+      return;
+    case "voice":
+      await runVoice(ctx, rest);
       return;
     case "mcp": {
       // Started by the agent (charmd adds it to ACP sessions with --socket); talks to charmd.

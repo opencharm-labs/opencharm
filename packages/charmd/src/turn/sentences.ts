@@ -13,10 +13,15 @@ const ABBREVIATIONS = new Set([
   "no.",
 ]);
 const BOUNDARY = /[.!?…]+(?=\s)|\n+/g;
+// The reply's first words go out at a clause ("Done, I restarted it") once it's long enough to sound
+// natural, so the first audio doesn't wait for a long first sentence (spec 003).
+const FIRST_BOUNDARY = /[.!?…]+(?=\s)|[,;:](?=\s)|\n+/g;
+const FIRST_CLAUSE_CHARS = 20;
 
 class SentenceSplitter {
   #buffer = "";
   #pending = "";
+  #started = false;
 
   #take(piece: string): string[] {
     const text = piece.replace(/\s+/g, " ").trim();
@@ -25,6 +30,7 @@ class SentenceSplitter {
     if (this.#pending.length < MIN_CHARS) return [];
     const out = this.#pending;
     this.#pending = "";
+    this.#started = true;
     return [out];
   }
 
@@ -32,8 +38,17 @@ class SentenceSplitter {
     this.#buffer += chunk;
     const out: string[] = [];
     let start = 0;
-    for (const match of this.#buffer.matchAll(BOUNDARY)) {
+    for (const match of this.#buffer.matchAll(
+      this.#started ? BOUNDARY : FIRST_BOUNDARY
+    )) {
       const end = match.index + match[0].length;
+      const clause = /^[,;:]/.test(match[0]);
+      if (
+        clause &&
+        (this.#started ||
+          this.#pending.length + end - start < FIRST_CLAUSE_CHARS)
+      )
+        continue;
       const lastWord =
         this.#buffer
           .slice(start, end)

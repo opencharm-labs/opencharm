@@ -49,7 +49,7 @@ A new spec is only for a new feature. If a change could be described as "the des
 | --- | --------------------------------------------------------------------- | ----------- |
 | 001 | [Protocol package](001-protocol/spec.md)                              | Approved    |
 | 002 | [charmd core (sessions, pairing, PIN, lock)](002-charmd-core/spec.md) | Done        |
-| 003 | [Voice and agent turns](003-voice-turns/spec.md)                      | Approved    |
+| 003 | [Voice and agent turns](003-voice-turns/spec.md)                      | In progress |
 | 004 | [Workspace](004-workspace/spec.md)                                    | Done        |
 | 005 | [OpenCharm OS (firmware core)](005-opencharm-os/spec.md)              | Done        |
 | 006 | [Emulator](006-emulator/spec.md)                                      | Done        |

@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { AgentAdapter } from "../agent/types";
 import { createFakeAgent } from "../agent/fake";
 import { createFakeVoice } from "../voice/fake";
+import { VoiceNotReady } from "../voice/models";
 import type { VoiceProvider } from "../voice/types";
 import { TurnController } from "./turn";
 
@@ -402,6 +403,91 @@ describe("the charm's tools during a turn", () => {
       type: "tts",
       state: "sentence_start",
       text: "Done.",
+    });
+  });
+});
+
+describe("voice that sounds right (spec 003)", () => {
+  function recordingVoice(transcript: string, language?: string) {
+    const fake = createFakeVoice({ transcript });
+    const spoken: string[] = [];
+    const voice: VoiceProvider = {
+      ...fake,
+      ...(language ? { language } : {}),
+      synthesize: (text, signal, lang) => {
+        spoken.push(`${lang}: ${text}`);
+        return fake.synthesize(text, signal);
+      },
+    };
+    return { voice, spoken };
+  }
+
+  it("speaks each sentence in its own language, starting from the one it was asked in", async () => {
+    const { voice, spoken } = recordingVoice(
+      "Che cosa ho in calendario domani?"
+    );
+    const agent = createFakeAgent({
+      reply: () =>
+        "Domani hai due riunioni. OK. The first one is with the design team.",
+    });
+    const { turn } = setup({ voice, agent });
+    await speak(turn);
+    expect(spoken).toEqual([
+      "it: Domani hai due riunioni.",
+      "en: OK. The first one is with the design team.",
+    ]);
+  });
+
+  it("falls back to the configured language when the words don't say", async () => {
+    const { voice, spoken } = recordingVoice("Vercel deploy", "it");
+    const { turn } = setup({
+      voice,
+      agent: createFakeAgent({ reply: () => "Fatto, tutto ok." }),
+    });
+    await speak(turn);
+    expect(spoken).toEqual(["it: Fatto, tutto ok."]);
+  });
+
+  it("logs when the agent's first words arrived", async () => {
+    const { turn, logs } = setup();
+    await speak(turn);
+    expect(logs[0]).toMatchObject({ event: "turn", outcome: "done" });
+    expect(typeof logs[0]?.agentFirstMs).toBe("number");
+  });
+
+  it("warms the agent and the voice when asked (a charm unlocked)", () => {
+    const warmed: string[] = [];
+    const voice: VoiceProvider = {
+      ...createFakeVoice(),
+      warm: () => {
+        warmed.push("voice");
+        return Promise.resolve();
+      },
+    };
+    const agent: AgentAdapter = {
+      ...createFakeAgent({ reply: () => "Hi." }),
+      warm: (key) => warmed.push(`agent:${key}`),
+    };
+    const { turn } = setup({ voice, agent });
+    turn.warm();
+    expect(warmed).toEqual(["agent:opencharm-c_1", "voice"]);
+  });
+
+  it("says a model is still downloading instead of a generic failure", async () => {
+    const voice: VoiceProvider = {
+      ...createFakeVoice(),
+      transcribe: () =>
+        Promise.reject(
+          new VoiceNotReady("Parakeet (listening) is still downloading (45%)")
+        ),
+    };
+    const { turn, out } = setup({ voice });
+    await speak(turn);
+    expect(out.at(-1)).toEqual({
+      type: "charm",
+      op: "face",
+      state: "failed",
+      text: "Parakeet (listening) is still downloading (45%)",
     });
   });
 });

@@ -150,6 +150,7 @@ class Session {
     const look = this.#deps.look?.();
     if (look) this.#send(look);
     this.#send({ type: "charm", op: "unlocked" });
+    this.#activeTurn()?.warm();
   }
 
   #issuePairCode(): void {

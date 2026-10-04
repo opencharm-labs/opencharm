@@ -5,11 +5,17 @@ import { createFakeAgent } from "./agent/fake";
 import { createHermesAgent } from "./agent/hermes";
 import { createOpenAiCompatibleAgent } from "./agent/openai-compatible";
 import type { AgentAdapter } from "./agent/types";
-import type { CharmdConfig } from "./config/config";
+import type { CharmdConfig, ListenConfig, SpeakConfig } from "./config/config";
 import { createFakeVoice } from "./voice/fake";
 import { createLocalVoice } from "./voice/local";
+import { createMicrosoftSpeaker } from "./voice/microsoft";
 import { createOpenAiVoice } from "./voice/openai";
-import type { VoiceProvider } from "./voice/types";
+import {
+  createParakeetListener,
+  createSupertonicSpeaker,
+} from "./voice/sherpa";
+import { speakWithFallback } from "./voice/speak";
+import type { Listener, Speaker, VoiceProvider } from "./voice/types";
 
 function key(
   config: { apiKey?: string; apiKeyEnv?: string },
@@ -19,19 +25,80 @@ function key(
   return config.apiKey ?? (env ? process.env[env] : undefined);
 }
 
-function createVoiceFromConfig(config: CharmdConfig): VoiceProvider {
-  const voice = config.voice;
-  switch (voice.provider) {
+function createListener(config: ListenConfig): Listener {
+  switch (config.provider) {
     case "fake":
-      return createFakeVoice({ transcript: voice.transcript });
+      return createFakeVoice(config);
     case "local":
-      return createLocalVoice(voice);
+      return createParakeetListener();
+    case "whisper":
+      return createLocalVoice({
+        ...(config.model ? { whisperModel: config.model } : {}),
+        ...(config.command ? { whisperCommand: config.command } : {}),
+      });
     case "openai":
       return createOpenAiVoice({
-        ...voice,
-        apiKey: key(voice, "OPENAI_API_KEY"),
+        ...config,
+        apiKey: key(config, "OPENAI_API_KEY"),
+        ...(config.model ? { sttModel: config.model } : {}),
       });
   }
+}
+
+function createSpeaker(config: SpeakConfig): Speaker {
+  switch (config.provider) {
+    case "fake":
+      return createFakeVoice();
+    case "microsoft":
+      return createMicrosoftSpeaker(
+        config.voices ? { voices: config.voices } : {}
+      );
+    case "local":
+      return createSupertonicSpeaker(
+        config.speaker === undefined ? {} : { speaker: config.speaker }
+      );
+    case "system":
+      return {
+        ...createLocalVoice(config.voice ? { sayVoice: config.voice } : {}),
+        name: "system",
+      };
+    case "openai":
+      return createOpenAiVoice({
+        ...config,
+        apiKey: key(config, "OPENAI_API_KEY"),
+        ...(config.model ? { ttsModel: config.model } : {}),
+      });
+  }
+}
+
+// The chosen voice, then the local one, then macOS's own: a reply is never silent because one
+// service failed or a model is still downloading.
+function speakerChain(config: SpeakConfig): Speaker {
+  if (config.provider === "fake" || config.provider === "system")
+    return createSpeaker(config);
+  const chain = [createSpeaker(config)];
+  if (config.provider !== "local") chain.push(createSupertonicSpeaker());
+  if (process.platform === "darwin")
+    chain.push(createSpeaker({ provider: "system" }));
+  return speakWithFallback(chain);
+}
+
+function createVoiceFromConfig(config: CharmdConfig): VoiceProvider {
+  const listener = createListener(config.voice.listen);
+  const speaker = speakerChain(config.voice.speak);
+  return {
+    name:
+      listener.name === speaker.name
+        ? listener.name
+        : `${listener.name}+${speaker.name}`,
+    transcribe: listener.transcribe,
+    synthesize: speaker.synthesize,
+    ...(speaker.stream ? { stream: speaker.stream } : {}),
+    language: config.voice.language,
+    warm: async () => {
+      await Promise.allSettled([listener.warm?.(), speaker.warm?.()]);
+    },
+  };
 }
 
 type ToolsCommand = { command: string; args: string[] };

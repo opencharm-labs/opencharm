@@ -19,7 +19,7 @@ import { initWorkspace, runInit } from "./init";
 const STARTER_CONFIG = {
   listen: { host: "127.0.0.1", port: 8787 },
   statePath: ".opencharm/state.json",
-  voice: { provider: "local" },
+  voice: { listen: { provider: "local" }, speak: { provider: "microsoft" } },
   agent: { adapter: "acp", agent: "claude", cwd: "charm" },
   logTranscripts: false,
 };
@@ -59,7 +59,7 @@ function target(): string {
 
 const config = (dir: string) =>
   JSON.parse(readFileSync(join(dir, "opencharm.json"), "utf8")) as {
-    voice: { provider: string };
+    voice: Record<string, unknown>;
     agent: { agent: string };
   };
 
@@ -67,7 +67,7 @@ describe("initWorkspace", () => {
   it("clones the starter and keeps it as the upstream remote, for updates", () => {
     const from = starter();
     const dir = target();
-    initWorkspace(dir, { from, platform: "darwin" });
+    initWorkspace(dir, { from });
     expect(readFileSync(join(dir, "charm", "AGENTS.md"), "utf8")).toBe(
       "# Momo\n"
     );
@@ -77,7 +77,7 @@ describe("initWorkspace", () => {
   it("knows which starter commit a workspace began from, through git alone (spec 015)", () => {
     const from = starter();
     const dir = target();
-    initWorkspace(dir, { from, platform: "darwin" });
+    initWorkspace(dir, { from });
     expect(starterCommit(dir)).toBe(git(from, "rev-parse", "--short", "HEAD"));
     expect(starterCommit(tmpdir())).toBeUndefined();
   });
@@ -100,17 +100,20 @@ describe("initWorkspace", () => {
     expect(starterCommit(fork)).toBeUndefined();
   });
 
-  it("leaves the starter untouched when it already fits (macOS, Claude Code)", () => {
+  it("leaves the starter untouched when it already fits (the default voice, Claude Code)", () => {
     const dir = target();
-    initWorkspace(dir, { from: starter(), platform: "darwin" });
+    initWorkspace(dir, { from: starter() });
     expect(git(dir, "status", "--porcelain")).toBe("");
   });
 
-  it("uses the fake voice where the local one can't run, and the agent you choose", () => {
+  it("gives every platform the default voice, and the agent you choose", () => {
     const dir = target();
-    initWorkspace(dir, { from: starter(), platform: "linux", agent: "codex" });
+    initWorkspace(dir, { from: starter(), agent: "codex" });
     expect(config(dir)).toMatchObject({
-      voice: { provider: "fake" },
+      voice: {
+        listen: { provider: "local" },
+        speak: { provider: "microsoft" },
+      },
       agent: { agent: "codex", cwd: "charm" },
     });
   });
@@ -119,7 +122,6 @@ describe("initWorkspace", () => {
     const dir = target();
     initWorkspace(dir, {
       from: starter(),
-      platform: "darwin",
       name: "Momo",
       colour: "lilac",
     });
@@ -134,14 +136,12 @@ describe("initWorkspace", () => {
     expect(() =>
       initWorkspace(dir, {
         from: starter(),
-        platform: "darwin",
         name: "A very long charm name",
       })
     ).toThrow(/12 characters/);
     expect(() =>
       initWorkspace(dir, {
         from: starter(),
-        platform: "darwin",
         colour: "orange",
       })
     ).toThrow(/white, cobalt, lime, lilac, sun, coal/);
@@ -152,7 +152,6 @@ describe("initWorkspace", () => {
     expect(() =>
       initWorkspace(target(), {
         from: starter(),
-        platform: "darwin",
         agent: "clippy",
       })
     ).toThrow(/claude.*codex/);
@@ -161,9 +160,7 @@ describe("initWorkspace", () => {
   it("refuses a folder that already has files in it", () => {
     const dir = mkdtempSync(join(tmpdir(), "oc-init-"));
     writeFileSync(join(dir, "keep.txt"), "mine");
-    expect(() =>
-      initWorkspace(dir, { from: starter(), platform: "darwin" })
-    ).toThrow(/not empty/);
+    expect(() => initWorkspace(dir, { from: starter() })).toThrow(/not empty/);
     expect(readFileSync(join(dir, "keep.txt"), "utf8")).toBe("mine");
   });
 
@@ -183,16 +180,16 @@ describe("initWorkspace", () => {
       "-m",
       "x"
     );
-    expect(() => initWorkspace(target(), { from, platform: "darwin" })).toThrow(
+    expect(() => initWorkspace(target(), { from })).toThrow(
       /no opencharm.json/
     );
   });
 
   it("says why when the starter can't be cloned", () => {
     const dir = target();
-    expect(() =>
-      initWorkspace(dir, { from: "/nope/starter", platform: "darwin" })
-    ).toThrow(/clone.*\/nope\/starter/);
+    expect(() => initWorkspace(dir, { from: "/nope/starter" })).toThrow(
+      /clone.*\/nope\/starter/
+    );
     expect(existsSync(join(dir, "opencharm.json"))).toBe(false);
   });
 });
