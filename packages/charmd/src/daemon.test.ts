@@ -162,7 +162,7 @@ describe("charmd over a real socket", () => {
     const dir = mkdtempSync(join(tmpdir(), "oc-daemon-"));
     daemon = await startDaemon(
       parseConfig({ listen: { port: 0 }, statePath: join(dir, "state.json") }),
-      { quiet: true, identity: "cli@0.2.0 (abc1234)" }
+      { quiet: true, identity: "cli@0.2.0 (abc1234)", starter: "def5678" }
     );
     const d = daemon;
     const { token } = await pair(d);
@@ -171,6 +171,7 @@ describe("charmd over a real socket", () => {
     await again.next(isOp("locked"));
     const status = d.admin.status();
     expect(status.charmd).toBe("cli@0.2.0 (abc1234)");
+    expect(status.starter).toBe("def5678");
     expect(status.charms[0]).toMatchObject({ build });
   });
 

@@ -28,6 +28,8 @@ type DaemonOptions = {
   quiet?: boolean;
   // What this charmd is (spec 015), e.g. "cli@0.2.0 (abc1234)": logged at start and in status.
   identity?: string;
+  // Which starter commit the workspace began from (spec 015), shown in status.
+  starter?: string;
   // Where per-turn timing entries go; defaults to JSON lines on stdout unless quiet.
   log?: (entry: Record<string, unknown>) => void;
   // How to start `opencharm mcp` (the charm's tools for ACP agents); the CLI passes itself.
@@ -85,6 +87,7 @@ async function startDaemon(
     look,
     agentCanChangeLook,
     identity: options.identity,
+    starter: options.starter,
   });
   // Claim the admin socket first: it doubles as the "one charmd per state file" lock.
   const adminServer = await startAdminServer(config.adminSocket, admin);

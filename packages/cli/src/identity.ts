@@ -30,6 +30,22 @@ function gitCommit(cwd: string): string {
   }
 }
 
+// Which starter commit a workspace began from: `init` keeps the starter as the `upstream` remote, so
+// it's the last commit the workspace shares with it; undefined outside a starter workspace. Nothing
+// is written to the workspace for this (spec 015).
+function starterCommit(dir: string): string | undefined {
+  try {
+    return git(
+      dir,
+      "rev-parse",
+      "--short",
+      git(dir, "merge-base", "HEAD", "upstream/HEAD")
+    );
+  } catch {
+    return undefined;
+  }
+}
+
 function formatIdentity(unit: string, version: string, commit: string): string {
   return `${unit}@${version} (${commit})`;
 }
@@ -43,5 +59,5 @@ function identity(): Identity {
   return { version, commit, text: `${version} (${commit})` };
 }
 
-export { formatIdentity, gitCommit, identity };
+export { formatIdentity, gitCommit, identity, starterCommit };
 export type { Identity };

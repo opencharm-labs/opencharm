@@ -151,10 +151,12 @@ async function look(
 function printStatus(
   ctx: CliContext,
   charms: CharmRow[],
-  charmd: string | undefined
+  charmd: string | undefined,
+  starter: string | undefined
 ): void {
   // What's running, for bug reports (spec 015).
   if (charmd) ctx.out.write(`charmd ${charmd}\n`);
+  if (starter) ctx.out.write(`workspace from starter ${starter}\n`);
   if (charms.length === 0) {
     ctx.out.write(
       "No charms paired yet. Start one and run: opencharm pair <code>\n"
@@ -198,10 +200,10 @@ async function runAdminCommand(
       return;
     }
     if (command === "status") {
-      const { charms, charmd } = (await deps.send(deps.socket, {
+      const { charms, charmd, starter } = (await deps.send(deps.socket, {
         cmd: "status",
-      })) as { charms: CharmRow[]; charmd?: string };
-      printStatus(ctx, charms, charmd);
+      })) as { charms: CharmRow[]; charmd?: string; starter?: string };
+      printStatus(ctx, charms, charmd, starter);
       return;
     }
     const charm = firstPositional(args);

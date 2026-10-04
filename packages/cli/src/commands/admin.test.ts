@@ -126,6 +126,7 @@ describe("opencharm status", () => {
     const { ctx, out } = context();
     const send = vi.fn().mockResolvedValue({
       charmd: "cli@0.2.0 (abc1234)",
+      starter: "def5678",
       charms: [
         {
           id: "c_1",
@@ -144,6 +145,7 @@ describe("opencharm status", () => {
       prompt: vi.fn(),
     });
     expect(out()).toContain("charmd cli@0.2.0 (abc1234)");
+    expect(out()).toContain("workspace from starter def5678");
     expect(out()).toMatch(/pip\s+unlocked\s+emulator cli@0\.2\.0 \(abc1234\)/);
   });
 

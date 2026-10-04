@@ -13,6 +13,7 @@ import { describe, expect, it } from "vitest";
 
 import type { CliContext } from "../context";
 import { createStyle } from "../terminal";
+import { starterCommit } from "../identity";
 import { initWorkspace, runInit } from "./init";
 
 const STARTER_CONFIG = {
@@ -71,6 +72,14 @@ describe("initWorkspace", () => {
       "# Momo\n"
     );
     expect(git(dir, "remote")).toBe("upstream");
+  });
+
+  it("knows which starter commit a workspace began from, through git alone (spec 015)", () => {
+    const from = starter();
+    const dir = target();
+    initWorkspace(dir, { from, platform: "darwin" });
+    expect(starterCommit(dir)).toBe(git(from, "rev-parse", "--short", "HEAD"));
+    expect(starterCommit(tmpdir())).toBeUndefined();
   });
 
   it("leaves the starter untouched when it already fits (macOS, Claude Code)", () => {

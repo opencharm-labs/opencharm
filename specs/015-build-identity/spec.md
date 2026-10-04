@@ -20,7 +20,7 @@ When something goes wrong, we need to know exactly what was running: which CLI a
   - website: a small label in the footer and `/version.json` (`{ "version", "commit" }`); a deploy that isn't a release says `web@0.3.1+2 (abc1234)`: two commits after `web@0.3.1`
   - firmware core: `charm::kBuild`, compiled in (the emulator today; the board with spec 009)
 - **The charm says what it runs:** the charm's `hello` gets an optional `build: { kind, version, commit }`, with `kind` one of `emulator`, `desktop`, `board` (packages/protocol, fixtures for both sides; the protocol version stays 1). charmd logs it on connect and lists it per charm in `opencharm status`.
-- **The starter:** `opencharm init` records the starter commit it cloned in `opencharm.json` (`"starter": { "commit": "…" }`), so a workspace says which template it began from.
+- **The starter:** `opencharm status` says which starter commit the workspace began from (`workspace from starter abc1234`), read from git: `init` keeps the starter as the `upstream` remote, so it's the last commit the workspace shares with it. Nothing is written to the workspace.
 - **Bug reports:** the bug form asks for `opencharm status` output (every identity in one go) and, for the website, its footer label.
 
 ## Decisions
@@ -29,6 +29,7 @@ When something goes wrong, we need to know exactly what was running: which CLI a
 - The website gets a version too, as a reference of what was live when (maintainer, 4 October 2026).
 - The emulator isn't a release unit of its own: it's never installed alone, so it carries the version of the app that ships it, plus its own commit.
 - The identity is never on the charm's screen, only in settings (the emulator's side panel, the desktop app's Settings, the board's settings with spec 009) (maintainer, 4 October 2026).
+- The starter commit is read from git, not written into `opencharm.json`: a fresh workspace stays identical to its starter, so `git pull upstream main` never conflicts on it (4 October 2026).
 - No redeploy after a web release: Vercel deploys each merge before CI tags it, so that deploy shows the previous version plus its commit (`web@0.3.0+1 (abc1234)`) until the next deploy; the commit is always exact (maintainer, 4 October 2026).
 
 ## Not in scope
@@ -43,5 +44,5 @@ When something goes wrong, we need to know exactly what was running: which CLI a
 - [ ] The emulator and the desktop charm send `build` in `hello`; charmd logs it (protocol fixtures read by the TypeScript and C++ tests; firmware core test for `kBuild`).
 - [ ] The desktop app's Settings show its identity (desktop test).
 - [ ] `web@x.y.z` is released by the release flow like the other units (`tools/release` tests), and the site's footer and `/version.json` show the identity (website e2e test).
-- [ ] `opencharm init` writes `starter.commit` (init test).
+- [ ] `opencharm status` names the starter commit a workspace began from (init test with a temp starter; status test).
 - [ ] The bug form asks for `opencharm status`; CONTRIBUTING "Releasing" and `OPENCHARM.md` describe the identities.
