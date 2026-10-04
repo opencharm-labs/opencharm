@@ -12,6 +12,6 @@ charmd (pairing, tokens, PIN, lock, permissions, the WebSocket protocol), OpenCh
 
 ## Design rules we hold ourselves to
 
-No API keys or PIN on the device; TLS with certificate checks; the mic opens only while the key is held; charmd's files are unreadable by the agent's user. Details: `OPENCHARM.md` "Security and permissions".
+No API keys or PIN on the device; TLS with certificate checks; the mic is on only while the key is down, and nothing leaves the charm unless it's a hold; charmd's files are unreadable by the agent's user. Details: `OPENCHARM.md` "Security and permissions".
 
 There is no bug bounty.
