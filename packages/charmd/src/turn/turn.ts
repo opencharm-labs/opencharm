@@ -181,12 +181,23 @@ class TurnController {
         this.#deps.timeoutMs
       );
     let timer = startClock();
-    // The clock is for getting an answer started; once it speaks, a long answer may take its time
-    // (a press stops it).
-    let clockStopped = false;
-    const stopClock = () => {
-      clockStopped = true;
+    // Until the first audio the clock times getting an answer started; from then on it times
+    // silence: anything from the agent or the voice resets it, so a long answer plays to the end but
+    // an agent or a voice that stalls mid-answer still ends the turn.
+    let speakingStarted = false;
+    let asking = false;
+    const restartClock = () => {
       clearTimeout(timer);
+      timer = startClock();
+    };
+    const clock = {
+      started: () => {
+        speakingStarted = true;
+        restartClock();
+      },
+      touch: () => {
+        if (speakingStarted && !asking) restartClock();
+      },
     };
     const timeoutGuard = new Promise<never>((_, reject) =>
       signal.addEventListener("abort", () => {
@@ -218,11 +229,13 @@ class TurnController {
       const label = AGENT_LABELS[this.#deps.agent.name] ?? "Your agent";
       if (ask)
         this.#asking = async (text, options) => {
+          asking = true;
           clearTimeout(timer);
           try {
             return await ask(text, { ...options, signal });
           } finally {
-            if (!signal.aborted && !clockStopped) timer = startClock();
+            asking = false;
+            if (!signal.aborted) timer = startClock();
           }
         };
       const reply = this.#deps.agent.reply({
@@ -244,7 +257,7 @@ class TurnController {
         started,
         timeoutGuard,
         guessLanguage(heard) ?? this.#deps.voice.language ?? "en",
-        stopClock
+        clock
       );
       if (!live()) return;
       if (this.#speaking) this.#deps.send({ type: "tts", state: "stop" });
@@ -295,7 +308,7 @@ class TurnController {
     started: number,
     timeoutGuard: Promise<never>,
     language: string,
-    onFirstAudio: () => void
+    clock: { started: () => void; touch: () => void }
   ): Promise<string> {
     const now = this.#deps.now ?? Date.now;
     const going = () => live() && !signal.aborted;
@@ -336,6 +349,7 @@ class TurnController {
         for await (const chunk of source) {
           if (!going()) return;
           timings.agentFirstMs ??= now() - started;
+          clock.touch();
           for (const sentence of splitter.push(chunk)) enqueue(sentence);
         }
       });
@@ -365,11 +379,14 @@ class TurnController {
           this.#speaking = true;
           this.#state = "speaking";
           timings.firstAudioMs = now() - started;
-          onFirstAudio();
+          clock.started();
           this.#deps.send({ type: "tts", state: "start" });
         }
         this.#deps.send({ type: "tts", state: "sentence_start", text });
-        await inStage("tts", () => this.#sendPaced(packets, going));
+        await Promise.race([
+          inStage("tts", () => this.#sendPaced(packets, going, clock.touch)),
+          timeoutGuard,
+        ]);
         playing += 1;
       }
     };
@@ -388,11 +405,18 @@ class TurnController {
     const live = () => this.#generation === generation;
     const controller = new AbortController();
     this.#controller = controller;
-    const timer = setTimeout(
-      () => controller.abort(new TurnTimeout()),
-      this.#deps.timeoutMs
-    );
-    const stopClock = () => clearTimeout(timer);
+    const startClock = () =>
+      setTimeout(
+        () => controller.abort(new TurnTimeout()),
+        this.#deps.timeoutMs
+      );
+    let timer = startClock();
+    // As in a turn: from the first audio on, the clock times silence.
+    const restartClock = () => {
+      clearTimeout(timer);
+      timer = startClock();
+    };
+    const clock = { started: restartClock, touch: restartClock };
     const timeoutGuard = new Promise<never>((_, reject) =>
       controller.signal.addEventListener("abort", () => {
         if (controller.signal.reason instanceof TurnTimeout)
@@ -412,7 +436,7 @@ class TurnController {
         Date.now(),
         timeoutGuard,
         guessLanguage(text) ?? this.#deps.voice.language ?? "en",
-        stopClock
+        clock
       );
       if (!live()) return;
       if (this.#speaking) this.#deps.send({ type: "tts", state: "stop" });
@@ -445,13 +469,15 @@ class TurnController {
 
   async #sendPaced(
     packets: AsyncIterable<Buffer>,
-    live: () => boolean
+    live: () => boolean,
+    onPacket: () => void
   ): Promise<void> {
     const sleep = this.#deps.sleep ?? sleepMs;
     let index = 0;
     for await (const packet of packets) {
       if (!live()) return;
       this.#deps.sendAudio(packet);
+      onPacket();
       if (index++ >= LEAD_FRAMES - 1)
         await sleep(opusPacketSamples48k(packet) / 48);
     }

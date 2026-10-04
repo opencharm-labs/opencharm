@@ -522,25 +522,65 @@ describe("what the review of the voice update found (spec 003)", () => {
   });
 
   it("stops speaking at once when the agent fails mid-answer, and can speak again after", async () => {
+    const out: Out[] = [];
+    const aborted: boolean[] = [];
+    const fake = createFakeVoice();
+    const voice: VoiceProvider = {
+      ...fake,
+      synthesize: async (text, signal) => {
+        const audio = await fake.synthesize(text, signal);
+        signal.addEventListener("abort", () => aborted.push(true));
+        return audio;
+      },
+    };
     const agent: AgentAdapter = {
       name: "fake",
       async *reply() {
-        yield "First sentence of the answer. ";
-        await new Promise((resolve) => setTimeout(resolve, 20));
+        yield "The first sentence of a long answer is here. The second one follows it. ";
+        await new Promise((resolve) => setTimeout(resolve, 30));
         throw new Error("agent crashed");
       },
     };
-    const { turn, out } = setup({ agent });
+    const turn = new TurnController({
+      voice,
+      agent,
+      sessionKey: "opencharm-c_1",
+      send: (m) => out.push(m),
+      sendAudio: (p) => out.push({ audio: p.length }),
+      timeoutMs: 5000,
+      // Playback is still going when the agent fails.
+      sleep: (ms) =>
+        new Promise((resolve) => setTimeout(resolve, Math.min(ms, 10))),
+    });
     await speak(turn);
     const failedAt = out.findIndex(
       (m) => "op" in m && m.op === "face" && m.state === "failed"
     );
     expect(failedAt).toBeGreaterThan(-1);
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await new Promise((resolve) => setTimeout(resolve, 100));
     expect(out.slice(failedAt + 1)).toEqual([]);
+    expect(aborted.length).toBeGreaterThan(0);
     expect(turn.busy).toBe(false);
     await turn.say("Back again.");
     expect(out.at(-1)).toMatchObject({ op: "face", state: "idle" });
+  });
+
+  it("ends the turn when the agent stalls after it started speaking, instead of staying busy", async () => {
+    const agent: AgentAdapter = {
+      name: "fake",
+      async *reply(input) {
+        yield "Here is the first part of it. ";
+        await new Promise((_, reject) =>
+          input.signal.addEventListener("abort", () =>
+            reject(new Error("aborted"))
+          )
+        );
+      },
+    };
+    const { turn, faces } = setup({ agent, timeoutMs: 100 });
+    await speak(turn);
+    expect(faces().at(-1)).toBe("failed");
+    expect(turn.busy).toBe(false);
   });
 
   it("synthesizes only the sentence playing and the next one", async () => {

@@ -155,8 +155,12 @@ function removeAbandoned(dir: string, folder: string): void {
   for (const name of readdirSync(dir)) {
     if (!name.startsWith(`.download-${folder}-`)) continue;
     const path = join(dir, name);
-    if (Date.now() - statSync(path).mtimeMs > ABANDONED_MS)
-      rmSync(path, { recursive: true, force: true });
+    try {
+      if (Date.now() - statSync(path).mtimeMs > ABANDONED_MS)
+        rmSync(path, { recursive: true, force: true });
+    } catch {
+      // Gone already (another charmd cleaned it): nothing to do.
+    }
   }
 }
 

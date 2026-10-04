@@ -37,6 +37,32 @@ describe("the local voice", () => {
     }
   });
 
+  it("says why a download failed, and waits before trying again", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "oc-sherpa-failed-"));
+    const fetch = vi.fn(() =>
+      Promise.resolve(
+        new Response("nope", { status: 404, statusText: "Not Found" })
+      )
+    );
+    vi.stubGlobal("fetch", fetch);
+    try {
+      const listener = createParakeetListener({ modelsDir: dir });
+      await expect(listener.transcribe(Buffer.alloc(0))).rejects.toThrow(
+        /still downloading/
+      );
+      await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+      await vi.waitFor(async () => {
+        await expect(listener.transcribe(Buffer.alloc(0))).rejects.toThrow(
+          /Couldn't get Parakeet \(listening\): Couldn't download Parakeet \(listening\): 404/
+        );
+      });
+      // Within the next five minutes, no new download.
+      expect(fetch).toHaveBeenCalledTimes(1);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   // Runs where the models are installed (`opencharm voice install`), e.g. the maintainer's Mac.
   it.skipIf(!installed)(
     "speaks with Supertonic and hears it back with Parakeet",
