@@ -1,6 +1,8 @@
+import { statSync } from "node:fs";
+
 import { describe, expect, it } from "vitest";
 
-import { readRepoFile, walkRepo } from "./repo";
+import { readRepoFile, repoPath, walkRepo } from "./repo";
 
 const BANNED_NAME = /muse/i;
 const MAX_PRODUCT_LINES = 350;
@@ -30,6 +32,8 @@ describe("public docs", () => {
   it("has no references to paths that moved when the repo was set up", () => {
     const stale = walkRepo()
       .filter((path) => TEXT_FILE.test(path))
+      // Only files: a Next.js route folder such as app/version.json/ ends in .json too.
+      .filter((path) => statSync(repoPath(path)).isFile())
       .filter((path) => !HISTORY_OR_THIRD_PARTY.test(path))
       .filter((path) => STALE_PATH.test(readRepoFile(path)));
     expect(stale).toEqual([]);
