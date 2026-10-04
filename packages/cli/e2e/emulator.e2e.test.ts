@@ -33,10 +33,9 @@ describe("the emulator against a real charmd", () => {
     expect(await page.locator("#build").textContent()).toMatch(
       /^cli@\d+\.\d+\.\d+ \(([0-9a-f]{7,}(-dirty)?|unknown)\)$/
     );
-    expect(emulator.daemon.admin.status().charms[0]?.build).toMatchObject({
-      kind: "emulator",
-      version: expect.stringMatching(/^cli@/),
-    });
+    const build = emulator.daemon.admin.status().charms[0]?.build;
+    expect(build?.kind).toBe("emulator");
+    expect(build?.version).toMatch(/^cli@/);
 
     // The microphone is closed until the key goes down, open while it's held, closed after.
     await page.waitForTimeout(500);
