@@ -116,6 +116,7 @@ describe("admin socket", () => {
     daemon = await startDaemon(config, { quiet: true });
     expect(await sendAdmin(config.adminSocket, { cmd: "status" })).toEqual({
       charmd: "unknown",
+      voice: "fake",
       charms: [],
     });
     if (process.platform !== "win32")

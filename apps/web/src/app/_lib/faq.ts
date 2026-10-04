@@ -22,7 +22,7 @@ export const FAQ: Faq[] = [
   },
   {
     q: "Where do my data and keys live?",
-    a: "With you. Your agent runs on your own machine or server, with its own memory and model. The charm holds no API keys and never stores its PIN; charmd keeps only hashes. Speech can stay on your Mac with the local voice, or go to OpenAI with your own key.",
+    a: "With you. Your agent runs on your own machine or server, with its own memory and model. The charm holds no API keys and never stores its PIN; charmd keeps only hashes. What you say is understood on your computer. By default the replies are spoken with Microsoft’s free voices, which means the text of each spoken reply goes to Microsoft; you can keep everything on your computer with the local voice instead, or use OpenAI with your own key.",
   },
   {
     q: "How much does it cost?",

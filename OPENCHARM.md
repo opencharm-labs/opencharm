@@ -85,12 +85,12 @@ Skills (text files the agent learns; examples, not promises): cook hands-free, t
 
 ### 3.5 Speed budget (targets, not measurements)
 
-| Moment                             | Target                                                                    |
-| ---------------------------------- | ------------------------------------------------------------------------- |
-| Face reacts to key, touch, pick-up | < 100 ms, on the device                                                   |
-| Spoken reply starts                | ~1.5 s after the key is released (charmd logs it)                         |
-| Still working                      | at 3 s it shows it's on it                                                |
-| Long task                          | after 20 s it says it will tell you when done (with notifications, later) |
+| Moment                             | Target                                                                                                                                        |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Face reacts to key, touch, pick-up | < 100 ms, on the device                                                                                                                       |
+| Spoken reply starts                | ~1.5 s after the key is released; measured 1.8–2.8 s with Claude Code, the voice's share about 0.6 s (charmd logs each stage; 4 October 2026) |
+| Still working                      | at 3 s it shows it's on it                                                                                                                    |
+| Long task                          | after 20 s it says it will tell you when done (with notifications, later)                                                                     |
 
 ## 4. Interaction design
 
@@ -207,7 +207,7 @@ The device always dials out to one address. There is no separate LAN mode; a loc
 
 ### 7.2 charmd, the charm daemon
 
-The program between the charm and the agent (the _d_ is the Unix habit for background services, like `sshd`). It owns only what the agent can't do: the door (XiaoZhi WebSocket protocol, Opus audio), the guard (pairing, tokens, PIN, lock, revoke, permissions) and voice plumbing (speech-to-text and text-to-speech with the user's key: `local`, `openai` or `fake`). Behaviour (memory, persona, speaking style, what to show) belongs to the agent.
+The program between the charm and the agent (the _d_ is the Unix habit for background services, like `sshd`). It owns only what the agent can't do: the door (XiaoZhi WebSocket protocol, Opus audio), the guard (pairing, tokens, PIN, lock, revoke, permissions) and voice plumbing (listening and speaking, chosen separately; by default Parakeet listens on the computer and Microsoft's free voices speak, falling back to a local voice; others: whisper, macOS voices, OpenAI with the user's key; spec 003). Behaviour (memory, persona, speaking style, what to show) belongs to the agent.
 
 - **Agents:** charmd starts a local agent itself over ACP (spec 010), or calls a server agent's HTTP API (Hermes, OpenClaw, anything OpenAI-compatible), with a stable session per charm. A local agent works in a workspace cloned from opencharm-starter (`opencharm init`), with its permissions pinned by tests.
 - **The agent drives the charm** through an MCP server, `opencharm mcp`, with the tools `say`, `show_face`, `ask`, `notify` (spec 012) and `set_look` (spec 014). A permission request from the agent becomes a question on the charm; answers are always "once" (spec 011).
@@ -238,17 +238,17 @@ We speak xiaozhi-esp32's WebSocket protocol and add one namespaced message type,
 
 **Threats and protections**
 
-| Threat                              | Protection                                                                                                                                                                                                                                                   |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Network attacker                    | charmd speaks plain `ws://` and refuses a non-loopback bind unless `allowInsecureRemote` is set; a remote charm goes through TLS in front of it (e.g. Caddy), and the charm verifies the certificate (ESP-IDF CA bundle)                                     |
-| Stolen charm                        | Token useless without the PIN; lock on boot; 5 tries; revoke                                                                                                                                                                                                 |
-| Flash dump                          | Only a revocable token; never the PIN                                                                                                                                                                                                                        |
-| Pairing-code guessing               | A code only binds when the admin types it on the agent's machine; 300 s expiry; cap on pending pairings                                                                                                                                                      |
-| Misbehaving agent with shell access | charmd runs as its own system user; `/var/lib/charmd/state.json` is 0600; `/etc/opencharm` (config and the keys in `charmd.env`) is `root:charmd 0640`; admin commands only via `sudo -u charmd opencharm ...`; every charm tool passes the permission check |
-| Compromised charmd                  | Cannot open the mic: the firmware only listens while the key is held                                                                                                                                                                                         |
-| Floods and junk                     | Size limits on JSON and audio frames, connection cap, unpaired connections closed after 120 s                                                                                                                                                                |
-| Supply chain                        | Four runtime dependencies in the CLI (`ws`, `zod`, `@agentclientprotocol/sdk`, `opusscript`), lockfile, `npm audit` in CI, published with npm provenance (`cli-release.yml`); pinned ESP-IDF                                                                 |
-| Privacy                             | No audio stored; transcripts not logged by default; the docs state that the speech provider sees audio and text                                                                                                                                              |
+| Threat                              | Protection                                                                                                                                                                                                                                                                                                   |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Network attacker                    | charmd speaks plain `ws://` and refuses a non-loopback bind unless `allowInsecureRemote` is set; a remote charm goes through TLS in front of it (e.g. Caddy), and the charm verifies the certificate (ESP-IDF CA bundle)                                                                                     |
+| Stolen charm                        | Token useless without the PIN; lock on boot; 5 tries; revoke                                                                                                                                                                                                                                                 |
+| Flash dump                          | Only a revocable token; never the PIN                                                                                                                                                                                                                                                                        |
+| Pairing-code guessing               | A code only binds when the admin types it on the agent's machine; 300 s expiry; cap on pending pairings                                                                                                                                                                                                      |
+| Misbehaving agent with shell access | charmd runs as its own system user; `/var/lib/charmd/state.json` is 0600; `/etc/opencharm` (config and the keys in `charmd.env`) is `root:charmd 0640`; admin commands only via `sudo -u charmd opencharm ...`; every charm tool passes the permission check                                                 |
+| Compromised charmd                  | Cannot open the mic: the firmware only listens while the key is held                                                                                                                                                                                                                                         |
+| Floods and junk                     | Size limits on JSON and audio frames, connection cap, unpaired connections closed after 120 s                                                                                                                                                                                                                |
+| Supply chain                        | Five runtime dependencies in the CLI (`ws`, `zod`, `@agentclientprotocol/sdk`, `opusscript`, `sherpa-onnx-node` with its native build per platform); voice models downloaded on first use, pinned by SHA-256; lockfile, `npm audit` in CI, published with npm provenance (`cli-release.yml`); pinned ESP-IDF |
+| Privacy                             | No audio stored; transcripts not logged by default; listening stays on the computer by default, but the default voice sends the text of each spoken reply to Microsoft (`init` and the docs say so; `"speak": { "provider": "local" }` keeps it all local)                                                   |
 
 **Tokens never travel in URLs** (spec 007's security review): behind a reverse proxy every connection reaches charmd from loopback, so a URL token accepted "from loopback only" would really be accepted from the internet. The charm sends `Authorization: Bearer`; the emulator offers the WebSocket subprotocols `opencharm` and `opencharm.token.<token>`, and charmd answers `opencharm`.
 

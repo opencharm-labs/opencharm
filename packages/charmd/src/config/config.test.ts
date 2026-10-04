@@ -69,7 +69,11 @@ describe("loadConfig", () => {
 describe("voice and agent config", () => {
   it("defaults to the fake voice and fake agent, so a fresh charmd runs with no keys", () => {
     const config = parseConfig({});
-    expect(config.voice).toEqual({ provider: "fake" });
+    expect(config.voice).toEqual({
+      listen: { provider: "fake" },
+      speak: { provider: "fake" },
+      language: "en",
+    });
     expect(config.agent).toMatchObject({ adapter: "fake" });
     expect(config.logTranscripts).toBe(false);
   });
@@ -219,5 +223,98 @@ describe("the charm block (its identity)", () => {
     [{ face: "custom" }, /charm/],
   ])("refuses %j with a clear message", (charm, message) => {
     expect(() => parseConfig({ charm })).toThrow(message);
+  });
+});
+
+describe("voice config (spec 003)", () => {
+  it("takes listening and speaking separately, with a fallback language", () => {
+    const config = parseConfig({
+      voice: {
+        listen: { provider: "local" },
+        speak: {
+          provider: "microsoft",
+          voices: { it: "it-IT-IsabellaNeural" },
+        },
+        language: "it",
+      },
+    });
+    expect(config.voice).toEqual({
+      listen: { provider: "local" },
+      speak: { provider: "microsoft", voices: { it: "it-IT-IsabellaNeural" } },
+      language: "it",
+    });
+  });
+
+  it("keeps the old local voice on this computer: Parakeet and Supertonic, or whisper and say when set", () => {
+    expect(parseConfig({ voice: { provider: "local" } }).voice).toEqual({
+      listen: { provider: "local" },
+      speak: { provider: "local" },
+      language: "en",
+    });
+    expect(
+      parseConfig({
+        voice: { provider: "local", whisperModel: "/m.bin", sayVoice: "Alice" },
+      }).voice
+    ).toEqual({
+      listen: { provider: "whisper", model: "/m.bin" },
+      speak: { provider: "system", voice: "Alice" },
+      language: "en",
+    });
+  });
+
+  it("maps the old openai voice to both sides with its key and models", () => {
+    expect(
+      parseConfig({
+        voice: {
+          provider: "openai",
+          apiKeyEnv: "MY_KEY",
+          sttModel: "s",
+          ttsModel: "t",
+          voice: "nova",
+        },
+      }).voice
+    ).toEqual({
+      listen: { provider: "openai", apiKeyEnv: "MY_KEY", model: "s" },
+      speak: {
+        provider: "openai",
+        apiKeyEnv: "MY_KEY",
+        model: "t",
+        voice: "nova",
+      },
+      language: "en",
+    });
+  });
+
+  it("refuses unknown providers, keys and malformed voice names", () => {
+    expect(() =>
+      parseConfig({
+        voice: { listen: { provider: "nope" }, speak: { provider: "fake" } },
+      })
+    ).toThrow(/Invalid charmd config/);
+    expect(() =>
+      parseConfig({
+        voice: {
+          listen: { provider: "local", extra: 1 },
+          speak: { provider: "fake" },
+        },
+      })
+    ).toThrow(/Invalid charmd config/);
+    expect(() =>
+      parseConfig({
+        voice: {
+          listen: { provider: "local" },
+          speak: { provider: "microsoft", voices: { it: "<voice name='x'>" } },
+        },
+      })
+    ).toThrow(/Invalid charmd config/);
+    expect(() =>
+      parseConfig({
+        voice: {
+          listen: { provider: "local" },
+          speak: { provider: "fake" },
+          language: "ita",
+        },
+      })
+    ).toThrow(/Invalid charmd config/);
   });
 });

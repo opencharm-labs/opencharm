@@ -14,6 +14,17 @@ describe("wiring", () => {
       agent: { adapter: "hermes", apiKey: "k" },
     });
     expect(createVoiceFromConfig(config).name).toBe("local");
+    expect(
+      createVoiceFromConfig(
+        parseConfig({
+          voice: {
+            listen: { provider: "local" },
+            speak: { provider: "microsoft" },
+            language: "it",
+          },
+        })
+      )
+    ).toMatchObject({ name: "local+microsoft", language: "it" });
     expect(createAgentFromConfig(config).name).toBe("hermes");
   });
 

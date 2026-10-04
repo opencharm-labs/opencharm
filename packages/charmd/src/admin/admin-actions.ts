@@ -21,7 +21,12 @@ type AdminActions = {
   lock: (input: unknown) => Promise<{ connected: number }>;
   unlock: (input: unknown) => Promise<{ connected: number }>;
   revoke: (input: unknown) => Promise<{ connected: number }>;
-  status: () => { charmd: string; starter?: string; charms: CharmStatus[] };
+  status: () => {
+    charmd: string;
+    starter?: string;
+    voice?: string;
+    charms: CharmStatus[];
+  };
   devFace: (input: unknown) => Promise<{ connected: number }>;
   devSay: (input: unknown) => Promise<{ connected: number }>;
   devAsk: (input: unknown) => Promise<{ answer: "yes" | "no" }>;
@@ -36,6 +41,8 @@ type AdminDeps = {
   // What this charmd is (spec 015): the CLI that runs it passes its identity.
   identity?: string;
   starter?: string | undefined;
+  // The voice in use and any model still downloading (spec 003), e.g. "local+microsoft".
+  voice?: () => string;
 };
 
 const pairInput = z.object({
@@ -98,6 +105,7 @@ function createAdminActions({
   agentCanChangeLook,
   identity,
   starter,
+  voice,
 }: AdminDeps): AdminActions {
   function sessionsOf(charmId: string): Session[] {
     return [...sessions()].filter(
@@ -222,6 +230,7 @@ function createAdminActions({
       return {
         charmd: identity ?? "unknown",
         ...(starter ? { starter } : {}),
+        ...(voice ? { voice: voice() } : {}),
         charms: store.list().map((charm) => {
           const live = sessionsOf(charm.id).at(-1);
           return {

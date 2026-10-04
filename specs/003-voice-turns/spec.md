@@ -1,6 +1,6 @@
 # 003: Voice and agent turns
 
-Status: Approved
+Status: In progress
 Depends on: 002
 
 ## Why
@@ -31,7 +31,7 @@ Listening and speaking are the main way to use the charm, so the defaults must b
 - **Listening default: NVIDIA Parakeet TDT 0.6B v3** (int8, 643 MB on disk; CC-BY-4.0 and 25 European languages per its model card, unverified here), credited in the third-party notices. It transcribed English, Italian and a mix without being told the language, but returns no language id. Options: whisper.cpp (`local` today), OpenAI with the user's key.
 - **Speaking default: Microsoft's neural voices through Edge's read-aloud service** (no key; Node client `msedge-tts`, MIT per its package), one voice per language: Ava Multilingual for English, Isabella for Italian; voices for other languages are picked from the same family when built (untested). Settings and the docs say it plainly: the text of each spoken reply goes to Microsoft, and it's an unofficial service that may stop working. If it fails or is slow, charmd speaks that turn with the local voice, so the charm is never silent. Options: the local voice, macOS system voices, OpenAI with the user's key.
 - **Local voice: Supertonic 3** (sherpa-onnx, 146 MB; 31 languages per its README), the private option and the fallback. It passed the maintainer's ear in English; in Italian no local voice did, so the Italian fallback is known to sound poor. Its weights' licence is confirmed before it ships (the package says MIT; one source says OpenRAIL-M).
-- **The reply's language follows yours:** the transcript's language (detected from its text, since Parakeet gives no language id; how is decided in the plan) picks the voice for the reply, with a primary language in Settings as the fallback; the agent is told which language was heard (with the OpenCharm voice marker this spec already promises).
+- **The reply's language follows yours:** each sentence is spoken by the voice for its own language, guessed from its words (Parakeet gives no language id), keeping the one before it when unsure: first the transcript's, else a primary language in Settings. The agent isn't told: it already answers in the language it's spoken to, and a wrong guess would mislead it (changed while building, 4 October 2026).
 - **It answers the way you asked:** a spoken question gets a spoken reply; a typed one (the desktop app, spec 013) gets a text reply. A **Speak replies** switch (`speakReplies` in charmd's config, default on; the desktop app sets it through the admin socket, applied from the next turn) makes every reply text only. The physical charm always listens and speaks: no typing, no silent mode on the device.
 - **Text-only replies** use the same `tts start` / `sentence_start` / `stop` messages with no audio; charmd paces them, sending each `sentence_start` after the previous sentence's reading time (about 3 words a second, at least 2 s), so the charm needs no new logic; a press dismisses it.
 - **Faster to the first word** (target: charmd's own share under 1 s when warm, that is speech-to-text plus the first audio once the agent's first clause arrives; the agent's own time, about 2–3 s with Claude Code today, is outside charmd): the models and the agent are warmed when the charm unlocks; the first clause is spoken as soon as it's long enough (about 20 characters at `,` `;` `:`); speech is streamed where the provider streams; the timing log has one line per stage (speech-to-text, the agent's first words, first audio).
@@ -51,10 +51,12 @@ MCP charm tools (012), the permissions engine and questions on the charm (011), 
 
 Voice that sounds right:
 
-- [ ] Unit tests: the config (`listen`/`speak`, the old `provider` still read), the model download (pinned SHA-256, a bad file refused), the fallback when the Edge voice fails, the first-clause split, text-only pacing, the reply's language choosing the voice.
-- [ ] The spike's six recorded clips (English, Italian, mixed) transcribed by the default as in the spike.
+- [x] Unit tests: the config (`listen`/`speak`, the old `provider` still read), the model download (pinned SHA-256, a bad file refused), the Microsoft client (token, escaping, WebM, errors), the fallback when a voice fails or has no audio within 3 s, the first-clause split, the reply's language choosing the voice.
+- [ ] Unit tests for text-only pacing.
+- [x] Live, on the maintainer's Mac: Parakeet transcribed English and Italian questions word for word in 0.12–0.27 s, through charmd with Claude Code and Microsoft's voice (4 October 2026). The spike's own recordings weren't kept.
+- [ ] The maintainer's own voice, English, Italian and mixed, through the desktop app.
 - [ ] The maintainer's listening check: the default voices in English and Italian pass.
-- [ ] Measured on the maintainer's Mac (M2), per stage, in English and Italian: charmd's share under 1 s when warm; recorded in `OPENCHARM.md`.
+- [x] Measured on the maintainer's Mac (M2), per stage, in English and Italian: the voice's share about 0.6 s when warm (once 1.4 s, Microsoft's variance); recorded in `OPENCHARM.md` and `packages/charmd/README.md` (4 October 2026).
 - [ ] The core's tests: a press (under 200 ms) sends no audio; a hold sends the audio from key-down; a hold on a question never opens the mic.
 - [ ] The first run downloads the models with progress, on macOS, Windows and Linux.
 - [ ] A typed question gets a text reply; with Speak replies off, a spoken question does too; the physical charm (emulator) always speaks.

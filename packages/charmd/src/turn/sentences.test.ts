@@ -35,8 +35,23 @@ describe("SentenceSplitter", () => {
 
   it("does not split decimals or common abbreviations", () => {
     expect(
-      split(["It costs 3.50 dollars, e.g. at Dr. Smith's shop today."])
-    ).toEqual(["It costs 3.50 dollars, e.g. at Dr. Smith's shop today."]);
+      split([
+        "Here you go. It costs 3.50 dollars, e.g. at Dr. Smith's shop today.",
+      ])
+    ).toEqual([
+      "Here you go.",
+      "It costs 3.50 dollars, e.g. at Dr. Smith's shop today.",
+    ]);
+  });
+
+  it("lets the reply's first clause go early once it's 20 characters long, then only whole sentences", () => {
+    expect(
+      split(["Done, I restarted the server; it answers now, and fast."])
+    ).toEqual(["Done, I restarted the server;", "it answers now, and fast."]);
+    expect(split(["Hmm, okay. Sure."])).toEqual(["Hmm, okay.", "Sure."]);
+    expect(
+      split(["Fatto, ho aggiornato il file", " di configurazione."])
+    ).toEqual(["Fatto, ho aggiornato il file di configurazione."]);
   });
 
   it("returns nothing for whitespace", () => {

@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { AgentAdapter } from "../agent/types";
 import { createFakeAgent } from "../agent/fake";
 import { createFakeVoice } from "../voice/fake";
+import { VoiceNotReady } from "../voice/models";
 import type { VoiceProvider } from "../voice/types";
 import { TurnController } from "./turn";
 
@@ -403,5 +404,205 @@ describe("the charm's tools during a turn", () => {
       state: "sentence_start",
       text: "Done.",
     });
+  });
+});
+
+describe("voice that sounds right (spec 003)", () => {
+  function recordingVoice(transcript: string, language?: string) {
+    const fake = createFakeVoice({ transcript });
+    const spoken: string[] = [];
+    const voice: VoiceProvider = {
+      ...fake,
+      ...(language ? { language } : {}),
+      synthesize: (text, signal, lang) => {
+        spoken.push(`${lang}: ${text}`);
+        return fake.synthesize(text, signal);
+      },
+    };
+    return { voice, spoken };
+  }
+
+  it("speaks each sentence in its own language, starting from the one it was asked in", async () => {
+    const { voice, spoken } = recordingVoice(
+      "Che cosa ho in calendario domani?"
+    );
+    const agent = createFakeAgent({
+      reply: () =>
+        "Domani hai due riunioni. OK. The first one is with the design team.",
+    });
+    const { turn } = setup({ voice, agent });
+    await speak(turn);
+    expect(spoken).toEqual([
+      "it: Domani hai due riunioni.",
+      "en: OK. The first one is with the design team.",
+    ]);
+  });
+
+  it("falls back to the configured language when the words don't say", async () => {
+    const { voice, spoken } = recordingVoice("Vercel deploy", "it");
+    const { turn } = setup({
+      voice,
+      agent: createFakeAgent({ reply: () => "Fatto, tutto ok." }),
+    });
+    await speak(turn);
+    expect(spoken).toEqual(["it: Fatto, tutto ok."]);
+  });
+
+  it("logs when the agent's first words arrived", async () => {
+    const { turn, logs } = setup();
+    await speak(turn);
+    expect(logs[0]).toMatchObject({ event: "turn", outcome: "done" });
+    expect(typeof logs[0]?.agentFirstMs).toBe("number");
+  });
+
+  it("warms the agent and the voice when asked (a charm unlocked)", () => {
+    const warmed: string[] = [];
+    const voice: VoiceProvider = {
+      ...createFakeVoice(),
+      warm: () => {
+        warmed.push("voice");
+        return Promise.resolve();
+      },
+    };
+    const agent: AgentAdapter = {
+      ...createFakeAgent({ reply: () => "Hi." }),
+      warm: (key) => warmed.push(`agent:${key}`),
+    };
+    const { turn } = setup({ voice, agent });
+    turn.warm();
+    expect(warmed).toEqual(["agent:opencharm-c_1", "voice"]);
+  });
+
+  it("says a model is still downloading instead of a generic failure", async () => {
+    const voice: VoiceProvider = {
+      ...createFakeVoice(),
+      transcribe: () =>
+        Promise.reject(
+          new VoiceNotReady("Parakeet (listening) is still downloading (45%)")
+        ),
+    };
+    const { turn, out } = setup({ voice });
+    await speak(turn);
+    expect(out.at(-1)).toEqual({
+      type: "charm",
+      op: "face",
+      state: "failed",
+      text: "Parakeet (listening) is still downloading (45%)",
+    });
+  });
+});
+
+describe("what the review of the voice update found (spec 003)", () => {
+  it("keeps speaking a long answer past the turn's clock: the clock is for getting started", async () => {
+    const out: Out[] = [];
+    const turn = new TurnController({
+      voice: createFakeVoice({ transcript: "tell me a story" }),
+      agent: createFakeAgent({
+        reply: () =>
+          "Once upon a time there was a charm. It lived on a desk and loved to talk. The end of the story.",
+      }),
+      sessionKey: "opencharm-c_1",
+      send: (m) => out.push(m),
+      sendAudio: (p) => out.push({ audio: p.length }),
+      timeoutMs: 150,
+      // Real time: the answer takes far longer to play than the clock allows.
+      sleep: (ms) =>
+        new Promise((resolve) => setTimeout(resolve, Math.min(ms, 5))),
+    });
+    await speak(turn);
+    const faces = out.flatMap((m) =>
+      "op" in m && m.op === "face" ? [m.state] : []
+    );
+    expect(faces.at(-1)).toBe("idle");
+    expect(
+      out.filter(
+        (m) => "type" in m && m.type === "tts" && m.state === "sentence_start"
+      )
+    ).toHaveLength(3);
+  });
+
+  it("stops speaking at once when the agent fails mid-answer, and can speak again after", async () => {
+    const out: Out[] = [];
+    const aborted: boolean[] = [];
+    const fake = createFakeVoice();
+    const voice: VoiceProvider = {
+      ...fake,
+      synthesize: async (text, signal) => {
+        const audio = await fake.synthesize(text, signal);
+        signal.addEventListener("abort", () => aborted.push(true));
+        return audio;
+      },
+    };
+    const agent: AgentAdapter = {
+      name: "fake",
+      async *reply() {
+        yield "The first sentence of a long answer is here. The second one follows it. ";
+        await new Promise((resolve) => setTimeout(resolve, 30));
+        throw new Error("agent crashed");
+      },
+    };
+    const turn = new TurnController({
+      voice,
+      agent,
+      sessionKey: "opencharm-c_1",
+      send: (m) => out.push(m),
+      sendAudio: (p) => out.push({ audio: p.length }),
+      timeoutMs: 5000,
+      // Playback is still going when the agent fails.
+      sleep: (ms) =>
+        new Promise((resolve) => setTimeout(resolve, Math.min(ms, 10))),
+    });
+    await speak(turn);
+    const failedAt = out.findIndex(
+      (m) => "op" in m && m.op === "face" && m.state === "failed"
+    );
+    expect(failedAt).toBeGreaterThan(-1);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(out.slice(failedAt + 1)).toEqual([]);
+    expect(aborted.length).toBeGreaterThan(0);
+    expect(turn.busy).toBe(false);
+    await turn.say("Back again.");
+    expect(out.at(-1)).toMatchObject({ op: "face", state: "idle" });
+  });
+
+  it("ends the turn when the agent stalls after it started speaking, instead of staying busy", async () => {
+    const agent: AgentAdapter = {
+      name: "fake",
+      async *reply(input) {
+        yield "Here is the first part of it. ";
+        await new Promise((_, reject) =>
+          input.signal.addEventListener("abort", () =>
+            reject(new Error("aborted"))
+          )
+        );
+      },
+    };
+    const { turn, faces } = setup({ agent, timeoutMs: 100 });
+    await speak(turn);
+    expect(faces().at(-1)).toBe("failed");
+    expect(turn.busy).toBe(false);
+  });
+
+  it("synthesizes only the sentence playing and the next one", async () => {
+    let running = 0;
+    let most = 0;
+    const fake = createFakeVoice({ transcript: "count" });
+    const voice: VoiceProvider = {
+      ...fake,
+      synthesize: async (text, signal) => {
+        running += 1;
+        most = Math.max(most, running);
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        running -= 1;
+        return fake.synthesize(text, signal);
+      },
+    };
+    const agent = createFakeAgent({
+      reply: () =>
+        "One is here. Two is here. Three is here. Four is here. Five is here.",
+    });
+    const { turn } = setup({ voice, agent });
+    await speak(turn);
+    expect(most).toBeLessThanOrEqual(2);
   });
 });

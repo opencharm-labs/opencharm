@@ -7,7 +7,8 @@
     "./daemon": "./src/daemon.ts",
     "./admin-client": "./src/admin/admin-client.ts",
     "./acp-agents": "./src/agent/acp-agents.ts",
-    "./look": "./src/look.ts"
+    "./look": "./src/look.ts",
+    "./models": "./src/voice/models.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -19,6 +20,7 @@
     "@opencharm-labs/design": "*",
     "@opencharm-labs/protocol": "*",
     "opusscript": "^0.1.1",
+    "sherpa-onnx-node": "1.13.8",
     "ws": "^8.22.0",
     "zod": "^4.6.5"
   },
