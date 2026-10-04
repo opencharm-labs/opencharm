@@ -261,12 +261,16 @@ fn apply_managed(app: &AppHandle) {
             Ok(cli) => cli,
             Err(error) => return off("missing", &error),
         };
-        if settings.voice == "openai" {
+        if settings.listen == "openai" || settings.speak == "openai" {
             if let Ok(Some(key)) = pairing::secret("openai") {
                 env.insert("OPENAI_API_KEY".into(), key);
             }
         }
-        let (config, label) = managed::build_config(&settings, &folder, &managed.data);
+        let (mut config, label) = managed::build_config(&settings, &folder, &managed.data);
+        let current = managed::cli_has_voice_update(&cli, &env);
+        if !current {
+            config["voice"] = managed::older_voice(&config);
+        }
         let config_path = managed.data.join("charmd.json");
         let pid_file = managed.data.join("charmd.pid");
         let written = std::fs::create_dir_all(&managed.data).and_then(|()| {
@@ -286,6 +290,12 @@ fn apply_managed(app: &AppHandle) {
                 name: folder.name,
                 agent: label,
                 folder: path,
+                note: if current {
+                    String::new()
+                } else {
+                    "Your opencharm is older than this app: npm install -g opencharm for the new voices."
+                        .into()
+                },
                 ..Status::default()
             },
             pid_file,
@@ -358,7 +368,9 @@ fn save_settings(app: AppHandle, saved: State<Saved>, next: Settings) -> Result<
             s.agent_command.clone(),
             s.server_url.clone(),
             s.server_model.clone(),
-            s.voice.clone(),
+            s.listen.clone(),
+            s.speak.clone(),
+            s.language.clone(),
             s.cli_path.clone(),
         )
     };

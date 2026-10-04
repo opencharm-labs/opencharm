@@ -73,7 +73,11 @@ function fill() {
   $("command").value = settings.agentCommand;
   $("server-url").value = settings.serverUrl;
   $("server-model").value = settings.serverModel;
-  $("voice").value = settings.voice;
+  $("listen").value = settings.listen;
+  $("speak").value = settings.speak;
+  $("language").value = settings.language;
+  // `say` is macOS only.
+  $("speak").querySelector('[value="system"]').hidden = !mac;
 
   // A workspace may keep its own agent ("as the workspace says"); any other folder picks one.
   $("agent").replaceChildren();
@@ -84,14 +88,23 @@ function fill() {
   $("agent").value = settings.agent || (folder?.isWorkspace ? "" : "claude");
   $("command-row").hidden = settings.agent !== "command";
   $("server-row").hidden = settings.agent !== "server";
-  $("key-row").hidden = settings.voice !== "openai";
-  $("voice-note").textContent = {
+  $("key-row").hidden =
+    settings.listen !== "openai" && settings.speak !== "openai";
+  $("listen-note").textContent = {
     local:
-      "Speech to text and back on this Mac (whisper and say). Nothing leaves it.",
-    openai:
-      "OpenAI's speech to text and voice. The key stays in your keychain.",
-    fake: "No microphone or speaker: the charm shows a test transcript. For trying.",
-  }[settings.voice];
+      "Understood on this computer: your voice never leaves it. The first start downloads about 490 MB.",
+    openai: "OpenAI hears what you say. The key stays in your keychain.",
+    fake: "No microphone: the charm hears a test sentence. For trying.",
+  }[settings.listen];
+  $("speak-note").textContent = {
+    microsoft:
+      "Natural voices, free and with no key. The text of each spoken reply goes to Microsoft, through an unofficial service that may stop; then it speaks with the voice on this computer.",
+    local:
+      "A voice on this computer: nothing leaves it, but it sounds less natural (about 130 MB the first time).",
+    system: "The voice below, from macOS. Nothing leaves this Mac.",
+    openai: "OpenAI's voices. The key stays in your keychain.",
+    fake: "No speaker: a soft tone stands in for speech. For trying.",
+  }[settings.speak];
 
   const note = $("folder-note");
   $("create").hidden = !(folder?.exists && folder.empty);
@@ -147,7 +160,9 @@ async function poll() {
     s.state === "off" ? settings.url : home(s.folder || "");
   const note = $("state-note");
   note.className = `note ${s.state === "running" ? "ok" : dot === "needs" ? "bad" : ""}`;
-  note.textContent = s.detail && s.state !== "running" ? s.detail : text;
+  note.textContent =
+    (s.detail && s.state !== "running" ? s.detail : text) +
+    (s.note ? ` ${s.note}` : "");
   if (s.state !== lastState && lastState) {
     if (s.state === "running") react("joy", 2000);
     if (dot === "needs") react("sad", 2000);
@@ -185,7 +200,7 @@ function fillLook() {
   $("sleep").value = minutes;
   $("calm").checked = look.motion === "calm";
   $("agent-look").checked = look.agentCanChangeLook;
-  $("say-section").hidden = settings.voice !== "local" || voices.length === 0;
+  $("say-section").hidden = settings.speak !== "system" || voices.length === 0;
   $("say-voice").value = sayVoice;
   charm.setColour(COLORS.find((c) => c.id === look.colour) ?? COLORS[0]);
 }
@@ -391,10 +406,8 @@ for (const id of ["server-url", "server-model"])
       void save({ agent: "server", serverUrl, serverModel });
   });
 
-$("voice").addEventListener(
-  "change",
-  (e) => void save({ voice: e.target.value })
-);
+for (const id of ["listen", "speak", "language"])
+  $(id).addEventListener("change", (e) => void save({ [id]: e.target.value }));
 if (await invoke("has_openai_key"))
   $("openai-key").placeholder = "Saved in your keychain";
 $("save-key").addEventListener("click", async () => {

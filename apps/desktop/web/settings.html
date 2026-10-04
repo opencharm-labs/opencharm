@@ -73,11 +73,32 @@
             Any agent that speaks ACP, or an OpenAI-compatible server.
           </p>
 
-          <label class="mono" for="voice">VOICE</label>
-          <select id="voice">
-            <option value="local">On this computer (macOS)</option>
-            <option value="openai">OpenAI</option>
+          <label class="mono" for="listen">LISTENING</label>
+          <select id="listen">
+            <option value="local">On this computer</option>
+            <option value="openai">OpenAI (your key)</option>
             <option value="fake">None, for trying</option>
+          </select>
+          <p class="note" id="listen-note"></p>
+
+          <label class="mono" for="speak">SPEAKING</label>
+          <select id="speak">
+            <option value="microsoft">Microsoft's voices (free, online)</option>
+            <option value="local">On this computer (private)</option>
+            <option value="system">A macOS voice</option>
+            <option value="openai">OpenAI (your key)</option>
+            <option value="fake">None, for trying</option>
+          </select>
+          <p class="note" id="speak-note"></p>
+
+          <label class="mono" for="language">LANGUAGE</label>
+          <select id="language">
+            <option value="en">English</option>
+            <option value="it">Italiano</option>
+            <option value="es">Español</option>
+            <option value="fr">Français</option>
+            <option value="de">Deutsch</option>
+            <option value="pt">Português</option>
           </select>
           <div class="row" id="key-row" hidden>
             <input
@@ -89,7 +110,8 @@
             <button type="button" class="pill" id="save-key">Save</button>
           </div>
           <p class="note" id="voice-note">
-            Speech to text and back, on this Mac. Nothing leaves it.
+            It answers in the language you speak; this one is for when it can't
+            tell.
           </p>
         </div>
       </section>
