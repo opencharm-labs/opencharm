@@ -61,6 +61,7 @@ function createSpeaker(config: SpeakConfig): Speaker {
       return {
         ...createLocalVoice(config.voice ? { sayVoice: config.voice } : {}),
         name: "system",
+        onDevice: true,
       };
     case "openai":
       return createOpenAiVoice({
@@ -71,13 +72,14 @@ function createSpeaker(config: SpeakConfig): Speaker {
   }
 }
 
-// The chosen voice, then the local one, then macOS's own: a reply is never silent because one
-// service failed or a model is still downloading.
+// The chosen voice, then for Microsoft's unofficial one the local voice, then macOS's own: a reply
+// is never silent because a service failed or a model is still downloading. A paid voice with your
+// key only falls back to macOS's, so it never downloads a model you didn't ask for.
 function speakerChain(config: SpeakConfig): Speaker {
   if (config.provider === "fake" || config.provider === "system")
     return createSpeaker(config);
   const chain = [createSpeaker(config)];
-  if (config.provider !== "local") chain.push(createSupertonicSpeaker());
+  if (config.provider === "microsoft") chain.push(createSupertonicSpeaker());
   if (process.platform === "darwin")
     chain.push(createSpeaker({ provider: "system" }));
   return speakWithFallback(chain);

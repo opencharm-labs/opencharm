@@ -22,6 +22,8 @@ type Speaker = {
     language?: string
   ) => AsyncIterable<Buffer>;
   warm?: () => Promise<void>;
+  // Runs on this computer: slow when busy, but not gone, so no first-audio deadline (voice/speak.ts).
+  onDevice?: boolean;
 };
 type VoiceProvider = {
   name: string;

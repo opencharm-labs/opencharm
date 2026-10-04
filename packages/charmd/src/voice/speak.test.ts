@@ -93,4 +93,49 @@ describe("speaking with a fallback", () => {
     await expect(pending).rejects.toThrow(/cancelled/);
     expect(local.calls).toEqual([]);
   });
+
+  it("keeps a sentence with the voice that started it: a failure after its first audio isn't replayed", async () => {
+    const half: Speaker = {
+      name: "microsoft",
+      synthesize: () => Promise.reject(new Error("unused")),
+      async *stream() {
+        yield await Promise.resolve(Buffer.from([0xf8, 1]));
+        yield Buffer.from([0xf8, 2]);
+        throw new Error("closed mid-sentence");
+      },
+    };
+    const local = speaker("local", ok("local"));
+    const voice = speakWithFallback([half, local]);
+    const got: number[] = [];
+    await expect(
+      (async () => {
+        for await (const packet of voice.stream!(
+          "Hi",
+          new AbortController().signal
+        ))
+          got.push(packet[1]!);
+      })()
+    ).rejects.toThrow(/closed mid-sentence/);
+    expect(got).toEqual([1, 2]);
+    expect(local.calls).toEqual([]);
+  });
+
+  it("gives a voice on this computer the time it needs: no first-audio deadline", async () => {
+    const slow: Speaker = {
+      ...speaker(
+        "local",
+        () =>
+          new Promise((resolve) =>
+            setTimeout(() => resolve(ok("slow")() as unknown as Buffer), 60)
+          )
+      ),
+      onDevice: true,
+    };
+    const voice = speakWithFallback([slow, speaker("system", ok("system"))], {
+      timeoutMs: 10,
+    });
+    expect(
+      tagOf(await voice.synthesize("Hi", new AbortController().signal))
+    ).toBe("slow");
+  });
 });

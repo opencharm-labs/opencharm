@@ -9,6 +9,7 @@ import { oggOpusToPcm, pcmToOggOpus } from "../audio/opus-codec";
 import {
   VoiceNotReady,
   MODELS,
+  RETRY_MS,
   defaultModelsDir,
   installModel,
   modelState,
@@ -67,6 +68,11 @@ function loadSherpa(): Sherpa {
 function ready(id: ModelId, dir: string): string {
   const state = modelState(id, dir);
   if (state.state === "ready") return join(dir, MODELS[id].folder);
+  // A failed download says why, and waits a while before trying again.
+  if (state.state === "failed" && Date.now() - state.at < RETRY_MS)
+    throw new VoiceNotReady(
+      `Couldn't get ${MODELS[id].label}: ${state.error}`.slice(0, 160)
+    );
   if (state.state !== "downloading")
     installModel(id, { dir }).catch(() => undefined);
   const now = modelState(id, dir);
@@ -168,6 +174,7 @@ function createSupertonicSpeaker(options: SupertonicOptions = {}) {
   };
   return {
     name: "local",
+    onDevice: true,
     warm: async () => {
       await load();
     },

@@ -6,6 +6,7 @@ import {
   readFileSync,
   readdirSync,
   rmSync,
+  utimesSync,
   writeFileSync,
 } from "node:fs";
 import { createServer, type Server } from "node:http";
@@ -118,5 +119,30 @@ describe("model downloads", () => {
     await expect(
       installModel("parakeet", { dir, spec: spec({ url: `${base}/nope` }) })
     ).rejects.toThrow(/Couldn't download Tiny: 404/);
+  });
+
+  it("stops a download that's bigger than the pinned size instead of filling the disk", async () => {
+    const dir = join(root, "big");
+    await expect(
+      installModel("parakeet", { dir, spec: spec({ bytes: 10 }) })
+    ).rejects.toThrow(/bigger than expected/);
+    expect(readdirSync(dir)).toEqual([]);
+    const state = modelState("parakeet", dir);
+    expect(state.state === "failed" && typeof state.at === "number").toBe(true);
+  });
+
+  it("clears what an interrupted download left behind, once it's old", async () => {
+    const dir = join(root, "leftovers");
+    const old = join(dir, ".download-tiny-model-abc123");
+    const fresh = join(dir, ".download-tiny-model-def456");
+    mkdirSync(old, { recursive: true });
+    mkdirSync(fresh);
+    const twoHoursAgo = (Date.now() - 2 * 60 * 60 * 1000) / 1000;
+    utimesSync(old, twoHoursAgo, twoHoursAgo);
+    await installModel("parakeet", { dir, spec: spec() });
+    expect(readdirSync(dir).sort()).toEqual([
+      ".download-tiny-model-def456",
+      "tiny-model",
+    ]);
   });
 });

@@ -491,3 +491,78 @@ describe("voice that sounds right (spec 003)", () => {
     });
   });
 });
+
+describe("what the review of the voice update found (spec 003)", () => {
+  it("keeps speaking a long answer past the turn's clock: the clock is for getting started", async () => {
+    const out: Out[] = [];
+    const turn = new TurnController({
+      voice: createFakeVoice({ transcript: "tell me a story" }),
+      agent: createFakeAgent({
+        reply: () =>
+          "Once upon a time there was a charm. It lived on a desk and loved to talk. The end of the story.",
+      }),
+      sessionKey: "opencharm-c_1",
+      send: (m) => out.push(m),
+      sendAudio: (p) => out.push({ audio: p.length }),
+      timeoutMs: 150,
+      // Real time: the answer takes far longer to play than the clock allows.
+      sleep: (ms) =>
+        new Promise((resolve) => setTimeout(resolve, Math.min(ms, 5))),
+    });
+    await speak(turn);
+    const faces = out.flatMap((m) =>
+      "op" in m && m.op === "face" ? [m.state] : []
+    );
+    expect(faces.at(-1)).toBe("idle");
+    expect(
+      out.filter(
+        (m) => "type" in m && m.type === "tts" && m.state === "sentence_start"
+      )
+    ).toHaveLength(3);
+  });
+
+  it("stops speaking at once when the agent fails mid-answer, and can speak again after", async () => {
+    const agent: AgentAdapter = {
+      name: "fake",
+      async *reply() {
+        yield "First sentence of the answer. ";
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        throw new Error("agent crashed");
+      },
+    };
+    const { turn, out } = setup({ agent });
+    await speak(turn);
+    const failedAt = out.findIndex(
+      (m) => "op" in m && m.op === "face" && m.state === "failed"
+    );
+    expect(failedAt).toBeGreaterThan(-1);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(out.slice(failedAt + 1)).toEqual([]);
+    expect(turn.busy).toBe(false);
+    await turn.say("Back again.");
+    expect(out.at(-1)).toMatchObject({ op: "face", state: "idle" });
+  });
+
+  it("synthesizes only the sentence playing and the next one", async () => {
+    let running = 0;
+    let most = 0;
+    const fake = createFakeVoice({ transcript: "count" });
+    const voice: VoiceProvider = {
+      ...fake,
+      synthesize: async (text, signal) => {
+        running += 1;
+        most = Math.max(most, running);
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        running -= 1;
+        return fake.synthesize(text, signal);
+      },
+    };
+    const agent = createFakeAgent({
+      reply: () =>
+        "One is here. Two is here. Three is here. Four is here. Five is here.",
+    });
+    const { turn } = setup({ voice, agent });
+    await speak(turn);
+    expect(most).toBeLessThanOrEqual(2);
+  });
+});

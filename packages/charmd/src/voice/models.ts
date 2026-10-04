@@ -7,8 +7,10 @@ import {
   createWriteStream,
   existsSync,
   mkdirSync,
+  readdirSync,
   renameSync,
   rmSync,
+  statSync,
 } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -30,7 +32,7 @@ type ModelState =
   | { state: "missing" }
   | { state: "downloading"; received: number; total: number }
   | { state: "ready" }
-  | { state: "failed"; error: string };
+  | { state: "failed"; error: string; at: number };
 type InstallOptions = {
   dir?: string;
   onProgress?: (received: number, total: number) => void;
@@ -78,6 +80,10 @@ const MODELS: Record<ModelId, ModelSpec> = {
 // A model isn't on this computer yet: it's downloading, and the turn says so instead of failing silently.
 class VoiceNotReady extends Error {}
 
+const ABANDONED_MS = 60 * 60 * 1000;
+// After a failed download, wait this long before trying again on the next turn.
+const RETRY_MS = 5 * 60 * 1000;
+
 const states = new Map<string, ModelState>();
 const installing = new Map<string, Promise<string>>();
 
@@ -124,7 +130,12 @@ async function download(
   body.on("data", (chunk: Buffer) => {
     hash.update(chunk);
     received += chunk.length;
-    options.onProgress?.(received, total);
+    // Never more than the pinned size: a wrong or endless answer can't fill the disk.
+    if (spec.bytes && received > spec.bytes)
+      body.destroy(
+        new Error(`${spec.label} was bigger than expected, so it was discarded`)
+      );
+    else options.onProgress?.(received, total);
   });
   await pipeline(body, createWriteStream(archive, { mode: 0o600 }), {
     ...(options.signal ? { signal: options.signal } : {}),
@@ -138,13 +149,28 @@ async function download(
     );
 }
 
+// A download cut off by charmd stopping leaves its temp folder; one over an hour old is abandoned
+// (another process may be downloading the same model right now).
+function removeAbandoned(dir: string, folder: string): void {
+  for (const name of readdirSync(dir)) {
+    if (!name.startsWith(`.download-${folder}-`)) continue;
+    const path = join(dir, name);
+    if (Date.now() - statSync(path).mtimeMs > ABANDONED_MS)
+      rmSync(path, { recursive: true, force: true });
+  }
+}
+
 async function install(
   spec: ModelSpec,
   dir: string,
   options: InstallOptions
 ): Promise<string> {
   mkdirSync(dir, { recursive: true });
-  const temp = join(dir, `.download-${randomBytes(6).toString("hex")}`);
+  removeAbandoned(dir, spec.folder);
+  const temp = join(
+    dir,
+    `.download-${spec.folder}-${randomBytes(6).toString("hex")}`
+  );
   mkdirSync(temp);
   try {
     const archive = join(temp, "model.tar.bz2");
@@ -195,6 +221,7 @@ function installModel(
       states.set(key, {
         state: "failed",
         error: error instanceof Error ? error.message : String(error),
+        at: Date.now(),
       });
       throw error;
     })
@@ -205,6 +232,7 @@ function installModel(
 
 export {
   MODELS,
+  RETRY_MS,
   VoiceNotReady,
   defaultModelsDir,
   installModel,

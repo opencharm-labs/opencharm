@@ -95,6 +95,8 @@ async function startDaemon(
       const downloading = (["parakeet", "supertonic"] as const).flatMap(
         (id) => {
           const state = modelState(id);
+          // Why it failed is in the turn's line and the log; status names which model.
+          if (state.state === "failed") return [`${MODELS[id].label} failed`];
           return state.state === "downloading" && state.total
             ? [
                 `${MODELS[id].label} downloading ${Math.floor((state.received * 100) / state.total)}%`,
