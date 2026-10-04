@@ -22,7 +22,7 @@ use geometry::Geometry;
 use managed::{Charmd, Folder, Launch, Status};
 use settings::{Look, Settings};
 use tauri::image::Image;
-use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
+use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{
     AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, RunEvent, State, WebviewUrl,
@@ -39,6 +39,36 @@ const TRAY_ICON: &[u8] = include_bytes!("../../../../brand/icon/tray-template.pn
 struct Tray {
     menu: Menu<tauri::Wry>,
     offered: Mutex<Option<String>>,
+    speak: CheckMenuItem<tauri::Wry>,
+}
+
+/// Spoken replies on or off (spec 003), from the menu or Settings: charmd hears it at once through
+/// the admin socket (from the next reply), and its config keeps it for a restart; no restart now,
+/// which would cost the agent its conversation.
+fn apply_replies(app: &AppHandle, speak: bool) {
+    if let Some(tray) = app.try_state::<Tray>() {
+        let _ = tray.speak.set_checked(speak);
+    }
+    let saved = app.state::<Saved>();
+    if !is_managed(&saved) {
+        return;
+    }
+    let managed = app.state::<Managed>();
+    let path = managed.data.join("charmd.json");
+    if let Some(mut config) = std::fs::read_to_string(&path)
+        .ok()
+        .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
+    {
+        // Only a charmd that knows the setting has it in its config (an older one refuses it).
+        if config.get("speakReplies").is_some() {
+            config["speakReplies"] = serde_json::json!(speak);
+            let _ = std::fs::write(&path, serde_json::to_string_pretty(&config).unwrap());
+        }
+    }
+    let request = serde_json::json!({ "cmd": "replies", "speak": speak });
+    if let Err(error) = pairing::admin(&managed.socket(), &request) {
+        eprintln!("[charmd] spoken replies weren't changed: {error}");
+    }
 }
 
 /// The page found the desktop@ tags: offer the newest newer release once, in the menu bar. Returns
@@ -267,15 +297,21 @@ fn apply_managed(app: &AppHandle) {
             }
         }
         let (mut config, label) = managed::build_config(&settings, &folder, &managed.data);
-        let current = managed::cli_has_voice_update(&cli, &env);
+        let features = managed::cli_features(&cli, &env);
         // Settings may have changed while the CLI was asked: the newer apply wins, this one stops.
         if *saved.settings.lock().unwrap() != settings {
             return;
         }
-        if !current {
+        if !features.voice {
             let has_key = matches!(pairing::secret("openai"), Ok(Some(_)));
             config["voice"] = managed::older_voice(&config, has_key);
         }
+        if !features.replies {
+            if let Some(config) = config.as_object_mut() {
+                config.remove("speakReplies");
+            }
+        }
+        let current = features.voice && features.replies;
         let config_path = managed.data.join("charmd.json");
         let pid_file = managed.data.join("charmd.pid");
         let written = std::fs::create_dir_all(&managed.data).and_then(|()| {
@@ -298,7 +334,7 @@ fn apply_managed(app: &AppHandle) {
                 note: if current {
                     String::new()
                 } else {
-                    "Your opencharm is older than this app: npm install -g opencharm for the new voices."
+                    "Your opencharm is older than this app: npm install -g opencharm for its new voice settings."
                         .into()
                 },
                 ..Status::default()
@@ -381,6 +417,8 @@ fn save_settings(app: AppHandle, saved: State<Saved>, next: Settings) -> Result<
     };
     if charmd(&next) != charmd(&previous) {
         apply_managed(&app);
+    } else if next.speak_replies != previous.speak_replies {
+        apply_replies(&app, next.speak_replies);
     }
     if next.managed != previous.managed || (!next.managed && next.url != previous.url) {
         let _ = app.emit_to("charm", "charm-reload", ());
@@ -639,8 +677,21 @@ pub fn run() {
             let settings_item =
                 MenuItem::with_id(app, "settings", "Settings…", true, Some("CmdOrCtrl+,"))?;
             let quit = MenuItem::with_id(app, "quit", "Quit OpenCharm", true, Some("CmdOrCtrl+Q"))?;
+            let speak_on = app.state::<Saved>().settings.lock().unwrap().speak_replies;
+            let speak_item = CheckMenuItem::with_id(
+                app,
+                "speak",
+                "Speak replies",
+                true,
+                speak_on,
+                None::<&str>,
+            )?;
             let separator = PredefinedMenuItem::separator(app)?;
-            let menu = Menu::with_items(app, &[&settings_item, &separator, &quit])?;
+            let separator_2 = PredefinedMenuItem::separator(app)?;
+            let menu = Menu::with_items(
+                app,
+                &[&speak_item, &separator, &settings_item, &separator_2, &quit],
+            )?;
             TrayIconBuilder::new()
                 .icon(Image::from_bytes(TRAY_ICON)?)
                 .icon_as_template(true)
@@ -656,6 +707,17 @@ pub fn run() {
                             let _ = app.opener().open_url(version, None::<&str>);
                         }
                     }
+                    "speak" => {
+                        let saved = app.state::<Saved>();
+                        let speak = {
+                            let mut settings = saved.settings.lock().unwrap();
+                            settings.speak_replies = !settings.speak_replies;
+                            let _ = settings.save(&saved.path);
+                            settings.speak_replies
+                        };
+                        apply_replies(app, speak);
+                        let _ = app.emit_to("settings", "settings-changed", ());
+                    }
                     "quit" => app.exit(0),
                     _ => {}
                 })
@@ -663,6 +725,7 @@ pub fn run() {
             app.manage(Tray {
                 menu,
                 offered: Mutex::new(None),
+                speak: speak_item,
             });
             Ok(())
         })

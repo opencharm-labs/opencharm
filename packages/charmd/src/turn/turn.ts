@@ -23,6 +23,8 @@ type TurnDeps = {
   now?: () => number;
   // A question on the charm (the session's ask); absent when there's no charm to ask.
   ask?: (text: string, options?: AskOptions) => Promise<boolean>;
+  // Asked at the start of each turn: false shows the reply as text, with no speech (spec 003).
+  speakAloud?: () => boolean;
 };
 type Stage = "stt" | "agent" | "tts";
 type AskOptions = { yes?: string; no?: string; signal?: AbortSignal };
@@ -31,6 +33,9 @@ type AskOptions = { yes?: string; no?: string; signal?: AbortSignal };
 const MAX_FRAMES = 1000;
 // Send a few packets ahead of real time so the charm's player never runs dry.
 const LEAD_FRAMES = 3;
+// Text-only replies: each sentence stays for about its reading time (3 words a second, at least 2 s).
+const READING_WORDS_PER_SECOND = 3;
+const MIN_READING_MS = 2000;
 // Sentences synthesizing at once: the one playing and the next, so the next is ready in time without
 // a long reply opening a connection (or a local job) per sentence.
 const LOOKAHEAD = 2;
@@ -49,6 +54,11 @@ class StageError extends Error {
   ) {
     super(cause instanceof Error ? cause.message : String(cause), { cause });
   }
+}
+
+function readingMs(text: string): number {
+  const words = text.split(/\s+/).filter(Boolean).length;
+  return Math.max(MIN_READING_MS, (words / READING_WORDS_PER_SECOND) * 1000);
 }
 
 function sleepMs(ms: number): Promise<void> {
@@ -257,7 +267,8 @@ class TurnController {
         started,
         timeoutGuard,
         guessLanguage(heard) ?? this.#deps.voice.language ?? "en",
-        clock
+        clock,
+        this.#deps.speakAloud?.() ?? true
       );
       if (!live()) return;
       if (this.#speaking) this.#deps.send({ type: "tts", state: "stop" });
@@ -308,7 +319,8 @@ class TurnController {
     started: number,
     timeoutGuard: Promise<never>,
     language: string,
-    clock: { started: () => void; touch: () => void }
+    clock: { started: () => void; touch: () => void },
+    aloud: boolean
   ): Promise<string> {
     const now = this.#deps.now ?? Date.now;
     const going = () => live() && !signal.aborted;
@@ -340,7 +352,7 @@ class TurnController {
       const sentenceLanguage = speaking;
       timings.firstSentenceMs ??= now() - started;
       queue.push({ text, language: sentenceLanguage });
-      startUpTo(playing + LOOKAHEAD);
+      if (aloud) startUpTo(playing + LOOKAHEAD);
       wake();
     };
     const produce = (async () => {
@@ -365,6 +377,18 @@ class TurnController {
         if (playing >= queue.length) {
           if (sourceDone) return;
           await new Promise<void>((resolve) => (wake = resolve));
+          continue;
+        }
+        if (!aloud) {
+          await this.#showForReading(
+            queue[playing]!.text,
+            signal,
+            going,
+            clock,
+            timings,
+            started
+          );
+          playing += 1;
           continue;
         }
         startUpTo(playing + LOOKAHEAD);
@@ -436,7 +460,8 @@ class TurnController {
         Date.now(),
         timeoutGuard,
         guessLanguage(text) ?? this.#deps.voice.language ?? "en",
-        clock
+        clock,
+        this.#deps.speakAloud?.() ?? true
       );
       if (!live()) return;
       if (this.#speaking) this.#deps.send({ type: "tts", state: "stop" });
@@ -453,6 +478,35 @@ class TurnController {
     } finally {
       clearTimeout(timer);
     }
+  }
+
+  // A text-only reply (spec 003): the same speech messages with no audio, so the charm shows its
+  // speech layout; each sentence stays for its reading time, and a press dismisses it (abort).
+  async #showForReading(
+    text: string,
+    signal: AbortSignal,
+    going: () => boolean,
+    clock: { started: () => void; touch: () => void },
+    timings: Record<string, number>,
+    started: number
+  ): Promise<void> {
+    if (!going()) return;
+    if (!this.#speaking) {
+      this.#speaking = true;
+      this.#state = "speaking";
+      timings.firstTextMs = (this.#deps.now ?? Date.now)() - started;
+      clock.started();
+      this.#deps.send({ type: "tts", state: "start" });
+    }
+    this.#deps.send({ type: "tts", state: "sentence_start", text });
+    const sleep = this.#deps.sleep ?? sleepMs;
+    await Promise.race([
+      sleep(readingMs(text)),
+      new Promise<void>((resolve) =>
+        signal.addEventListener("abort", () => resolve(), { once: true })
+      ),
+    ]);
+    clock.touch();
   }
 
   #failureLine(error: unknown): string {

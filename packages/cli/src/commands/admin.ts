@@ -227,6 +227,24 @@ async function runAdminCommand(
       await look(ctx, args, deps);
       return;
     }
+    if (command === "replies") {
+      // The desktop charm speaks its replies, or shows them as text (spec 003); a board always speaks.
+      const choice = firstPositional(args);
+      if (choice !== "on" && choice !== "off") {
+        fail(
+          ctx,
+          "Usage: opencharm replies on|off   (spoken, or text on the desktop charm)"
+        );
+        return;
+      }
+      await deps.send(deps.socket, { cmd: "replies", speak: choice === "on" });
+      ctx.out.write(
+        choice === "on"
+          ? "Replies are spoken, from the next one.\n"
+          : "Replies show as text on the desktop charm, from the next one (a charm on a board still speaks).\n"
+      );
+      return;
+    }
     if (command === "status") {
       const answer = statusSchema.safeParse(
         await deps.send(deps.socket, { cmd: "status" })

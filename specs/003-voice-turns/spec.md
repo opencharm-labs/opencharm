@@ -52,7 +52,7 @@ MCP charm tools (012), the permissions engine and questions on the charm (011), 
 Voice that sounds right:
 
 - [x] Unit tests: the config (`listen`/`speak`, the old `provider` still read), the model download (pinned SHA-256, a bad file refused), the Microsoft client (token, escaping, WebM, errors), the fallback when a voice fails or has no audio within 3 s, the first-clause split, the reply's language choosing the voice.
-- [ ] Unit tests for text-only pacing.
+- [x] Unit tests for text-only pacing: no audio and no synthesis, reading time per sentence, a press dismisses it; over a real socket, `speakReplies: false` shows text on the desktop charm while an emulator still speaks, and the admin command turns it back on.
 - [x] Live, on the maintainer's Mac: Parakeet transcribed English and Italian questions word for word in 0.12–0.27 s, through charmd with Claude Code and Microsoft's voice (4 October 2026). The spike's own recordings weren't kept.
 - [ ] The maintainer's own voice, English, Italian and mixed, through the desktop app.
 - [ ] The maintainer's listening check: the default voices in English and Italian pass.

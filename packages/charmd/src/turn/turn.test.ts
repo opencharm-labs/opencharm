@@ -606,3 +606,83 @@ describe("what the review of the voice update found (spec 003)", () => {
     expect(most).toBeLessThanOrEqual(2);
   });
 });
+
+describe("replies as text (spec 003)", () => {
+  it("shows each sentence for its reading time, with no speech and no audio", async () => {
+    const out: Out[] = [];
+    const pauses: number[] = [];
+    const fake = createFakeVoice({ transcript: "what's on today" });
+    let synthesized = 0;
+    const turn = new TurnController({
+      voice: {
+        ...fake,
+        synthesize: (text, signal) => {
+          synthesized += 1;
+          return fake.synthesize(text, signal);
+        },
+      },
+      agent: createFakeAgent({
+        reply: () =>
+          "You have two meetings today. The first one is at nine with the whole design team.",
+      }),
+      sessionKey: "opencharm-c_1",
+      send: (m) => out.push(m),
+      sendAudio: (p) => out.push({ audio: p.length }),
+      timeoutMs: 5000,
+      sleep: (ms) => {
+        pauses.push(ms);
+        return Promise.resolve();
+      },
+      speakAloud: () => false,
+    });
+    await speak(turn);
+    expect(synthesized).toBe(0);
+    expect(out.some((m) => "audio" in m)).toBe(false);
+    const kinds = out.map((m) =>
+      "audio" in m
+        ? "audio"
+        : m.type === "tts"
+          ? `tts:${m.state}`
+          : m.type === "charm" && "state" in m
+            ? `face:${m.state}`
+            : m.type
+    );
+    expect(kinds).toEqual([
+      "face:listening",
+      "face:thinking",
+      "stt",
+      "tts:start",
+      "tts:sentence_start",
+      "tts:sentence_start",
+      "tts:stop",
+      "face:idle",
+    ]);
+    // Five words: the 2 s minimum; eleven words: about 3.7 s.
+    expect(pauses).toEqual([2000, (11 / 3) * 1000]);
+  });
+
+  it("a press dismisses a reply being read", async () => {
+    const reading = new TurnController({
+      voice: createFakeVoice({ transcript: "hi" }),
+      agent: createFakeAgent({
+        reply: () => "A sentence that stays on screen for a while to be read.",
+      }),
+      sessionKey: "opencharm-c_1",
+      send: () => undefined,
+      sendAudio: () => undefined,
+      timeoutMs: 5000,
+      sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+      speakAloud: () => false,
+    });
+    reading.listenStart();
+    reading.audio(Buffer.from([0xf8, 1, 2, 3]));
+    const done = reading.listenStop();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(reading.state).toBe("speaking");
+    const before = Date.now();
+    reading.abort();
+    await done;
+    expect(Date.now() - before).toBeLessThan(500);
+    expect(reading.busy).toBe(false);
+  });
+});

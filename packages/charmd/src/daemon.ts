@@ -63,6 +63,8 @@ async function startDaemon(
   });
   const sessions = new Map<string, Session>();
   const voice = createVoiceFromConfig(config);
+  // Shared with the admin command "replies", read at the start of each turn.
+  const replies = { speak: config.speakReplies };
   // Load the local models now (downloading them the first time), not during the first question.
   void voice.warm?.().catch(() => undefined);
   const log =
@@ -91,6 +93,7 @@ async function startDaemon(
     agentCanChangeLook,
     identity: options.identity,
     starter: options.starter,
+    replies,
     voice: () => {
       const downloading = (["parakeet", "supertonic"] as const).flatMap(
         (id) => {
@@ -166,6 +169,8 @@ async function startDaemon(
           timeoutMs: config.turnTimeoutSeconds * 1000,
           logTranscripts: config.logTranscripts,
           log,
+          // Only the desktop charm can read instead of listen: a charm on a board always speaks.
+          speakAloud: () => io.kind() !== "desktop" || replies.speak,
         }),
     });
     sessions.set(session.connectionId, session);

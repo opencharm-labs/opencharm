@@ -493,3 +493,36 @@ describe("dev commands", () => {
     expect(await answer).toEqual({ answer: "no" });
   });
 });
+
+describe("replies as text over a real socket (spec 003)", () => {
+  async function turnOf(d: Daemon, kind: string) {
+    const charm = await connectFakeCharm(d.url, undefined, {
+      build: { kind, version: "desktop@0.0.0", commit: "abc1234" },
+    });
+    const code = await charm.next(isOp("pair_code"));
+    if (code.type !== "charm" || code.op !== "pair_code")
+      throw new Error("no code");
+    await d.admin.pair({ code: code.code, pin: "482913", name: kind });
+    await charm.next(isOp("locked"));
+    charm.send({ type: "charm", op: "unlock", pin: "482913" });
+    await charm.next(isOp("unlocked"));
+    charm.send({ type: "listen", state: "start", mode: "manual" });
+    for (let i = 0; i < 5; i++) charm.ws.send(Buffer.from([0xf8, 1, 2, 3]));
+    charm.send({ type: "listen", state: "stop" });
+    await charm.next((m) => m.type === "tts" && m.state === "stop", 15_000);
+    return charm.audioFrames();
+  }
+
+  it("the desktop charm shows replies as text when they're off; a charm on a board still speaks", async () => {
+    const { daemon: d } = await start(undefined, { speakReplies: false });
+    expect(await turnOf(d, "desktop")).toBe(0);
+    expect(await turnOf(d, "emulator")).toBeGreaterThan(0);
+  });
+
+  it("the admin command turns speaking back on from the next turn", async () => {
+    const { daemon: d } = await start(undefined, { speakReplies: false });
+    expect(await d.admin.replies({ speak: true })).toEqual({ speak: true });
+    expect(await turnOf(d, "desktop")).toBeGreaterThan(0);
+    await expect(d.admin.replies({ speak: "yes" })).rejects.toThrow();
+  });
+});

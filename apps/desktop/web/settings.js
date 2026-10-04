@@ -63,6 +63,7 @@ function fill() {
   $("key").value = settings.key;
   $("url").value = settings.url;
   $("login").checked = settings.startAtLogin;
+  $("speak-replies").checked = settings.speakReplies;
   $("updates").checked = settings.checkUpdates;
   $("external").checked = !settings.managed;
   $("url-section").hidden = settings.managed;
@@ -324,6 +325,15 @@ $("url").addEventListener(
   "change",
   (e) => void save({ url: e.target.value.trim() })
 );
+$("speak-replies").addEventListener(
+  "change",
+  (e) => void save({ speakReplies: e.target.checked })
+);
+// The menu bar's "Speak replies" changes it too.
+void window.__TAURI__.event.listen("settings-changed", async () => {
+  settings = await invoke("get_settings");
+  fill();
+});
 $("login").addEventListener(
   "change",
   (e) => void save({ startAtLogin: e.target.checked })

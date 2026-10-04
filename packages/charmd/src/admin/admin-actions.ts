@@ -31,6 +31,7 @@ type AdminActions = {
   devSay: (input: unknown) => Promise<{ connected: number }>;
   devAsk: (input: unknown) => Promise<{ answer: "yes" | "no" }>;
   look: (input: unknown) => Promise<Look & { connected: number }>;
+  replies: (input: unknown) => Promise<{ speak: boolean }>;
 };
 type AdminDeps = {
   store: StateStore;
@@ -43,7 +44,11 @@ type AdminDeps = {
   starter?: string | undefined;
   // The voice in use and any model still downloading (spec 003), e.g. "local+microsoft".
   voice?: () => string;
+  // Whether the desktop charm speaks its replies (spec 003); absent where nothing can change it.
+  replies?: { speak: boolean };
 };
+
+const repliesInput = z.object({ speak: z.boolean() }).strict();
 
 const pairInput = z.object({
   code: z.string().regex(/^\d{6}$/, "the code has 6 digits"),
@@ -106,6 +111,7 @@ function createAdminActions({
   identity,
   starter,
   voice,
+  replies,
 }: AdminDeps): AdminActions {
   function sessionsOf(charmId: string): Session[] {
     return [...sessions()].filter(
@@ -224,6 +230,16 @@ function createAdminActions({
         const live = [...sessions()].filter((s) => s.state === "unlocked");
         for (const session of live) session.sendLook(message);
         return { ...next, connected: live.length };
+      });
+    },
+    // From the next turn on; a turn already speaking finishes as it started.
+    replies(input) {
+      return settled(() => {
+        const { speak } = parseInput(repliesInput, input);
+        if (!replies)
+          throw new Error("This charmd can't change how replies are given.");
+        replies.speak = speak;
+        return { speak };
       });
     },
     status() {
