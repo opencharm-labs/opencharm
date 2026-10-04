@@ -29,6 +29,15 @@ describe("the emulator against a real charmd", () => {
     await pairAndUnlock(emulator);
     await page.screenshot({ path: join(SHOTS, "3-face.png") });
 
+    // It says what it runs (spec 015): in its side panel, and to charmd in hello.
+    expect(await page.locator("#build").textContent()).toMatch(
+      /^cli@\d+\.\d+\.\d+ \(([0-9a-f]{7,}(-dirty)?|unknown)\)$/
+    );
+    expect(emulator.daemon.admin.status().charms[0]?.build).toMatchObject({
+      kind: "emulator",
+      version: expect.stringMatching(/^cli@/),
+    });
+
     // The microphone is closed until the key goes down, open while it's held, closed after.
     await page.waitForTimeout(500);
     const before = await waitFor(page, () => true, "a trace");
