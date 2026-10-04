@@ -1,6 +1,6 @@
 # 003: Voice and agent turns
 
-Status: Done
+Status: Approved
 Depends on: 002
 
 ## Why
@@ -22,9 +22,24 @@ The core loop: hold the key, speak, hear your agent answer. charmd stays thin: i
 - **Dev commands:** `opencharm dev face|say|lock` push messages to a connected charm through the admin socket.
 - **Privacy:** no audio written to disk; transcripts are not logged unless `logTranscripts: true`.
 
+### Voice that sounds right (approved by the maintainer, 4 October 2026)
+
+Listening and speaking are the main way to use the charm, so the defaults must be the best quality we can give with no key and no setup; every choice can be changed in Settings. Evidence: the voice spike in `packages/charmd/README.md` ("Research notes, 4 October 2026").
+
+- **Listening and speaking are chosen separately:** `voice.listen` and `voice.speak` in the config, each with its provider; an existing `voice.provider` keeps working (read as both).
+- **One local engine:** sherpa-onnx (`sherpa-onnx-node`, Apache-2.0) inside charmd, the models loaded once and kept in memory (no process per turn). Models are downloaded on first use into `~/.opencharm/models` from pinned URLs, checked against a SHA-256, with progress in the CLI and the desktop app; never inside the npm package.
+- **Listening default: NVIDIA Parakeet TDT 0.6B v3** (int8, 643 MB on disk; CC-BY-4.0 and 25 European languages per its model card, unverified here), credited in the third-party notices. It transcribed English, Italian and a mix without being told the language, but returns no language id. Options: whisper.cpp (`local` today), OpenAI with the user's key.
+- **Speaking default: Microsoft's neural voices through Edge's read-aloud service** (no key; Node client `msedge-tts`, MIT per its package), one voice per language: Ava Multilingual for English, Isabella for Italian; voices for other languages are picked from the same family when built (untested). Settings and the docs say it plainly: the text of each spoken reply goes to Microsoft, and it's an unofficial service that may stop working. If it fails or is slow, charmd speaks that turn with the local voice, so the charm is never silent. Options: the local voice, macOS system voices, OpenAI with the user's key.
+- **Local voice: Supertonic 3** (sherpa-onnx, 146 MB; 31 languages per its README), the private option and the fallback. It passed the maintainer's ear in English; in Italian no local voice did, so the Italian fallback is known to sound poor. Its weights' licence is confirmed before it ships (the package says MIT; one source says OpenRAIL-M).
+- **The reply's language follows yours:** the transcript's language (detected from its text, since Parakeet gives no language id; how is decided in the plan) picks the voice for the reply, with a primary language in Settings as the fallback; the agent is told which language was heard (with the OpenCharm voice marker this spec already promises).
+- **It answers the way you asked:** a spoken question gets a spoken reply; a typed one (the desktop app, spec 013) gets a text reply. A **Speak replies** switch (`speakReplies` in charmd's config, default on; the desktop app sets it through the admin socket, applied from the next turn) makes every reply text only. The physical charm always listens and speaks: no typing, no silent mode on the device.
+- **Text-only replies** use the same `tts start` / `sentence_start` / `stop` messages with no audio; charmd paces them, sending each `sentence_start` after the previous sentence's reading time (about 3 words a second, at least 2 s), so the charm needs no new logic; a press dismisses it.
+- **Faster to the first word** (target: charmd's own share under 1 s when warm, that is speech-to-text plus the first audio once the agent's first clause arrives; the agent's own time, about 2–3 s with Claude Code today, is outside charmd): the models and the agent are warmed when the charm unlocks; the first clause is spoken as soon as it's long enough (about 20 characters at `,` `;` `:`); speech is streamed where the provider streams; the timing log has one line per stage (speech-to-text, the agent's first words, first audio).
+- **No clipped first word:** the charm keeps the audio from the moment the key goes down, in memory, and sends it once the hold is confirmed (200 ms); a press throws it away and sends nothing. This changes the written mic rule ("the mic opens only while the key is held, after 200 ms") to "the mic is on only while the key is down; nothing leaves the charm unless it's a hold", in the firmware core (spec 005) and its tests. Never on a question (hold = yes).
+
 ## Not in scope
 
-MCP charm tools (012), the permissions engine and questions on the charm (011), notifications.
+MCP charm tools (012), the permissions engine and questions on the charm (011), notifications. In the voice update: ElevenLabs and Azure keys (Next), follow-up listening, wake words, speech-to-speech models, voice cloning.
 
 ## Acceptance
 
@@ -34,9 +49,20 @@ MCP charm tools (012), the permissions engine and questions on the charm (011), 
 - [x] A manual smoke test on localhost: charmd, Claude Code and the `local` voice, driven by `packages/charmd/scripts/smoke-turn.ts`; a spoken question got a spoken answer, and a second turn remembered the first (30 September 2026).
 - [ ] A manual smoke test against real OpenAI and Hermes, with the timing recorded in `OPENCHARM.md`. Deferred: needs an OpenAI key and a Hermes install; repeated in spec 007 (droplet deploy).
 
+Voice that sounds right:
+
+- [ ] Unit tests: the config (`listen`/`speak`, the old `provider` still read), the model download (pinned SHA-256, a bad file refused), the fallback when the Edge voice fails, the first-clause split, text-only pacing, the reply's language choosing the voice.
+- [ ] The spike's six recorded clips (English, Italian, mixed) transcribed by the default as in the spike.
+- [ ] The maintainer's listening check: the default voices in English and Italian pass.
+- [ ] Measured on the maintainer's Mac (M2), per stage, in English and Italian: charmd's share under 1 s when warm; recorded in `OPENCHARM.md`.
+- [ ] The core's tests: a press (under 200 ms) sends no audio; a hold sends the audio from key-down; a hold on a question never opens the mic.
+- [ ] The first run downloads the models with progress, on macOS, Windows and Linux.
+- [ ] A typed question gets a text reply; with Speak replies off, a spoken question does too; the physical charm (emulator) always speaks.
+- [ ] The docs the change makes wrong are updated in the same PR: `OPENCHARM.md` (controls and the mic rule, charmd's voice plumbing, Security: what leaves the computer by default, the reply's text to Microsoft, and the CLI's new native and runtime dependencies), `firmware/README.md`, the website FAQ (`apps/web/src/app/_lib/faq.ts`), `apps/desktop/README.md`, CONTRIBUTING.
+
 ## Next
 
-Not approved; to be measured first, then the two or three changes that matter most picked. Observed in the first real test on the maintainer's Mac (1 October 2026):
+Not approved. ElevenLabs (listening with key terms, and the best-rated voices) and Azure (the same Microsoft voices, official, with a key) as options in Settings. Observed in the first real test on the maintainer's Mac (1 October 2026); latency, language and recognition are now in Scope above:
 
 - **Slow to start talking:** about 3 s from releasing the key to the first word when warm, 7–8 s on the first turn, 4–9 s with a tool. Speech-to-text is about 0.6 s; then the agent's first sentence, then its synthesis.
 - **Every exchange needs the key:** no natural back-and-forth ("And tomorrow?").

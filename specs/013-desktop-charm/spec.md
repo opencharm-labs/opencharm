@@ -1,6 +1,6 @@
 # 013: The desktop charm
 
-Status: In progress
+Status: Approved
 Depends on: 004, 005, 006, 010, 011
 
 ## Why
@@ -23,8 +23,11 @@ Not everyone wants to buy a board and print a shell. The same companion can live
     - Folder (the system picker): an OpenCharm workspace (has `opencharm.json`) is used as configured; an empty folder offers **Create a workspace here** (`opencharm init`); any other folder is the agent's working folder as it is.
     - Agent: Claude Code, Codex, Gemini CLI, goose, Hermes, OpenClaw (ACP presets), a custom ACP command, or an OpenAI-compatible server by URL.
     - Voice: on this computer (`local`, macOS), OpenAI (the key in the keychain, given to charmd as `OPENAI_API_KEY`), or none (`fake`).
+    - Voice, from spec 003's update: Listening and Speaking chosen separately, the voice per language, the model download's progress, and the note on what the default voice sends to Microsoft.
     - A status line (e.g. "Momo · Claude Code · ~/Desktop/momo · talking to charmd") and **Restart**.
-  - **Settings, the rest:** the talk key, start at login, the update check. Advanced: another charmd's address (turns off the managed one), the CLI's path, forget the pairing. Saved as JSON and applied at once.
+  - **Typing (approved by the maintainer, 4 October 2026):** press ⌥⇧Space (Ctrl Alt Shift Space on Windows; changeable) or choose **Type to your charm…** in the menu-bar menu, and a one-line field opens in the panel. Clicking the charm keeps meaning "react" (OPENCHARM.md controls). Enter sends it to charmd as typed text (spec 001), Esc closes it; the reply comes back as text in the panel (spec 003: it answers the way you asked). One line and one reply, no history: longer work belongs in the agent's own chat.
+- **Speak replies** (spec 003): a switch in the menu-bar menu and in Settings; off, every reply is text in the panel, even to a spoken question.
+- **Settings, the rest:** the talk key, start at login, the update check. Advanced: another charmd's address (turns off the managed one), the CLI's path, forget the pairing. Saved as JSON and applied at once.
 - **Its own charmd** (`managed.rs`): started with the installed `opencharm` CLI (Node 24), found once through the login shell (`$SHELL -lc 'command -v opencharm'`) or a path in Settings; Settings says how to install it if missing. Its own config, state and admin socket in the app's data folder, on port 8790 so a terminal charmd on 8787 is untouched. Restarted with backoff if it stops, stopped when the app quits, its log in the app's log. On macOS a charmd left by a killed app is stopped on the next start (checked by pid file and command line). On Windows charmd and its agent run in a job object, so they end with the app even after a crash.
 - **Automatic pairing** (`pairing.rs`): the app creates a random 12-digit PIN (no modulo bias), keeps it in the system keychain (macOS Keychain, Windows Credential Manager), pairs through charmd's owner-only admin socket (re-pairing when "desktop" already exists), and types the PIN only on a boot lock, never after `opencharm lock`. The page side is `charmSim.onMessage` in `sim.js`. Another charmd pairs as a charm does: a code and a typed PIN.
 - **The update check** (`updates.rs`): once a day the app reads GitHub's public release list for `desktop@` tags; a newer version is offered in the menu and Settings. Nothing about the user is sent. It can be turned off.
@@ -57,8 +60,10 @@ Bundling charmd inside the app, several agents at once, Windows-specific folder 
 - [x] Verified in the built app against a terminal charmd with the fake mic: pairing, the typed PIN, one spoken turn end to end.
 - [x] Rust tests (geometry, settings, managed charmd, pairing) and clippy clean; `npm run check` green.
 - [x] CI checks every PR that touches the app on macOS and Windows; `desktop-release.yml` publishes unsigned builds with checksums and provenance.
-- [ ] The maintainer's own run with the real microphone.
-- [ ] A real run with Momo's folder and Claude Code, by the maintainer.
+- [x] The maintainer's own run with the real microphone (a local build of `desktop@0.2.1`, 4 October 2026).
+- [x] A real run with Momo's folder and Claude Code, by the maintainer (4 October 2026).
+- [ ] Typing: the field opens by shortcut and from the menu, Enter sends, Esc closes, the reply shows as text; the talk key still works while it's open.
+- [ ] Speak replies off from the menu: a spoken question gets a text reply.
 - [ ] Windows on a real machine: the pill at the top centre, the key, the managed charmd ending with the app.
 
 ## Notes

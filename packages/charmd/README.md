@@ -181,3 +181,39 @@ What the audio spike found, before charmd's voice and agent code was written. Th
   - The `hermes` adapter uses `/v1/responses` with `conversation: "opencharm-<charm id>"` plus `X-Hermes-Session-Key`, so charmd stays stateless.
   - Streams send `hermes.tool.progress` events and a keepalive comment every 10 s.
 - **OpenClaw.** The Gateway's `/v1/chat/completions` takes model `openclaw:<agentId>` and a bearer token. It derives a stable session from the OpenAI `user` field, so charmd sends `user: "opencharm-<charm id>"`.
+
+## Research notes, 4 October 2026: the voice spike
+
+What the voice spike found on the maintainer's MacBook Air (M2, 16 GB), before spec 003's voice update was built. The throwaway harness used `sherpa-onnx-node` 1.13.8 (about 37 MB installed on macOS arm64) and `msedge-tts`; timings are single runs on this Mac.
+
+**Listening.** Six clips recorded push-to-talk in Chrome (Opus, 16 kHz): three English, two Italian, one mixed.
+
+| Clip                                  | Parakeet TDT 0.6B v3 int8 (sherpa-onnx, kept loaded) | whisper `base.en` (today's default) | whisper `large-v3-turbo` q5_0 |
+| ------------------------------------- | ---------------------------------------------------- | ----------------------------------- | ----------------------------- |
+| English, 3 s                          | right, 0.13 s                                        | right, 0.6 s                        | right, 4.3 s                  |
+| English with "npm test… charmd", 5 s  | right except "Charmed", 0.19 s                       | "charge", 0.3 s                     | "Charmed", 3.6 s              |
+| English, free speech, 22 s            | right, keeps every "um", 0.8 s                       | right, 0.5 s                        | right, 4.0 s                  |
+| Italian, 3 s                          | right, 0.11 s                                        | an invented English sentence        | one word wrong, 3.7 s         |
+| Italian with "Vercel", "pull request" | "Bersel", "pure quest", 0.19 s                       | nonsense                            | drifted into English, 3.6 s   |
+| Mixed ("package.json", "TypeScript")  | one word wrong, 0.23 s                               | nonsense                            | right, 3.6 s                  |
+
+whisper ran as charmd runs it today, a process per clip that loads the model each time. `base.en` is English-only, so its Italian rows show today's default, not whisper at its best; `large-v3-turbo` did better than Parakeet on the mixed clip. Parakeet loads once (about 1.4 s). Nothing recognised "charmd"; English words inside Italian are Parakeet's weak spot (it takes no vocabulary hints), which a key-term option (ElevenLabs Scribe, an OpenAI prompt) addresses.
+
+**Speaking.** The same three replies (a "done", a question, an email summary with a name and a time) in Italian and English, played blind to the maintainer: 15 Italian and 7 English voices.
+
+| Voice                                                                                                                | Where           | Time to first audio, or generation time for a 6–10 s reply | The maintainer's pick |
+| -------------------------------------------------------------------------------------------------------------------- | --------------- | ---------------------------------------------------------- | --------------------- |
+| Microsoft Isabella (it-IT), Edge                                                                                     | cloud, no key   | first audio 0.2–0.4 s                                      | kept                  |
+| Microsoft Giuseppe Multilingual (it-IT), Edge                                                                        | cloud, no key   | first audio 0.9–1.5 s                                      | kept                  |
+| Microsoft Ava Multilingual (en-US), Edge                                                                             | cloud, no key   | first audio 0.5–1.1 s                                      | kept                  |
+| Supertonic 3, voice 5 (English)                                                                                      | local, CPU      | 2.0–2.6 s for the whole reply (0.3× real time)             | kept                  |
+| Supertonic 3 (Italian), Kokoro, Piper (3 Italian voices), macOS `say` (Alice, Eddy, Samantha), Edge Diego and Andrew | local and cloud | Kokoro 0.8×, Piper 0.17×, Supertonic 0.3× real time        | rejected              |
+
+Every local Italian voice failed the maintainer's ear; Microsoft's voices passed in both languages, and Supertonic 3 in English. Italian voices say English words (e.g. "file") the Italian way.
+
+**Other findings.**
+
+- Pocket TTS (Kyutai) is in sherpa-onnx only as its January 2026 English model, and that ONNX export is for non-commercial use: not usable as a default.
+- The Edge service is undocumented and unlicensed, with rotating tokens and reported 403s and rate limits (github.com/rany2/edge-tts issues); Hermes Agent uses it as its default voice and OpenClaw as its free one (their docs: hermes-agent.nousresearch.com voice mode, docs.openclaw.ai TTS). It worked every time in this spike.
+- Hermes Agent defaults to local faster-whisper and Edge; OpenClaw to ElevenLabs, with Edge as its free option. Claude Code's `/voice` sends audio to Anthropic for transcription and doesn't speak.
+- Model sizes on disk: Parakeet v3 int8 643 MB, Supertonic 3 int8 146 MB, Kokoro int8 186 MB, a Piper voice 36 MB.
