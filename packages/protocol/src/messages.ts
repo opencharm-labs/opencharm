@@ -26,12 +26,22 @@ const audioParams = z.object({
 });
 
 // Charm → charmd
+// What the charm runs (spec 015): the board's firmware, the emulator, or the desktop app's emulator.
+// `version` is the release identity of what ships it (cli@0.2.0, desktop@0.2.0), `commit` the core's.
+const build = z
+  .object({
+    kind: z.enum(["emulator", "desktop", "board"]),
+    version: z.string().min(1).max(64),
+    commit: z.string().min(1).max(40),
+  })
+  .strict();
 const clientHello = z.object({
   type: z.literal("hello"),
   version: z.number().int().positive(),
   features: z.record(z.string(), z.boolean()).optional(),
   transport: z.literal("websocket"),
   audio_params: audioParams,
+  build: build.optional(),
 });
 const listen = z.object({
   session_id: sessionId,

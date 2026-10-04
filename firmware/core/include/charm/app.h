@@ -20,6 +20,7 @@ struct AppOptions {
   uint32_t pleased_ms = 1200;        // a happy moment after speaking
   uint32_t sleep_after_ms = 240000;  // nothing for this long = asleep
   uint32_t seed = 1;                 // reactions vary; tests fix the order
+  Build build;                       // what this charm runs, sent in hello (spec 015)
 };
 
 // OpenCharm OS behaviour: one state machine for the device, the emulator and tests.

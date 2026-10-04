@@ -175,7 +175,7 @@ void App::end_ask() {
   }
 }
 
-void App::on_connected(uint32_t) { hal_.send_text(client_hello()); }
+void App::on_connected(uint32_t) { hal_.send_text(client_hello(options_.build)); }
 
 void App::on_disconnected(uint32_t) {
   asking_ = false;

@@ -129,6 +129,8 @@ TEST_CASE("client messages match the shared fixtures") {
     if (f.direction != "client") continue;
     CAPTURE(f.name);
     if (f.name == "client-hello") CHECK(same_json(charm::client_hello(), f.raw));
+    if (f.name == "client-hello-with-build")
+      CHECK(same_json(charm::client_hello({"emulator", "cli@0.2.0", "abc1234"}), f.raw));
     if (f.name == "client-listen-start") CHECK(same_json(charm::client_listen(true, "s1"), f.raw));
     if (f.name == "client-listen-stop") CHECK(same_json(charm::client_listen(false, "s1"), f.raw));
     if (f.name == "client-abort") CHECK(same_json(charm::client_abort("s1", "key_pressed"), f.raw));
@@ -198,4 +200,8 @@ TEST_CASE("a look outside the limits is refused") {
   CHECK_FALSE(charm::parse_server_message(
       R"({"type":"charm","op":"look","name":"Momo","glyph":"#9DB6FF","sleep_ms":0,"motion":"full"})",
       m));
+}
+
+TEST_CASE("the core knows the commit it was built from") {
+  CHECK(!std::string(charm::kBuildCommit).empty());
 }

@@ -279,7 +279,7 @@ bool parse_server_message(std::string_view json, ServerMessage& out) {
   return false;
 }
 
-std::string client_hello() {
+std::string client_hello(const Build& build) {
   cJSON* hello = cJSON_CreateObject();
   cJSON_AddStringToObject(hello, "type", "hello");
   cJSON_AddNumberToObject(hello, "version", 1);
@@ -292,6 +292,12 @@ std::string client_hello() {
   cJSON_AddNumberToObject(audio, "sample_rate", 16000);
   cJSON_AddNumberToObject(audio, "channels", 1);
   cJSON_AddNumberToObject(audio, "frame_duration", 60);
+  if (!build.kind.empty()) {
+    cJSON* b = cJSON_AddObjectToObject(hello, "build");
+    cJSON_AddStringToObject(b, "kind", build.kind.c_str());
+    cJSON_AddStringToObject(b, "version", build.version.c_str());
+    cJSON_AddStringToObject(b, "commit", build.commit.c_str());
+  }
   return print_and_free(hello);
 }
 
