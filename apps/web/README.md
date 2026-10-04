@@ -11,6 +11,10 @@ npm run dev -w apps/web      # http://localhost:3000
 1. On vercel.com, import `opencharm-labs/opencharm` and set **Root Directory** to `apps/web`. No environment variables are needed. `vercel.json` installs from the repository root with `npm ci`, like CI: run from `apps/web`, npm would install only this workspace and miss the shared tools at the root (TypeScript, `@types/node`, Vitest, Playwright), and the build fails.
 2. Add the domain `opencharm.dev` in **Domains** and point your DNS provider at Vercel as it shows.
 
+## Release and revision (spec 015)
+
+The site is a release unit, `web@x.y.z`: after a green CI on `main`, a merged `fix`/`feat`/`perf` touching `apps/web` or `packages/design` tags it (`.github/workflows/web-release.yml`, CONTRIBUTING "Releasing"); Vercel deploys every merge regardless. The title block's REV and `/version.json` say which release and commit are live, computed at build time from the latest `web@` tag (`src/lib/build-identity.ts`): `web@0.3.1+2 (abc1234)` is two commits after `web@0.3.1`. A release's own deploy shows the previous version until the next deploy (the tag is made after it).
+
 ## Checks
 
 ```bash

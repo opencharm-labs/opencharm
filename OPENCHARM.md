@@ -223,6 +223,7 @@ We speak xiaozhi-esp32's WebSocket protocol and add one namespaced message type,
 
 - **Connection:** `wss://<host>/charm` with `Authorization: Bearer <token>` (none before pairing). The charm finds the address through XiaoZhi's config check endpoint, which charmd serves at `/ota/`.
 - **Kept from XiaoZhi:** `hello`, `listen` (key held / released), `abort`, binary Opus (up 16 kHz mono 60 ms frames, down 24 kHz), `stt`, `tts` (start, sentence, stop) and `llm` `emotion` for stock devices.
+- **What the charm runs:** its `hello` may carry `build: { kind, version, commit }` (`emulator`, `desktop` or `board`; spec 015). It's optional, so stock XiaoZhi firmware still connects; charmd logs it and `opencharm status` shows it.
 - **Ours:** pairing (`pair_code`, `paired`), the lock (`unlock`, `unlocked`, `locked`, `revoked`), `face` (an agent state id from section 5.4, with an optional short line) questions (`ask`, `ask_end`, `answer`) and the charm's identity (`look`, sent right before every `unlocked`). Later: `notify`, `signal`, `permissions`.
 - "Speaking" is not a face: the charm shows its speech layout between `tts start` and `tts stop`. Until `unlocked`, charmd ignores `listen` and audio and answers `locked`.
 

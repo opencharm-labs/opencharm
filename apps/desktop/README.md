@@ -38,7 +38,7 @@ The app's charmd listens on port 8790, with its own config, state and log, so a 
 
 **Another charmd** (Settings → Advanced): connect to a charmd you run yourself. Run `opencharm serve`, open OpenCharm, then `opencharm pair <code>` with the code under the notch and choose a PIN. Click the panel, type the PIN and press Enter.
 
-**Settings:** from the menu-bar icon (the charm's head as a template image) or a right-click on the charm.
+**Settings:** from the menu-bar icon (the charm's head as a template image) or a right-click on the charm. Its footer shows what the app is, `desktop@<version> (<commit>)` (spec 015), for bug reports; the app's charm sends the same in its hello.
 
 ## How it behaves
 

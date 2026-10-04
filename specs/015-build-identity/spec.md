@@ -1,6 +1,6 @@
 # 015: Build identity
 
-Status: In progress
+Status: Done
 Depends on: 001, 002, 004, 006, 008, 013
 
 ## Why
@@ -39,10 +39,10 @@ When something goes wrong, we need to know exactly what was running: which CLI a
 
 ## Acceptance
 
-- [ ] `opencharm --version` prints `<version> (<commit>)`; a release build prints its tag's version (`cli-release.yml` stamps both; a test on the version string).
-- [ ] `opencharm status` lists charmd's identity and each connected charm's `build` (charmd test with the fake charm).
-- [ ] The emulator and the desktop charm send `build` in `hello`; charmd logs it (protocol fixtures read by the TypeScript and C++ tests; firmware core test for `kBuild`).
-- [ ] The desktop app's Settings show its identity (desktop test).
-- [ ] `web@x.y.z` is released by the release flow like the other units (`tools/release` tests), and the site's footer and `/version.json` show the identity (website e2e test).
-- [ ] `opencharm status` names the starter commit a workspace began from (init test with a temp starter; status test).
-- [ ] The bug form asks for `opencharm status`; CONTRIBUTING "Releasing" and `OPENCHARM.md` describe the identities.
+- [x] `opencharm --version` prints `<version> (<commit>)`; a release build prints its tag's version (`cli-release.yml` stamps both; a test on the version string).
+- [x] `opencharm status` lists charmd's identity and each connected charm's `build` (charmd test with the fake charm).
+- [x] The emulator and the desktop charm send `build` in `hello`; charmd logs it (protocol fixtures read by the TypeScript and C++ tests; firmware core test for `kBuild`).
+- [x] The desktop app's Settings show its identity (desktop test).
+- [x] `web@x.y.z` is released by the release flow like the other units (`tools/release` tests), and the site's footer and `/version.json` show the identity (website e2e test).
+- [x] `opencharm status` names the starter commit a workspace began from (init test with a temp starter; status test).
+- [x] The bug form asks for `opencharm status`; CONTRIBUTING "Releasing" and `OPENCHARM.md` describe the identities.

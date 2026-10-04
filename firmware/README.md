@@ -67,6 +67,8 @@ C++17 without exceptions or RTTI, LVGL 9.6, cJSON.
 - Fonts: Geist Mono (ExtraBold, Medium) and one `♥` from Noto Sans Symbols 2, converted with `lv_font_conv` to LVGL bitmap fonts at 163/95/57 px (glyphs), 80 px (digits), 35/24 px (text), all under SIL OFL (`npm run firmware:fonts`). Faces, colours and states come from `packages/design/faces.json` (generated into `core/src/generated/faces.h`); motion from `packages/design/tokens.json`.
 - Tests: the C++ protocol code runs over `packages/protocol/fixtures`, the state machine runs with a fake HAL and view, and headless UI tests check real pixels and save PNG snapshots to `firmware/core/build/snapshots/` (square 480 and round 466).
 
+**Build identity (spec 015):** CMake stamps the commit into `charm::kBuildCommit` (`-dirty` with local changes, `unknown` without git), and `AppOptions::build` (`kind`, `version`, `commit`) goes into the charm's `hello`. The emulator fills it from its host; the board port (spec 009) will fill it with its own `firmware@` release.
+
 ## Screens (MVP)
 
 1. **Boot**: the face wakes up, no logo: `− −` → `o o` → blink → `^ ^` (about 1.2 s); stays while Wi-Fi connects.
@@ -84,7 +86,7 @@ C++17 without exceptions or RTTI, LVGL 9.6, cJSON.
 - **Cheap at rest:** LVGL renders in direct mode, so only the areas that changed are drawn, and the page copies only their bounding box. The loop ticks at 60 Hz while something animates or the key is held, and at 10 Hz at rest; input and messages wake it at once. The speaker's AudioContext is suspended 2 s after the last sound.
 - **Audio in the browser:** the mic runs at 16 kHz through an AudioWorklet, and 60 ms frames are encoded to Opus in WebAssembly. The microphone is opened when the key goes down and closed when it comes up, so the browser shows it recording only while the key is held; the core still decides which frames leave (after a 200 ms hold). Speech is decoded at 24 kHz. The page says "MIC READY" once capture runs; it starts at the first click or key press.
 - **The token rides as a WebSocket subprotocol** (`opencharm.token.<token>`), because browsers can't set other headers on a WebSocket; tokens never go in URLs (spec 007's security review).
-- **Side panel:** drop Wi-Fi, square/round screen, forget pairing. Motion and battery controls wait for the motion-sensor work after the MVP.
+- **Side panel:** what it runs (the CLI or desktop app that ships it, with the core's commit; spec 015; never on the charm's screen), drop Wi-Fi, square/round screen, forget pairing. Motion and battery controls wait for the motion-sensor work after the MVP.
 - **Tested end to end** in headless Google Chrome with a fake microphone against a real charmd: pair, type the PIN on the canvas, hold Space, and the spoken answer comes back (`npm run test:e2e -w packages/cli`; also in CI, `ci.yml`).
 - **Can't prove**: the board's echo cancellation and mic quality, Wi-Fi, battery life, flash. Those are tested on the board.
 
