@@ -685,4 +685,35 @@ describe("replies as text (spec 003)", () => {
     expect(Date.now() - before).toBeLessThan(500);
     expect(reading.busy).toBe(false);
   });
+
+  it("reading a long sentence doesn't run out the turn's clock, and the first clause isn't split off", async () => {
+    const out: Out[] = [];
+    const logs: Array<Record<string, unknown>> = [];
+    const turn = new TurnController({
+      voice: createFakeVoice({ transcript: "hi" }),
+      agent: createFakeAgent({
+        reply: () =>
+          "Sure, here is a sentence that takes a while to read on the screen. And a second one.",
+      }),
+      sessionKey: "opencharm-c_1",
+      send: (m) => out.push(m),
+      sendAudio: () => undefined,
+      timeoutMs: 100,
+      // Each sentence stays longer than the whole clock.
+      sleep: () => new Promise((resolve) => setTimeout(resolve, 250)),
+      log: (entry) => logs.push(entry),
+      speakAloud: () => false,
+    });
+    await speak(turn);
+    const shown = out.flatMap((m) =>
+      "type" in m && m.type === "tts" && m.state === "sentence_start"
+        ? [m.text]
+        : []
+    );
+    expect(shown).toEqual([
+      "Sure, here is a sentence that takes a while to read on the screen.",
+      "And a second one.",
+    ]);
+    expect(logs[0]).toMatchObject({ outcome: "done" });
+  });
 });

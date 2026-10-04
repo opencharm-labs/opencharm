@@ -42,6 +42,35 @@ struct Tray {
     speak: CheckMenuItem<tauri::Wry>,
 }
 
+/// The settings the app's charmd is started with; a change to any of them restarts it.
+type CharmdFields = (
+    bool,
+    Option<String>,
+    String,
+    String,
+    String,
+    String,
+    String,
+    String,
+    String,
+    Option<String>,
+);
+
+fn charmd_fields(s: &Settings) -> CharmdFields {
+    (
+        s.managed,
+        s.folder.clone(),
+        s.agent.clone(),
+        s.agent_command.clone(),
+        s.server_url.clone(),
+        s.server_model.clone(),
+        s.listen.clone(),
+        s.speak.clone(),
+        s.language.clone(),
+        s.cli_path.clone(),
+    )
+}
+
 /// Spoken replies on or off (spec 003), from the menu or Settings: charmd hears it at once through
 /// the admin socket (from the next reply), and its config keeps it for a restart; no restart now,
 /// which would cost the agent its conversation.
@@ -49,6 +78,12 @@ fn apply_replies(app: &AppHandle, speak: bool) {
     if let Some(tray) = app.try_state::<Tray>() {
         let _ = tray.speak.set_checked(speak);
     }
+    // The admin socket off the main thread: a stuck charmd never freezes the menu or Settings.
+    let app = app.clone();
+    std::thread::spawn(move || send_replies(&app, speak));
+}
+
+fn send_replies(app: &AppHandle, speak: bool) {
     let saved = app.state::<Saved>();
     if !is_managed(&saved) {
         return;
@@ -298,10 +333,13 @@ fn apply_managed(app: &AppHandle) {
         }
         let (mut config, label) = managed::build_config(&settings, &folder, &managed.data);
         let features = managed::cli_features(&cli, &env);
-        // Settings may have changed while the CLI was asked: the newer apply wins, this one stops.
-        if *saved.settings.lock().unwrap() != settings {
+        // Settings charmd depends on may have changed while the CLI was asked: the newer apply
+        // wins, this one stops. Spoken replies are read now, the latest value.
+        let latest = saved.settings.lock().unwrap().clone();
+        if charmd_fields(&latest) != charmd_fields(&settings) {
             return;
         }
+        config["speakReplies"] = serde_json::json!(latest.speak_replies);
         if !features.voice {
             let has_key = matches!(pairing::secret("openai"), Ok(Some(_)));
             config["voice"] = managed::older_voice(&config, has_key);
@@ -401,21 +439,7 @@ fn save_settings(app: AppHandle, saved: State<Saved>, next: Settings) -> Result<
     };
     next.save(&saved.path).map_err(|e| e.to_string())?;
     *saved.settings.lock().unwrap() = next.clone();
-    let charmd = |s: &Settings| {
-        (
-            s.managed,
-            s.folder.clone(),
-            s.agent.clone(),
-            s.agent_command.clone(),
-            s.server_url.clone(),
-            s.server_model.clone(),
-            s.listen.clone(),
-            s.speak.clone(),
-            s.language.clone(),
-            s.cli_path.clone(),
-        )
-    };
-    if charmd(&next) != charmd(&previous) {
+    if charmd_fields(&next) != charmd_fields(&previous) {
         apply_managed(&app);
     } else if next.speak_replies != previous.speak_replies {
         apply_replies(&app, next.speak_replies);

@@ -196,6 +196,7 @@ class TurnController {
     // an agent or a voice that stalls mid-answer still ends the turn.
     let speakingStarted = false;
     let asking = false;
+    let reading = false;
     const restartClock = () => {
       clearTimeout(timer);
       timer = startClock();
@@ -206,7 +207,16 @@ class TurnController {
         restartClock();
       },
       touch: () => {
-        if (speakingStarted && !asking) restartClock();
+        if (speakingStarted && !asking && !reading) restartClock();
+      },
+      // Reading a sentence is activity too: no clock while it's on screen.
+      pause: () => {
+        reading = true;
+        clearTimeout(timer);
+      },
+      resume: () => {
+        reading = false;
+        restartClock();
       },
     };
     const timeoutGuard = new Promise<never>((_, reject) =>
@@ -319,7 +329,12 @@ class TurnController {
     started: number,
     timeoutGuard: Promise<never>,
     language: string,
-    clock: { started: () => void; touch: () => void },
+    clock: {
+      started: () => void;
+      touch: () => void;
+      pause: () => void;
+      resume: () => void;
+    },
     aloud: boolean
   ): Promise<string> {
     const now = this.#deps.now ?? Date.now;
@@ -356,7 +371,8 @@ class TurnController {
       wake();
     };
     const produce = (async () => {
-      const splitter = new SentenceSplitter();
+      // An early first clause only helps audio start sooner; as text it would flash up on its own.
+      const splitter = new SentenceSplitter({ firstClause: aloud });
       await inStage("agent", async () => {
         for await (const chunk of source) {
           if (!going()) return;
@@ -440,7 +456,21 @@ class TurnController {
       clearTimeout(timer);
       timer = startClock();
     };
-    const clock = { started: restartClock, touch: restartClock };
+    let reading = false;
+    const clock = {
+      started: restartClock,
+      touch: () => {
+        if (!reading) restartClock();
+      },
+      pause: () => {
+        reading = true;
+        clearTimeout(timer);
+      },
+      resume: () => {
+        reading = false;
+        restartClock();
+      },
+    };
     const timeoutGuard = new Promise<never>((_, reject) =>
       controller.signal.addEventListener("abort", () => {
         if (controller.signal.reason instanceof TurnTimeout)
@@ -486,7 +516,12 @@ class TurnController {
     text: string,
     signal: AbortSignal,
     going: () => boolean,
-    clock: { started: () => void; touch: () => void },
+    clock: {
+      started: () => void;
+      touch: () => void;
+      pause: () => void;
+      resume: () => void;
+    },
     timings: Record<string, number>,
     started: number
   ): Promise<void> {
@@ -500,13 +535,14 @@ class TurnController {
     }
     this.#deps.send({ type: "tts", state: "sentence_start", text });
     const sleep = this.#deps.sleep ?? sleepMs;
+    clock.pause();
     await Promise.race([
       sleep(readingMs(text)),
       new Promise<void>((resolve) =>
         signal.addEventListener("abort", () => resolve(), { once: true })
       ),
     ]);
-    clock.touch();
+    clock.resume();
   }
 
   #failureLine(error: unknown): string {
