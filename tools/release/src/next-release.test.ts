@@ -194,6 +194,10 @@ describe("release notes for reverts", () => {
 });
 
 describe("what each unit ships", () => {
+  it("counts the website and the face engine it uses for the site (spec 015)", () => {
+    expect(UNITS.web).toEqual(["apps/web", "packages/design"]);
+  });
+
   it("counts only the firmware it ships: the core and the emulator, not the board port", () => {
     for (const unit of [UNITS.cli, UNITS.desktop]) {
       expect(unit).toContain("firmware/core");
