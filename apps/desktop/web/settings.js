@@ -50,6 +50,8 @@ const STATES = {
 };
 
 let settings = await invoke("get_settings");
+// What this build is, for bug reports (spec 015).
+$("identity").textContent = (await invoke("app_identity")).text.toUpperCase();
 let folder = null;
 for (const [value, label] of KEYS) $("key").append(new Option(label, value));
 if (!KEYS.some(([value]) => value === settings.key))

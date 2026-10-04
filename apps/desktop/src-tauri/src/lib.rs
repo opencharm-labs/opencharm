@@ -4,6 +4,7 @@
 //! with it automatically (spec 013), or connects to another charmd.
 
 mod geometry;
+mod identity;
 #[cfg(target_os = "macos")]
 mod macos;
 mod managed;
@@ -107,6 +108,15 @@ impl Managed {
 
 fn is_managed(saved: &Saved) -> bool {
     saved.settings.lock().unwrap().managed && std::env::var("OPENCHARM_URL").is_err()
+}
+
+/// What this build is, for Settings and the charm's hello (spec 015).
+#[tauri::command]
+fn app_identity(app: AppHandle) -> identity::Identity {
+    identity::identity(
+        &app.package_info().version.to_string(),
+        env!("OPENCHARM_COMMIT"),
+    )
 }
 
 #[tauri::command]
@@ -540,6 +550,7 @@ pub fn run() {
                 .build(),
         )
         .invoke_handler(tauri::generate_handler![
+            app_identity,
             charm_geometry,
             panel,
             log,
