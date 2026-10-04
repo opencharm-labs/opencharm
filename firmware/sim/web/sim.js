@@ -128,8 +128,10 @@ const version = params.get("version") || config.version || "unknown";
 withString(window.charmParams ? "desktop" : "emulator", (kind) =>
   withString(version, (v) => M._sim_set_build(kind, v))
 );
-document.getElementById("build").textContent =
-  `${version} (${M.UTF8ToString(M._sim_commit())})`;
+// The emulator's page has a BUILD line; the desktop app's page doesn't (its Settings show it).
+const buildLine = document.getElementById("build");
+if (buildLine)
+  buildLine.textContent = `${version} (${M.UTF8ToString(M._sim_commit())})`;
 const glyph = 0;
 M._sim_init(
   W,

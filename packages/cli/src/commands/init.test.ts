@@ -82,6 +82,24 @@ describe("initWorkspace", () => {
     expect(starterCommit(tmpdir())).toBeUndefined();
   });
 
+  it("doesn't mistake another repo with an upstream remote, like a fork, for a workspace", () => {
+    const fork = target();
+    git(tmpdir(), "clone", "-q", "--origin", "upstream", starter(), fork);
+    git(fork, "rm", "-q", "opencharm.json");
+    git(
+      fork,
+      "-c",
+      "user.name=t",
+      "-c",
+      "user.email=t@t",
+      "commit",
+      "-q",
+      "-m",
+      "not a workspace"
+    );
+    expect(starterCommit(fork)).toBeUndefined();
+  });
+
   it("leaves the starter untouched when it already fits (macOS, Claude Code)", () => {
     const dir = target();
     initWorkspace(dir, { from: starter(), platform: "darwin" });

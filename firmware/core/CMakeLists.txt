@@ -32,8 +32,9 @@ add_library(charm_logic STATIC
 target_include_directories(charm_logic PUBLIC include PRIVATE src)
 # The commit the core is built from (spec 015): OPENCHARM_COMMIT when CI sets it (exact even after
 # CI stamps a version into package.json), else the short hash, "-dirty" with tracked changes, and
-# "unknown" without git. Read when CMake configures; it lands in one generated file, so a new commit
-# recompiles only that file.
+# "unknown" without git. Read when CMake configures (the npm scripts reconfigure on every run, and CI
+# builds fresh); it lands in one generated file, so a change recompiles only that file. A plain
+# incremental `cmake --build` keeps the commit from the last configure.
 if(DEFINED ENV{OPENCHARM_COMMIT} AND NOT "$ENV{OPENCHARM_COMMIT}" STREQUAL "")
   set(CHARM_COMMIT "$ENV{OPENCHARM_COMMIT}")
 else()

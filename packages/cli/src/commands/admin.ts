@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 import { VALUE_FLAGS, firstPositional, flagValue } from "../args";
 import type { CliContext } from "../context";
 
@@ -6,13 +8,31 @@ type AdminDeps = {
   send: (socket: string, request: Record<string, unknown>) => Promise<unknown>;
   prompt: (question: string) => Promise<string>;
 };
-type CharmRow = {
-  name: string;
-  state: string;
-  blocked: boolean;
-  failedTries: number;
-  build?: { kind: string; version: string; commit: string };
-};
+// What `status` prints comes from the admin socket: checked before it reaches the terminal (spec 015),
+// with the same plain characters the protocol allows in a charm's build.
+const plain = z.string().regex(/^[\w.@+-]{1,64}$/);
+const statusSchema = z.object({
+  charmd: z
+    .string()
+    .regex(/^[\w.@+() -]{1,96}$/)
+    .optional(),
+  starter: z
+    .string()
+    .regex(/^[0-9a-f]{4,40}$/)
+    .optional(),
+  charms: z.array(
+    z.object({
+      name: z.string(),
+      state: z.string(),
+      blocked: z.boolean(),
+      failedTries: z.number(),
+      build: z
+        .object({ kind: plain, version: plain, commit: plain })
+        .optional(),
+    })
+  ),
+});
+type CharmRow = z.infer<typeof statusSchema>["charms"][number];
 type LookRow = {
   name: string;
   colour: string;
@@ -200,9 +220,17 @@ async function runAdminCommand(
       return;
     }
     if (command === "status") {
-      const { charms, charmd, starter } = (await deps.send(deps.socket, {
-        cmd: "status",
-      })) as { charms: CharmRow[]; charmd?: string; starter?: string };
+      const answer = statusSchema.safeParse(
+        await deps.send(deps.socket, { cmd: "status" })
+      );
+      if (!answer.success) {
+        fail(
+          ctx,
+          "Unexpected answer from charmd: is it the same version as this CLI?"
+        );
+        return;
+      }
+      const { charms, charmd, starter } = answer.data;
       printStatus(ctx, charms, charmd, starter);
       return;
     }

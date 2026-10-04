@@ -2,7 +2,9 @@ use std::process::Command;
 
 // The commit the app is built from (spec 015): OPENCHARM_COMMIT when CI sets it (exact even after CI
 // stamps the release version into package.json), else the short hash, "-dirty" with tracked changes,
-// "unknown" without git. The same rule as the CLI, the firmware's CMake and the website.
+// "unknown" without git. The same rule as the CLI, the firmware's CMake and the website. Cargo reruns
+// this on a new commit or a staged change; an unstaged edit in a local build can keep the previous
+// "-dirty" state until then (release builds are always exact: CI sets OPENCHARM_COMMIT).
 fn git(args: &[&str]) -> Option<String> {
     let out = Command::new("git").args(args).output().ok()?;
     out.status

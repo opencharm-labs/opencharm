@@ -151,7 +151,10 @@ jobs:
     if: needs.changes.outputs.website == 'true'
     runs-on: ubuntu-latest
     steps:
+      # The full history and tags, so the site's REV reads web@x.y.z+n (spec 015) without fetching.
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: ./.github/actions/setup
       - run: npm run build -w @opencharm-labs/web
       # The production build in the runner's Google Chrome: loads clean, headers, metadata, controls.

@@ -18,7 +18,7 @@ describe("the site's build identity (spec 015)", () => {
   });
 
   it("marks local changes", () => {
-    expect(fromDescribe("web@0.3.1-2-gabc1234-dirty", "abc1234").text).toBe(
+    expect(fromDescribe("web@0.3.1-2-gabc1234", "abc1234", true).text).toBe(
       "web@0.3.1+2 (abc1234-dirty)"
     );
   });

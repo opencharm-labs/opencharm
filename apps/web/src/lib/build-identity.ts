@@ -6,7 +6,7 @@ import { execFileSync } from "node:child_process";
 
 type BuildIdentity = { version: string; commit: string; text: string };
 
-const DESCRIBE = /^(web@\d+\.\d+\.\d+)(?:-(\d+)-g[0-9a-f]+)?(-dirty)?$/;
+const DESCRIBE = /^(web@\d+\.\d+\.\d+)(?:-(\d+)-g[0-9a-f]+)?$/;
 
 function git(...args: string[]): string | undefined {
   try {
@@ -25,7 +25,7 @@ function fromDescribe(
   dirtyTree = false
 ): BuildIdentity {
   const match = describe ? DESCRIBE.exec(describe) : null;
-  const dirty = match?.[3] || dirtyTree ? "-dirty" : "";
+  const dirty = dirtyTree ? "-dirty" : "";
   const version = match?.[1]
     ? `${match[1]}${match[2] ? `+${match[2]}` : ""}`
     : "web@unknown";
@@ -37,20 +37,21 @@ function fromDescribe(
 // without tags (and shallow), so on CI or Vercel only, fetch them first; never on a contributor's
 // machine. "-dirty" means tracked changes, as everywhere.
 function buildIdentity(): BuildIdentity {
+  const fromCi = process.env.OPENCHARM_COMMIT || undefined;
   const commit =
-    process.env.OPENCHARM_COMMIT ??
+    fromCi ??
     git("rev-parse", "--short", "HEAD") ??
     process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ??
     "unknown";
   const describe = () => git("describe", "--tags", "--match", "web@*");
   let found = describe();
   if (!found && (process.env.VERCEL || process.env.CI)) {
-    git("fetch", "--quiet", "--tags", "--unshallow");
-    git("fetch", "--quiet", "--tags");
+    if (git("fetch", "--quiet", "--tags", "--unshallow") === undefined)
+      git("fetch", "--quiet", "--tags");
     found = describe();
   }
   const dirty =
-    !process.env.OPENCHARM_COMMIT &&
+    !fromCi &&
     (git("status", "--porcelain", "--untracked-files=no") ?? "").length > 0;
   return fromDescribe(found, commit, dirty);
 }

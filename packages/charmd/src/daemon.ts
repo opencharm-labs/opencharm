@@ -191,7 +191,9 @@ async function startDaemon(
   websocketUrl = config.publicUrl ?? url;
   if (!options.quiet)
     console.log(
-      `charmd ${options.identity ?? ""} listening on ${url}`.replace("  ", " ")
+      ["charmd", options.identity, "listening on", url]
+        .filter(Boolean)
+        .join(" ")
     );
 
   return {

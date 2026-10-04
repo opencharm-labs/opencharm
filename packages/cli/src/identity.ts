@@ -2,7 +2,8 @@
 // stamps for a release (0.0.0 from source); the commit is injected by tsdown at build time, or read
 // from git when running from source.
 import { execFileSync } from "node:child_process";
-import { dirname } from "node:path";
+import { existsSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import pkg from "../package.json" with { type: "json" };
@@ -35,10 +36,16 @@ function gitCommit(cwd: string): string {
 }
 
 // Which starter commit a workspace began from: `init` keeps the starter as the `upstream` remote, so
-// it's the last commit the workspace shares with it; undefined outside a starter workspace. Nothing
-// is written to the workspace for this (spec 015).
+// it's the last commit the workspace shares with it. Only a workspace counts (opencharm.json at the
+// repo's root), not any repo with an upstream remote, like a fork. Nothing is written for this.
 function starterCommit(dir: string): string | undefined {
   try {
+    if (
+      !existsSync(
+        join(git(dir, "rev-parse", "--show-toplevel"), "opencharm.json")
+      )
+    )
+      return undefined;
     return git(
       dir,
       "rev-parse",

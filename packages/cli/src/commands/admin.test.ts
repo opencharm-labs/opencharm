@@ -149,6 +149,29 @@ describe("opencharm status", () => {
     expect(out()).toMatch(/pip\s+unlocked\s+emulator cli@0\.2\.0 \(abc1234\)/);
   });
 
+  it("refuses a status answer it can't trust, instead of printing it (spec 015)", async () => {
+    const { ctx, out, err } = context();
+    const send = vi.fn().mockResolvedValue({
+      charmd: { not: "a string" },
+      charms: [
+        {
+          name: "pip",
+          state: "unlocked",
+          blocked: false,
+          failedTries: 0,
+          build: { kind: "emulator" },
+        },
+      ],
+    });
+    await runAdminCommand(ctx, "status", [], {
+      socket: SOCKET,
+      send,
+      prompt: vi.fn(),
+    });
+    expect(out()).toBe("");
+    expect(err()).toContain("Unexpected answer from charmd");
+  });
+
   it("says so when nothing is paired", async () => {
     const { ctx, out } = context();
     const send = vi.fn().mockResolvedValue({ charms: [] });
