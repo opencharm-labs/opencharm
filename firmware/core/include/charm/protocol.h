@@ -58,7 +58,18 @@ struct ServerMessage {
 // Returns false for anything that is not a valid message from charmd; never throws.
 bool parse_server_message(std::string_view json, ServerMessage& out);
 
-std::string client_hello();
+// The commit this core was built from (spec 015), in a source file CMake generates.
+extern const char kBuildCommit[];
+
+// What the charm runs, sent in hello (spec 015): kind is "emulator", "desktop" or "board"; version
+// is the release identity of what ships it (e.g. "cli@0.2.0"). Empty kind = not sent.
+struct Build {
+  std::string kind;
+  std::string version;
+  std::string commit;
+};
+
+std::string client_hello(const Build& build = {});
 std::string client_listen(bool start, std::string_view session_id);
 std::string client_abort(std::string_view session_id, std::string_view reason);
 std::string client_unlock(std::string_view pin);

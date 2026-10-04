@@ -20,6 +20,8 @@ query.set("notch", String(geometry.notch * 2));
 query.set("strip", String(geometry.strip * 2));
 if (geometry.fakeMic) query.set("mic", "fake");
 if (geometry.url) query.set("url", geometry.url);
+// The charm says what it runs in hello (spec 015): this app's release identity.
+query.set("version", (await invoke("app_identity")).version);
 window.charmParams = query.toString();
 
 try {

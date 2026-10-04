@@ -7,7 +7,7 @@ description: >
   version and writes the notes.
 inputs:
   unit:
-    description: cli or desktop
+    description: cli, desktop or web
     required: true
   notes:
     description: Where to write the release notes

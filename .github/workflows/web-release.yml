@@ -1,0 +1,79 @@
+name: Web release
+# main is production: Vercel deploys every merge. After every push to main whose CI passed, this
+# decides whether the website has a new release (tools/release: conventional-commit titles since the
+# last web@ tag, in apps/web and packages/design); if so it tags web@<version> and creates the GitHub
+# release with the notes, a dated reference of what went live (CONTRIBUTING "Releasing", spec 015).
+# Nothing to publish: the site's title block and /version.json show the release and commit live. A
+# failed run can be re-run, or started again by hand on main (Actions → Web release → Run workflow).
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+# Real releases run one at a time, in order (a newer one waiting replaces an older one waiting: it
+# covers the same commits and more). Runs that release nothing get a group of their own, so they never
+# displace a waiting release.
+# The release condition appears here and in the first job's `if` (GitHub allows no variables in either):
+# keep the two identical.
+concurrency:
+  group: ${{ github.workflow }}-${{ ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')) && 'release' || github.run_id }}
+  cancel-in-progress: false
+permissions:
+  contents: read
+env:
+  SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+jobs:
+  plan:
+    if: (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      version: ${{ steps.plan.outputs.version }}
+      tag: ${{ steps.plan.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - id: plan
+        uses: ./.github/actions/release-plan
+        with:
+          unit: web
+          notes: ${{ runner.temp }}/notes/notes.md
+      - if: steps.plan.outputs.version != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: web-notes
+          path: ${{ runner.temp }}/notes
+          if-no-files-found: error
+  # Runs no installed code: only the notes and the GitHub API.
+  release:
+    needs: plan
+    if: needs.plan.outputs.version != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: web-notes
+          path: ${{ runner.temp }}/notes
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.plan.outputs.tag }}
+          VERSION: ${{ needs.plan.outputs.version }}
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "$TAG already exists"
+            exit 0
+          fi
+          echo "Live at https://opencharm.dev (Vercel deploys every merge to main; its title block and /version.json say which release and commit are live)." >> "$RUNNER_TEMP/notes/notes.md"
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$SHA" \
+            --title "web: $VERSION" --notes-file "$RUNNER_TEMP/notes/notes.md" --latest=false

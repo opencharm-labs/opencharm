@@ -1,8 +1,10 @@
+import { siteIdentity } from "@/lib/site-identity";
 import { cn } from "@/lib/utils";
 
 const CELLS = [
   { k: "DWG NO", v: "OC-001" },
-  { k: "REV", v: "0.1" },
+  // What this deploy is (spec 015), from the latest web@ release tag: web@0.3.1 (abc1234).
+  { k: "REV", v: siteIdentity().text },
   { k: "DATE", v: "2026-09-29" },
   { k: "SHEET", v: "1 / 1" },
   { k: "WEB", v: "opencharm.dev" },

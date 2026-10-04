@@ -85,6 +85,11 @@ jobs:
             echo "::error::opencharm@$VERSION is on npm from '${PUBLISHED:-an unrecorded commit}', not an ancestor of $SHA: find the commit in the package's provenance on npmjs.com and tag it by hand (gh release create cli@$VERSION --target <commit> --title 'cli: $VERSION' --generate-notes)"
             exit 1
           fi
+      # The exact commit for every build's identity (spec 015): stamping the version edits package.json,
+      # which would otherwise read as -dirty.
+      - if: steps.published.outputs.build == 'true'
+        shell: bash
+        run: echo "OPENCHARM_COMMIT=${SHA::7}" >> "$GITHUB_ENV"
       - if: steps.published.outputs.build == 'true'
         uses: ./.github/actions/setup
       - if: steps.published.outputs.build == 'true'

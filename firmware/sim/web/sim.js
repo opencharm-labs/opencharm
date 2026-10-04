@@ -122,6 +122,16 @@ window.charmSim = {
 };
 
 const M = await createCharm();
+// What this charm runs (spec 015): the desktop app passes its identity in charmParams, `opencharm sim`
+// in config.json. Shown in the side panel and sent to charmd in hello, never on the charm's screen.
+const version = params.get("version") || config.version || "unknown";
+withString(window.charmParams ? "desktop" : "emulator", (kind) =>
+  withString(version, (v) => M._sim_set_build(kind, v))
+);
+// The emulator's page has a BUILD line; the desktop app's page doesn't (its Settings show it).
+const buildLine = document.getElementById("build");
+if (buildLine)
+  buildLine.textContent = `${version} (${M.UTF8ToString(M._sim_commit())})`;
 const glyph = 0;
 M._sim_init(
   W,

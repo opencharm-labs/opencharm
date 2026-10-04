@@ -5,6 +5,7 @@ import type { PairingRegistry } from "../auth/pairing";
 import type { Session } from "../device/session";
 import { type CharmLook, type Look, lookFields } from "../look";
 import type { StateStore } from "../store/state-store";
+import type { CharmBuild } from "@opencharm-labs/protocol/messages";
 
 type CharmStatus = {
   id: string;
@@ -13,13 +14,14 @@ type CharmStatus = {
   failedTries: number;
   connected: boolean;
   state: string;
+  build: CharmBuild | undefined;
 };
 type AdminActions = {
   pair: (input: unknown) => Promise<{ id: string; name: string }>;
   lock: (input: unknown) => Promise<{ connected: number }>;
   unlock: (input: unknown) => Promise<{ connected: number }>;
   revoke: (input: unknown) => Promise<{ connected: number }>;
-  status: () => { charms: CharmStatus[] };
+  status: () => { charmd: string; starter?: string; charms: CharmStatus[] };
   devFace: (input: unknown) => Promise<{ connected: number }>;
   devSay: (input: unknown) => Promise<{ connected: number }>;
   devAsk: (input: unknown) => Promise<{ answer: "yes" | "no" }>;
@@ -31,6 +33,9 @@ type AdminDeps = {
   sessions: () => Iterable<Session>;
   look: CharmLook;
   agentCanChangeLook: boolean;
+  // What this charmd is (spec 015): the CLI that runs it passes its identity.
+  identity?: string;
+  starter?: string | undefined;
 };
 
 const pairInput = z.object({
@@ -91,6 +96,8 @@ function createAdminActions({
   sessions,
   look,
   agentCanChangeLook,
+  identity,
+  starter,
 }: AdminDeps): AdminActions {
   function sessionsOf(charmId: string): Session[] {
     return [...sessions()].filter(
@@ -213,6 +220,8 @@ function createAdminActions({
     },
     status() {
       return {
+        charmd: identity ?? "unknown",
+        ...(starter ? { starter } : {}),
         charms: store.list().map((charm) => {
           const live = sessionsOf(charm.id).at(-1);
           return {
@@ -222,6 +231,7 @@ function createAdminActions({
             failedTries: charm.failedTries,
             connected: live !== undefined,
             state: live?.state ?? "offline",
+            build: live?.build,
           };
         }),
       };

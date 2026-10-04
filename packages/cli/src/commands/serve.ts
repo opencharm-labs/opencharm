@@ -1,8 +1,12 @@
+import { existsSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+
 import { loadConfig } from "@opencharm-labs/charmd/config";
 import { startDaemon } from "@opencharm-labs/charmd/daemon";
 
 import { flagValue } from "../args";
 import type { CliContext } from "../context";
+import { identity, starterCommit } from "../identity";
 
 // Runs charmd, the charm daemon, in the foreground; systemd or a terminal owns its lifetime.
 async function runServe(
@@ -12,9 +16,19 @@ async function runServe(
   let config;
   let daemon;
   try {
-    config = loadConfig(flagValue(args, "--config"));
+    const configPath = flagValue(args, "--config");
+    config = loadConfig(configPath);
+    const workspace = configPath
+      ? dirname(resolve(configPath))
+      : existsSync("opencharm.json")
+        ? process.cwd()
+        : undefined;
     daemon = await startDaemon(config, {
       quiet: true,
+      identity: identity().text,
+      // The workspace is the folder of the config charmd loaded: --config, or opencharm.json here
+      // (its other default, /etc/opencharm/charmd.json, is a server's, never a workspace).
+      starter: workspace ? starterCommit(workspace) : undefined,
       // The charm's tools for ACP agents: this same CLI as `opencharm mcp`. execArgv keeps loaders
       // such as tsx in development; a debugger flag must not be copied into every child.
       charmTools: {
@@ -37,7 +51,9 @@ async function runServe(
     process.exitCode = 1;
     return;
   }
-  ctx.out.write(`charmd (the charm daemon) is listening on ${daemon.url}\n`);
+  ctx.out.write(
+    `charmd (the charm daemon) ${identity().text} is listening on ${daemon.url}\n`
+  );
   ctx.out.write(`Admin socket: ${config.adminSocket}\n`);
   ctx.out.write("Pair a charm: opencharm pair <code>   Stop: Ctrl-C\n");
   const stop = () => {

@@ -8,6 +8,7 @@ import { loadConfig } from "@opencharm-labs/charmd/config";
 
 import { flagValue } from "../args";
 import type { CliContext } from "../context";
+import { identity } from "../identity";
 
 const DEFAULT_PORT = 5174;
 const TYPES: Record<string, string> = {
@@ -47,7 +48,7 @@ function createSimServer(dir: string, charmdUrl: string): Server {
     if (path === "/config.json") {
       res
         .writeHead(200, { "content-type": TYPES[".json"] })
-        .end(JSON.stringify({ url: charmdUrl }));
+        .end(JSON.stringify({ url: charmdUrl, version: identity().version }));
       return;
     }
     const file = resolve(

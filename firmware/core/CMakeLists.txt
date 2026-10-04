@@ -30,6 +30,28 @@ add_library(charm_logic STATIC
   src/app.cpp
 )
 target_include_directories(charm_logic PUBLIC include PRIVATE src)
+# The commit the core is built from (spec 015): OPENCHARM_COMMIT when CI sets it (exact even after
+# CI stamps a version into package.json), else the short hash, "-dirty" with tracked changes, and
+# "unknown" without git. Read when CMake configures (the npm scripts reconfigure on every run, and CI
+# builds fresh); it lands in one generated file, so a change recompiles only that file. A plain
+# incremental `cmake --build` keeps the commit from the last configure.
+if(DEFINED ENV{OPENCHARM_COMMIT} AND NOT "$ENV{OPENCHARM_COMMIT}" STREQUAL "")
+  set(CHARM_COMMIT "$ENV{OPENCHARM_COMMIT}")
+else()
+  execute_process(COMMAND git rev-parse --short HEAD WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    OUTPUT_VARIABLE CHARM_COMMIT OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET RESULT_VARIABLE CHARM_GIT)
+  if(NOT CHARM_GIT EQUAL 0 OR CHARM_COMMIT STREQUAL "")
+    set(CHARM_COMMIT "unknown")
+  else()
+    execute_process(COMMAND git diff --quiet HEAD WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+      RESULT_VARIABLE CHARM_DIRTY ERROR_QUIET)
+    if(NOT CHARM_DIRTY EQUAL 0)
+      set(CHARM_COMMIT "${CHARM_COMMIT}-dirty")
+    endif()
+  endif()
+endif()
+configure_file(src/build_commit.cpp.in ${CMAKE_CURRENT_BINARY_DIR}/build_commit.cpp @ONLY)
+target_sources(charm_logic PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/build_commit.cpp)
 target_link_libraries(charm_logic PUBLIC cjson)
 if(NOT MSVC)
   target_compile_options(charm_logic PRIVATE -Wall -Wextra -Wpedantic -fno-exceptions -fno-rtti)

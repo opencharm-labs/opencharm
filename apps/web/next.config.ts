@@ -1,5 +1,10 @@
 import type { NextConfig } from "next";
 
+import { buildIdentity } from "./src/lib/build-identity";
+
+// What this deploy is (spec 015), computed once and inlined into the page and /version.json.
+const BUILD = buildIdentity();
+
 // A static page that loads nothing from other origins (HSTS keeps it on https, so no request ever
 // needs upgrading). Inline scripts stay allowed: a statically
 // rendered page can't carry per-request nonces, and Next.js inlines its bootstrap. Development adds
@@ -35,6 +40,9 @@ const SECURITY_HEADERS = [
 ];
 
 const nextConfig: NextConfig = {
+  env: {
+    OPENCHARM_WEB_IDENTITY: JSON.stringify(BUILD),
+  },
   // Memoises components at build time, so the page needs no hand-written useMemo or useCallback.
   reactCompiler: true,
   poweredByHeader: false,

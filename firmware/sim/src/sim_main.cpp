@@ -30,6 +30,7 @@ struct Sim {
   std::unique_ptr<charm::LvglView> view;
   std::unique_ptr<charm::App> app;
   std::string token;
+  charm::Build build;  // set by sim_set_build before sim_init (spec 015)
 };
 
 Sim sim;
@@ -77,6 +78,14 @@ EM_JS(void, js_panel, (int open), { charmSim.panel(!!open); });
 
 extern "C" {
 
+// What this charm runs, sent in hello (spec 015): kind "emulator" or "desktop", version the release
+// identity of what ships it (e.g. "cli@0.2.0"); the commit is the core's own. Call before sim_init.
+EMSCRIPTEN_KEEPALIVE void sim_set_build(const char* kind, const char* version) {
+  sim.build = {kind, version, charm::kBuildCommit};
+}
+
+EMSCRIPTEN_KEEPALIVE const char* sim_commit() { return charm::kBuildCommit; }
+
 // notch_width > 0: the notch shape (desktop charm); strip_height is the menu-bar strip in pixels.
 EMSCRIPTEN_KEEPALIVE uint8_t* sim_init(int width, int height, int round, uint32_t glyph,
                                        int notch_width, int strip_height) {
@@ -102,7 +111,9 @@ EMSCRIPTEN_KEEPALIVE uint8_t* sim_init(int width, int height, int round, uint32_
   options.notch_width = notch_width;
   options.strip_height = strip_height;
   sim.view = std::make_unique<charm::LvglView>(sim.display, options);
-  sim.app = std::make_unique<charm::App>(*sim.platform, *sim.view);
+  charm::AppOptions app_options;
+  app_options.build = sim.build;
+  sim.app = std::make_unique<charm::App>(*sim.platform, *sim.view, app_options);
   sim.view->on_pin([](void*, const char* pin) { sim.app->on_pin_entered(pin, sim.now); }, nullptr);
   sim.view->on_face_tap([](void*) { sim.app->on_touch_face(sim.now); }, nullptr);
   sim.view->on_panel([](void*, bool open) { js_panel(open ? 1 : 0); }, nullptr);

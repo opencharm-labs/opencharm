@@ -1,4 +1,4 @@
-// Used by the release workflows, on plain Node 24 (no install): `node tools/release/scripts/next-release.ts <cli|desktop> [--head <sha>]
+// Used by the release workflows, on plain Node 24 (no install): `node tools/release/scripts/next-release.ts <cli|desktop|web> [--head <sha>]
 // [--notes <file>]`. Prints the plan; in GitHub Actions also sets the outputs version, tag and previous
 // (version and tag empty when there is nothing to release) and writes the release notes to --notes.
 import { execFileSync } from "node:child_process";

@@ -20,6 +20,7 @@ import { runServe } from "./commands/serve";
 import { runSetup } from "./commands/setup";
 import { runSim } from "./commands/sim";
 import { runStates } from "./commands/states";
+import { identity } from "./identity";
 
 const DEFAULT_SIGNAL = "#FF5A1F";
 
@@ -43,7 +44,7 @@ async function main(argv: readonly string[]): Promise<void> {
   const ctx = buildContext(argv);
   const { command, rest, help, version } = parseArgs(argv);
   if (version) {
-    ctx.out.write(`${ctx.version}\n`);
+    ctx.out.write(`${identity().text}\n`);
     return;
   }
   if (help || command === "help") {

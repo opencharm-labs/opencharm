@@ -10,6 +10,17 @@ body:
     validations:
       required: true
   - type: textarea
+    id: builds
+    attributes:
+      label: What you were running
+      description: >
+        Paste the output of `opencharm status` (it names charmd, each connected charm and the starter
+        your workspace began from). The desktop app shows its identity at the bottom of Settings; the
+        website, in its title block (REV) or at opencharm.dev/version.json.
+      render: text
+    validations:
+      required: true
+  - type: textarea
     id: logs
     attributes:
       label: Output

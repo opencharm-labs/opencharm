@@ -3,7 +3,7 @@
 // the only record of versions; the repository's package.json files say 0.0.0. Only titles count:
 // pull requests are squash-merged, so the title is the pull request's own word on what it changes.
 
-type Unit = "cli" | "desktop";
+type Unit = "cli" | "desktop" | "web";
 
 type RawCommit = { sha: string; subject: string; body: string };
 
@@ -35,7 +35,8 @@ type Version = [number, number, number];
 // What each unit ships, so only changes there count for it. The CLI bundles charmd, protocol, design
 // and the emulator (firmware/core, firmware/sim; not a board port); its npm dependencies are external,
 // installed from their ranges, so the lockfile never ships. The desktop app is its own code, the
-// emulator, the app icon and the face engine its pages include (packages/design).
+// emulator, the app icon and the face engine its pages include (packages/design). The website is
+// apps/web and the face engine it shows.
 const UNITS: Record<Unit, readonly string[]> = {
   cli: [
     "packages/cli",
@@ -52,6 +53,7 @@ const UNITS: Record<Unit, readonly string[]> = {
     "brand/icon",
     "packages/design",
   ],
+  web: ["apps/web", "packages/design"],
 };
 
 const SECTIONS: ReadonlyArray<[string, string]> = [

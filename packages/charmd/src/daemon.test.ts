@@ -158,6 +158,23 @@ describe("charmd over a real socket", () => {
     expect(d.admin.status().charms[0]).toMatchObject({ state: "unlocked" });
   });
 
+  it("reports what charmd and each connected charm run, in status", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "oc-daemon-"));
+    daemon = await startDaemon(
+      parseConfig({ listen: { port: 0 }, statePath: join(dir, "state.json") }),
+      { quiet: true, identity: "cli@0.2.0 (abc1234)", starter: "def5678" }
+    );
+    const d = daemon;
+    const { token } = await pair(d);
+    const build = { kind: "emulator", version: "cli@0.2.0", commit: "abc1234" };
+    const again = await connectFakeCharm(d.url, token, { build });
+    await again.next(isOp("locked"));
+    const status = d.admin.status();
+    expect(status.charmd).toBe("cli@0.2.0 (abc1234)");
+    expect(status.starter).toBe("def5678");
+    expect(status.charms[0]).toMatchObject({ build });
+  });
+
   it("tells charms where to connect on /ota/", async () => {
     const { daemon: d } = await start();
     const response = await fetch(

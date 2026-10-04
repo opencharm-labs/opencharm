@@ -1,3 +1,6 @@
+import { charmBuild } from "@opencharm-labs/protocol/messages";
+import { z } from "zod";
+
 import { VALUE_FLAGS, firstPositional, flagValue } from "../args";
 import type { CliContext } from "../context";
 
@@ -6,12 +9,31 @@ type AdminDeps = {
   send: (socket: string, request: Record<string, unknown>) => Promise<unknown>;
   prompt: (question: string) => Promise<string>;
 };
-type CharmRow = {
-  name: string;
-  state: string;
-  blocked: boolean;
-  failedTries: number;
-};
+// What `status` prints comes from the admin socket: checked before it reaches the terminal (spec 015).
+// A charm's build uses the protocol's own schema; an informational line that doesn't fit is left out
+// rather than hiding the charms.
+const statusSchema = z.object({
+  charmd: z
+    .string()
+    .regex(/^[\w.@+() -]{1,96}$/)
+    .optional()
+    .catch(undefined),
+  starter: z
+    .string()
+    .regex(/^[0-9a-f]{4,40}$/)
+    .optional()
+    .catch(undefined),
+  charms: z.array(
+    z.object({
+      name: z.string(),
+      state: z.string(),
+      blocked: z.boolean(),
+      failedTries: z.number(),
+      build: charmBuild.optional().catch(undefined),
+    })
+  ),
+});
+type CharmRow = z.infer<typeof statusSchema>["charms"][number];
 type LookRow = {
   name: string;
   colour: string;
@@ -147,7 +169,15 @@ async function look(
   );
 }
 
-function printStatus(ctx: CliContext, charms: CharmRow[]): void {
+function printStatus(
+  ctx: CliContext,
+  charms: CharmRow[],
+  charmd: string | undefined,
+  starter: string | undefined
+): void {
+  // What's running, for bug reports (spec 015).
+  if (charmd) ctx.out.write(`charmd ${charmd}\n`);
+  if (starter) ctx.out.write(`workspace from starter ${starter}\n`);
   if (charms.length === 0) {
     ctx.out.write(
       "No charms paired yet. Start one and run: opencharm pair <code>\n"
@@ -160,8 +190,12 @@ function printStatus(ctx: CliContext, charms: CharmRow[]): void {
       : charm.failedTries > 0
         ? `${charm.failedTries} wrong PIN(s)`
         : "";
+    const build = charm.build
+      ? `${charm.build.kind} ${charm.build.version} (${charm.build.commit})`
+      : "";
+    const details = [note, build].filter(Boolean).join("  ");
     ctx.out.write(
-      `${charm.name.padEnd(16)} ${charm.state.padEnd(10)} ${note}\n`.trimEnd() +
+      `${charm.name.padEnd(16)} ${charm.state.padEnd(10)} ${details}`.trimEnd() +
         "\n"
     );
   }
@@ -187,10 +221,18 @@ async function runAdminCommand(
       return;
     }
     if (command === "status") {
-      const { charms } = (await deps.send(deps.socket, { cmd: "status" })) as {
-        charms: CharmRow[];
-      };
-      printStatus(ctx, charms);
+      const answer = statusSchema.safeParse(
+        await deps.send(deps.socket, { cmd: "status" })
+      );
+      if (!answer.success) {
+        fail(
+          ctx,
+          "Unexpected answer from charmd: is it the same version as this CLI?"
+        );
+        return;
+      }
+      const { charms, charmd, starter } = answer.data;
+      printStatus(ctx, charms, charmd, starter);
       return;
     }
     const charm = firstPositional(args);

@@ -26,12 +26,30 @@ const audioParams = z.object({
 });
 
 // Charm → charmd
+// What the charm runs (spec 015): the board's firmware, the emulator, or the desktop app's emulator.
+// `version` is the release identity of what ships it (cli@0.2.0, desktop@0.2.0), `commit` the core's.
+// Only plain characters, so `opencharm status` can print it safely; fields charmd doesn't know are
+// ignored and any kind is kept, so newer charms still connect, and a build that doesn't fit is
+// dropped: it's information, never a reason to refuse a charm.
+const plain = (max: number) =>
+  z
+    .string()
+    .min(1)
+    .max(max)
+    .regex(/^[\w.@+-]+$/);
+const charmBuild = z.object({
+  kind: plain(16),
+  version: plain(64),
+  commit: plain(40),
+});
+const build = charmBuild.optional().catch(undefined);
 const clientHello = z.object({
   type: z.literal("hello"),
   version: z.number().int().positive(),
   features: z.record(z.string(), z.boolean()).optional(),
   transport: z.literal("websocket"),
   audio_params: audioParams,
+  build,
 });
 const listen = z.object({
   session_id: sessionId,
@@ -192,9 +210,11 @@ function messageKind(message: Kinded): string {
 
 export {
   CLIENT_KINDS,
+  charmBuild,
   CLIENT_SCHEMAS,
   SERVER_KINDS,
   SERVER_SCHEMAS,
   messageKind,
 };
 export type { ClientMessage, ServerMessage };
+export type CharmBuild = z.infer<typeof charmBuild>;

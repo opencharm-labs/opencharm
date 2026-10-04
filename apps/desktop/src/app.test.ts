@@ -63,6 +63,19 @@ describe("the desktop app", () => {
     expect(pkg.scripts.bundle).toBe("tauri build");
   });
 
+  it("says what it runs: Settings shows its identity, and its charm sends it in hello (spec 015)", () => {
+    expect(read(APP, "web", "settings.js")).toContain('invoke("app_identity")');
+    expect(read(APP, "web", "settings.html")).toContain('id="identity"');
+    expect(read(APP, "web", "desktop.js")).toContain('query.set("version"');
+    expect(read(APP, "src-tauri", "src", "lib.rs")).toContain("app_identity,");
+    // The desktop page has no #build (Settings shows the identity), so the shared emulator code must
+    // not assume one: an unguarded write would stop the charm from starting.
+    expect(read(APP, "web", "desktop.html")).not.toContain('id="build"');
+    expect(read(REPO, "firmware", "sim", "web", "sim.js")).toMatch(
+      /const buildLine = document\.getElementById\("build"\);\s*if \(buildLine\)/
+    );
+  });
+
   it("is built and published by the release workflow", () => {
     const release = read(REPO, ".github", "workflows", "desktop-release.yml");
     expect(release).toContain("npm run bundle -w apps/desktop");
