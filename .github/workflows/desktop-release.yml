@@ -192,7 +192,7 @@ jobs:
             echo
             echo "The desktop charm: OpenCharm under your Mac's notch (Windows: a pill at the top of the screen)."
             echo "Install and first-run notes: $README"
-            echo "Unsigned for now: compare SHA256SUMS.txt, or run gh attestation verify <file> --repo $GITHUB_REPOSITORY."
+            echo "No developer signature yet (the macOS app is signed ad hoc): compare SHA256SUMS.txt, or run gh attestation verify <file> --repo $GITHUB_REPOSITORY."
             echo "Provided as is, with no warranty."
             echo
             echo "$MARK"
