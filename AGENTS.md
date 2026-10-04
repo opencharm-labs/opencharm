@@ -59,7 +59,7 @@ Generated files (never edit by hand): `packages/design/faces.json`, `firmware/co
 
 - One agent at a time; the charm is a thin body: no API keys, no models, no PIN on the device.
 - charmd (the charm daemon) is thin: door (protocol, audio), guard (pairing, PIN, lock, permissions), voice plumbing. Behaviour belongs to the agent.
-- Controls: hold key = talk / yes on orange; press = wake, stop, dismiss, no; tap face = react. No required swipes. The mic opens only while the key is held.
+- Controls: hold key = talk / yes on orange; press = wake, stop, dismiss, no; tap face = react. No required swipes. The mic is on only while the key is down, and nothing leaves the charm unless it's a hold.
 - Face: glyph faces (two eyes + optional mouth), Geist Mono 800, identity colour on true black. Layouts: face, speech, decision. Orange `#FF5A1F` on screen only means "it needs you". Flat, no glow.
 - Hardware reference: Waveshare ESP32-S3-Touch-AMOLED-2.16 (battery version). White is the default charm; users print the shell in any colour. Keychain strap leaves from the seam, no through-hole.
 - Everything is proven on localhost (emulator + charmd + any agent, including Claude Code) before the real device.

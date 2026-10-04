@@ -10,6 +10,9 @@ namespace {
 constexpr uint8_t kDimPercent = 20;
 constexpr uint8_t kFullPercent = 100;
 constexpr uint32_t kQuickTapsMs = 2000;  // three taps within this = dizzy
+// Up to about a second of 60 ms frames before a hold is confirmed (it takes 200 ms): enough for a
+// late tick, bounded for the board's memory.
+constexpr size_t kPrerollFrames = 16;
 
 struct Reaction {
   const char* face;
@@ -262,6 +265,8 @@ void App::handle(const ServerMessage& m, uint32_t now) {
       if (talking_) {
         end_talk(false);
         hal_.send_text(client_abort(session_id_, "ask"));
+      } else if (capturing_) {
+        end_talk(false);
       }
       asking_ = true;
       key_answered_ = key_down_;  // a hold already in progress isn't an answer
@@ -310,8 +315,14 @@ void App::on_audio(const uint8_t* data, size_t size) {
 }
 
 void App::on_mic_frame(const uint8_t* data, size_t size) {
-  // The mic rule: audio leaves the charm only while the key is physically held down.
-  if (talking_ && key_down_ && screen_ == Screen::Face) hal_.send_audio(data, size);
+  // The mic rule: the mic is on only while the key is down, and audio leaves the charm only once
+  // that is a hold (a talk); until then it waits in the pre-roll, and a press throws it away.
+  if (!key_down_ || screen_ != Screen::Face) return;
+  if (talking_) {
+    hal_.send_audio(data, size);
+  } else if (capturing_ && preroll_.size() < kPrerollFrames) {
+    preroll_.emplace_back(data, data + size);
+  }
 }
 
 void App::on_key(bool down, uint32_t now) {
@@ -327,11 +338,19 @@ void App::on_key(bool down, uint32_t now) {
       stop_reacting();
       if (!calm_) view_.squish();
       view_.show_face("listening", "");
+      // Listen from key-down, so a quick talker's first word is kept. Not while it speaks: that
+      // press is a stop, and the mic would hear the charm itself.
+      if (!speaking_ && !talking_) {
+        capturing_ = true;
+        preroll_.clear();
+        hal_.mic_start();
+      }
     }
     return;
   }
   if (!key_down_) return;
   key_down_ = false;
+  if (capturing_) end_talk(false);  // a press: its audio is dropped, nothing was sent
   if (key_answered_) {
     key_answered_ = false;
     return;
@@ -390,11 +409,24 @@ void App::begin_talk() {
   if (speaking_) stop_speech(true);
   talking_ = true;
   line_.clear();
-  hal_.mic_start();
+  if (capturing_) {
+    capturing_ = false;  // the mic has been on since key-down
+  } else {
+    hal_.mic_start();
+  }
   hal_.send_text(client_listen(true, session_id_));
+  for (const auto& frame : preroll_) hal_.send_audio(frame.data(), frame.size());
+  preroll_.clear();
 }
 
 void App::end_talk(bool tell_server) {
+  if (capturing_) {
+    // Never became a talk: drop what was kept; the server never heard of it.
+    capturing_ = false;
+    preroll_.clear();
+    hal_.mic_stop();
+    return;
+  }
   if (!talking_) return;
   talking_ = false;
   view_.set_voice_level(0);

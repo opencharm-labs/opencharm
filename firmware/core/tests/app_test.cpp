@@ -16,9 +16,13 @@ struct FakeHal : charm::Hal {
   std::vector<std::string> events;
   std::map<std::string, std::string> store;
   int audio_out = 0;
+  std::string audio;  // the bytes sent, in order, to check what left the charm
   int audio_played = 0;
   void send_text(const std::string& json) override { sent.push_back(json); }
-  void send_audio(const uint8_t*, size_t) override { ++audio_out; }
+  void send_audio(const uint8_t* data, size_t size) override {
+    ++audio_out;
+    audio.append(reinterpret_cast<const char*>(data), size);
+  }
   void mic_start() override { events.push_back("mic_start"); }
   void mic_stop() override { events.push_back("mic_stop"); }
   void play_audio(const uint8_t*, size_t) override { ++audio_played; }
@@ -162,11 +166,11 @@ TEST_CASE("holding the key talks: the mic opens only while held") {
   r.unlocked();
   r.at(10000);
   r.app.on_key(true, r.now);
-  CHECK(r.view.last() == "face listening");  // reacts at once
-  CHECK(r.hal.events.empty());               // but the mic waits for a real hold
+  CHECK(r.view.last() == "face listening");                // reacts at once
+  CHECK(r.hal.events.back() == "mic_start");               // the mic is on while the key is down…
+  CHECK_FALSE(r.hal.sent_contains(R"("type":"listen")"));  // …but nothing is sent before a hold
   r.at(10250);
   CHECK(r.app.talking());
-  CHECK(r.hal.events.back() == "mic_start");
   CHECK(r.hal.sent_contains(R"("state":"start")"));
   r.app.on_mic_frame(reinterpret_cast<const uint8_t*>("x"), 1);
   CHECK(r.hal.audio_out == 1);
@@ -178,14 +182,61 @@ TEST_CASE("holding the key talks: the mic opens only while held") {
   CHECK(r.hal.audio_out == 1);  // nothing leaves after release
 }
 
-TEST_CASE("a short press never opens the mic") {
+TEST_CASE("a short press sends nothing: what the mic heard is dropped") {
   Rig r;
   r.unlocked();
-  r.hold(10000, 10100);
+  r.at(10000);
+  r.app.on_key(true, r.now);
+  r.app.on_mic_frame(reinterpret_cast<const uint8_t*>("a"), 1);
+  r.at(10100);
+  r.app.on_key(false, r.now);
   r.at(10500);
-  CHECK(r.hal.events.empty());
+  CHECK(r.hal.events == std::vector<std::string>{"mic_start", "mic_stop"});
+  CHECK(r.hal.audio_out == 0);
   CHECK_FALSE(r.hal.sent_contains(R"("type":"listen")"));
   CHECK(r.view.last() == "face neutral");
+}
+
+TEST_CASE("a hold sends what the mic heard from key-down, after listen start, in order") {
+  Rig r;
+  r.unlocked();
+  r.at(10000);
+  r.app.on_key(true, r.now);
+  r.app.on_mic_frame(reinterpret_cast<const uint8_t*>("he"), 2);
+  r.app.on_mic_frame(reinterpret_cast<const uint8_t*>("ll"), 2);
+  CHECK(r.hal.audio_out == 0);
+  r.at(10250);
+  REQUIRE(r.app.talking());
+  CHECK(r.hal.events == std::vector<std::string>{"mic_start"});  // opened once, at key-down
+  CHECK(r.hal.sent.back().find(R"("state":"start")") != std::string::npos);
+  r.app.on_mic_frame(reinterpret_cast<const uint8_t*>("o"), 1);
+  CHECK(r.hal.audio == "hello");
+}
+
+TEST_CASE("a question arriving before the hold is confirmed drops what the mic heard") {
+  Rig r;
+  r.unlocked();
+  r.at(10000);
+  r.app.on_key(true, r.now);
+  r.app.on_mic_frame(reinterpret_cast<const uint8_t*>("x"), 1);
+  r.server(kAskEarly);
+  CHECK(r.hal.events.back() == "mic_stop");
+  r.at(10300);
+  CHECK_FALSE(r.app.talking());
+  CHECK(r.hal.audio_out == 0);
+  CHECK_FALSE(r.hal.sent_contains(R"("type":"listen")"));
+}
+
+TEST_CASE("a press while it speaks stops it without listening to it") {
+  Rig r;
+  r.unlocked();
+  r.server(R"({"type":"tts","state":"start"})");
+  r.at(10000);
+  r.app.on_key(true, r.now);
+  CHECK(r.hal.events.empty());
+  r.at(10100);
+  r.app.on_key(false, r.now);
+  CHECK(r.hal.events == std::vector<std::string>{"stop_audio"});
 }
 
 TEST_CASE("mic frames are ignored when not talking, even unlocked") {
@@ -293,7 +344,8 @@ TEST_CASE("the screen dims after a minute idle and wakes on the key") {
   CHECK(r.hal.events.back() == "brightness 20");
   CHECK(r.app.dimmed());
   r.app.on_key(true, r.now);
-  CHECK(r.hal.events.back() == "brightness 100");
+  // It wakes, and the mic is ready in case this is a hold.
+  CHECK(r.hal.events == std::vector<std::string>{"brightness 20", "brightness 100", "mic_start"});
   CHECK_FALSE(r.app.dimmed());
 }
 

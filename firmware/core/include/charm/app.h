@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "charm/hal.h"
 #include "charm/protocol.h"
@@ -85,6 +86,10 @@ class App {
   bool key_down_ = false;
   uint32_t key_down_at_ = 0;
   bool talking_ = false;
+  // From key-down until the hold is confirmed: the mic is on and its frames wait here, so the first
+  // word isn't cut; a press drops them, and nothing has left the charm (spec 003).
+  bool capturing_ = false;
+  std::vector<std::vector<uint8_t>> preroll_;
   bool speaking_ = false;
   bool dimmed_ = false;
   uint32_t last_activity_ = 0;
