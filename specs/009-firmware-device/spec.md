@@ -14,6 +14,7 @@ The same core on the real charm: AMOLED face, real key, echo cancellation, Wi-Fi
 - Bench check first (`docs/build.md` section 4): speaker plug, GPIO18 button, stack depth, battery measurements; answers into `OPENCHARM.md`.
 - `firmware/device`: hard fork of 78/xiaozhi-esp32 (MIT, credit kept), ESP-IDF 6.0; remove xiaozhi.me defaults, activation, their UI and assets; keep board support, audio + echo cancellation, WebSocket, Wi-Fi setup and the config check (charmd `/ota/`).
 - ESP32 HAL implementation for the core; token in NVS; certificate check with the ESP-IDF CA bundle.
+- Playback: charmd sends speech about 250 ms ahead of real time, paced on its clock across the reply (#29), so the board's Opus playback queue holds at least 250 ms plus one packet (Microsoft's voice sends 20 ms packets, the local voices up to 60 ms) and never drops a packet it was sent early.
 - Wi-Fi setup: hotspot `OpenCharm-XXXX` + our setup page (network, password, charmd address).
 - Boot screen; key on GPIO18; touch; power: dim after 60 s.
 - CI builds the device firmware.
