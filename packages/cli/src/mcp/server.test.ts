@@ -144,6 +144,22 @@ describe("the charm's MCP server", () => {
     });
   });
 
+  it("set_look takes a colour of the person's own as #RRGGBB; charmd judges it", async () => {
+    const { call, calls } = setup(() => ({
+      name: "Pip",
+      colour: "#FF6EC7",
+      glyph: "#FF6EC7",
+      greeting: "Hi! I'm Pip.",
+      sleepAfterMinutes: 4,
+      motion: "full",
+      connected: 1,
+    }));
+    await call("set_look", { colour: "#FF6EC7" });
+    expect(calls).toEqual([
+      { cmd: "look", colour: "#FF6EC7", source: "agent" },
+    ]);
+  });
+
   it("set_look can't rename the charm or pick a colour it doesn't have", async () => {
     const { call, calls } = setup();
     expect((await call("set_look", { colour: "orange" })).error?.code).toBe(

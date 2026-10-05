@@ -23,10 +23,9 @@ const FACES = facesData.states.map((state) => state.id) as [
   string,
   ...string[],
 ];
-const COLOURS = facesData.colours.map((colour) => colour.id) as [
-  string,
-  ...string[],
-];
+const COLOURS = facesData.colours.map((colour) => colour.id);
+// The six by name, or one of the person's own; charmd refuses one too dark or too orange.
+const COLOUR = `^(${COLOURS.join("|")}|#[0-9A-Fa-f]{6})$`;
 // Limits match what the charm shows (spec 011).
 const line = z.string().min(1).max(200);
 const label = z.string().min(1).max(12);
@@ -140,9 +139,9 @@ const TOOLS: Tool[] = [
       properties: {
         colour: {
           type: "string",
-          enum: COLOURS,
+          pattern: COLOUR,
           description:
-            "cobalt is blue, lime green, lilac purple, sun yellow; white and coal light the glyphs white.",
+            "cobalt is blue, lime green, lilac purple, sun yellow; white and coal light the glyphs white. Any other colour as #RRGGBB (not orange, not too dark).",
         },
         greeting: {
           type: "string",
@@ -158,7 +157,7 @@ const TOOLS: Tool[] = [
     // Strict: the name and the switch that allows this tool are the person's, not the agent's.
     args: z
       .object({
-        colour: z.enum(COLOURS).optional(),
+        colour: z.string().regex(new RegExp(COLOUR)).optional(),
         greeting: z.string().max(40).optional(),
         motion: z.enum(["full", "calm"]).optional(),
       })
