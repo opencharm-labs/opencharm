@@ -254,29 +254,6 @@ const picker = mountColourPicker($("colours"), {
   },
 });
 
-// Your own colour: the picker shows it as you go and saves it when it closes; or type it. charmd
-// (and the app) refuse one too dark to see or too close to the needs-you orange, and say so.
-$("own-colour").addEventListener("input", (e) =>
-  charm.setColour(colourOf(e.target.value.toUpperCase()))
-);
-// macOS's colour panel may report every move as a change: save once it rests.
-let ownColourSave;
-$("own-colour").addEventListener("change", (e) => {
-  clearTimeout(ownColourSave);
-  const colour = e.target.value.toUpperCase();
-  ownColourSave = setTimeout(() => void saveLook({ colour }), 400);
-});
-$("own-hex").addEventListener("change", (e) => {
-  const typed = e.target.value.trim().toUpperCase();
-  if (!typed) return;
-  const colour = typed.startsWith("#") ? typed : `#${typed}`;
-  if (!OWN_COLOUR.test(colour)) {
-    status.textContent = "TYPE A COLOUR AS #RRGGBB";
-    return react("oops", 2200);
-  }
-  void saveLook({ colour });
-});
-
 // The voices that speak the system's language first, then the rest.
 voices = await invoke("list_voices");
 const language = navigator.language.split("-")[0].toLowerCase();

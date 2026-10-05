@@ -23,6 +23,20 @@ describe("the desktop app", () => {
     expect(existsSync(join(APP, "web", "setup.html"))).toBe(true);
   });
 
+  it("finds every element its windows' scripts look up, so a page never stops halfway", () => {
+    for (const page of ["settings", "setup"]) {
+      const html = read(APP, "web", `${page}.html`);
+      const ids = new Set(
+        [...html.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1])
+      );
+      const used = [
+        ...read(APP, "web", `${page}.js`).matchAll(/\$\("([a-z0-9-]+)"\)/g),
+      ].map((m) => m[1]);
+      for (const id of used)
+        expect(ids, `${page}.js uses #${id}`).toContain(id);
+    }
+  });
+
   it("lets the setup window use the app's commands and the folder picker", () => {
     const caps = ["default.json", "settings.json"].map(
       (file) =>
