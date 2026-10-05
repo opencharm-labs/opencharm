@@ -50,6 +50,28 @@ describe("speaking with a fallback", () => {
     expect(local.calls).toEqual([]);
   });
 
+  it("gets the chosen voice ready ahead, but not while it rests after failing", async () => {
+    let clock = 0;
+    let primed = 0;
+    const main = {
+      ...speaker("microsoft", fail),
+      prime: () => {
+        primed += 1;
+      },
+    };
+    const voice = speakWithFallback([main, speaker("local", ok("local"))], {
+      now: () => clock,
+    });
+    voice.prime?.();
+    expect(primed).toBe(1);
+    await voice.synthesize("One", new AbortController().signal);
+    voice.prime?.();
+    expect(primed).toBe(1);
+    clock = 61_000;
+    voice.prime?.();
+    expect(primed).toBe(2);
+  });
+
   it("speaks the sentence with the next voice when the chosen one fails, then rests it for a minute", async () => {
     let clock = 0;
     const main = speaker("microsoft", fail);

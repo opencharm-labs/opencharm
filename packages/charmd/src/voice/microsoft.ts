@@ -212,7 +212,8 @@ function connect(
 
 function createMicrosoftSpeaker(options: MicrosoftOptions = {}) {
   const voices = { ...DEFAULT_VOICES, ...options.voices };
-  const spareMs = options.spareMs ?? 30_000;
+  // Microsoft kept an idle connection 25 s and had closed it by 45 s (measured, 5 October 2026).
+  const spareMs = options.spareMs ?? 20_000;
   // Opening a connection takes about 400 ms (measured, 5 October 2026), most of the wait for the
   // first word of a short reply: one is opened while the key is held and used by the next sentence.
   // Used once, so nothing depends on the service taking several requests on one connection.
@@ -240,8 +241,31 @@ function createMicrosoftSpeaker(options: MicrosoftOptions = {}) {
       socket.terminate();
     }, spareMs).unref();
   };
-  const stream = (text: string, signal: AbortSignal, language = "en") =>
-    connect(text, language, voices, signal, options, takeSpare());
+  // A primed connection that fails before any audio (dropped while the agent thought) gets one
+  // fresh try, so a stale socket never counts as Microsoft failing (voice/speak.ts would rest it).
+  async function* stream(text: string, signal: AbortSignal, language = "en") {
+    const ready = takeSpare();
+    if (ready) {
+      let spoke = false;
+      try {
+        for await (const packet of connect(
+          text,
+          language,
+          voices,
+          signal,
+          options,
+          ready
+        )) {
+          spoke = true;
+          yield packet;
+        }
+        return;
+      } catch (error) {
+        if (spoke || signal.aborted) throw error;
+      }
+    }
+    yield* connect(text, language, voices, signal, options);
+  }
   return {
     name: "microsoft",
     prime,

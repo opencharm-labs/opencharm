@@ -101,8 +101,10 @@ function speakWithFallback(
         chain.map((speaker) => speaker.warm?.() ?? Promise.resolve())
       );
     },
-    // Only the first voice speaks unless it fails: only it gets ready ahead.
-    prime: () => first.prime?.(),
+    // Only the first voice speaks unless it fails: only it gets ready ahead, and not while it rests.
+    prime: () => {
+      if ((resting.get(first) ?? 0) <= now()) first.prime?.();
+    },
   };
 }
 

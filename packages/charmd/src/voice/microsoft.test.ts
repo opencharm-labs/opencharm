@@ -1,6 +1,6 @@
 import type { AddressInfo } from "node:net";
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { WebSocketServer, type WebSocket } from "ws";
 
 import { readOggOpus } from "../audio/ogg-opus";
@@ -191,8 +191,7 @@ describe("Microsoft's voice, primed while you speak", () => {
     const speaker = createMicrosoftSpeaker({ url });
     speaker.prime();
     speaker.prime();
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    expect(connections()).toBe(1);
+    await vi.waitFor(() => expect(connections()).toBe(1));
     const ogg = await speaker.synthesize("Hi.", new AbortController().signal);
     expect(readOggOpus(ogg).packets).toEqual(FRAMES);
     expect(connections()).toBe(1);
@@ -209,5 +208,34 @@ describe("Microsoft's voice, primed while you speak", () => {
     const ogg = await speaker.synthesize("Hi.", new AbortController().signal);
     expect(readOggOpus(ogg).packets).toEqual(FRAMES);
     expect(connections()).toBe(2);
+  });
+});
+
+describe("Microsoft's voice, when the primed connection has gone bad", () => {
+  it("tries once more on a fresh connection before any audio, so the voice doesn't rest", async () => {
+    const server = new WebSocketServer({ port: 0, host: "127.0.0.1" });
+    servers.push(server);
+    await new Promise<void>((resolve) => server.on("listening", resolve));
+    let connections = 0;
+    server.on("connection", (socket) => {
+      connections += 1;
+      // The first (primed) connection dies as soon as it's asked; the next one answers.
+      const dies = connections === 1;
+      let messages = 0;
+      socket.on("message", () => {
+        messages += 1;
+        if (messages !== 2) return;
+        if (dies) return socket.terminate();
+        socket.send(audioFrame(webm(FRAMES)));
+        socket.send("X-RequestId:abc\r\nPath:turn.end\r\n\r\n{}");
+      });
+    });
+    const url = `ws://127.0.0.1:${(server.address() as AddressInfo).port}/`;
+    const speaker = createMicrosoftSpeaker({ url });
+    speaker.prime();
+    await vi.waitFor(() => expect(connections).toBe(1));
+    const ogg = await speaker.synthesize("Hi.", new AbortController().signal);
+    expect(readOggOpus(ogg).packets).toEqual(FRAMES);
+    expect(connections).toBe(2);
   });
 });
