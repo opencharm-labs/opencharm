@@ -10,7 +10,13 @@ addEventListener("error", (e) =>
 addEventListener("unhandledrejection", (e) => log(`error: ${e.reason}`));
 
 log("starting");
-const geometry = await invoke("charm_geometry");
+// The app's own charmd gets a port from the system as it starts: wait until it has said which,
+// rather than knocking on a port someone else may hold.
+let geometry = await invoke("charm_geometry");
+while (geometry.autoPair && !geometry.url) {
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  geometry = await invoke("charm_geometry");
+}
 log(`geometry ${JSON.stringify(geometry)}`);
 const query = new URLSearchParams(location.search);
 query.set("shape", "notch");
