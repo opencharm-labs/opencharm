@@ -70,7 +70,7 @@ Several agents at once, an automatic updater, Windows-specific folder convention
 - [x] Settings: choose a folder, create a workspace in an empty one, choose the agent and the voice; the status line follows.
 - [x] The managed charmd starts with the right config (unit tests for the config built from the settings), restarts after a crash (back in 1 s after `kill -9`), and stops with its agent on quit.
 - [x] Automatic pairing and unlock with the app's PIN, verified in the built app (`OPENCHARM_DATA` throwaway folder, fake ACP agent, fake voice, fake mic): it paired, unlocked and ran one spoken turn with no code or PIN shown.
-- [x] The PIN in an owner-only file, never the keychain (Rust tests: created 0600, reused, a bad file replaced); an install paired with the old keychain PIN pairs again by itself, once, with no prompt (built app with `OPENCHARM_DATA`, 5 October 2026: refused, revoked, paired, unlocked, one turn).
+- [x] The PIN in an owner-only file, no longer read from the keychain (Rust tests: created 0600, reused, a bad file replaced); an install paired with the old keychain PIN pairs again by itself, once, with no prompt; the old keychain item is left as it is, unused, since deleting it could ask one last time (built app with `OPENCHARM_DATA`, 5 October 2026: refused, revoked, paired, unlocked, one turn).
 - [x] Verified in the built app against a terminal charmd with the fake mic: pairing, the typed PIN, one spoken turn end to end.
 - [x] Rust tests (geometry, settings, managed charmd, pairing) and clippy clean; `npm run check` green.
 - [x] CI checks every PR that touches the app on macOS and Windows; `desktop-release.yml` publishes unsigned builds with checksums and provenance.

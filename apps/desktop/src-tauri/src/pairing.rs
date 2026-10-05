@@ -131,7 +131,7 @@ pub fn admin(socket: &Path, request: &Value) -> Result<Value, String> {
 }
 
 /// Pair the charm showing `code`, replacing an earlier pairing (this app is the only one using
-/// this charmd, so an old "desktop" is ours: a forgotten pairing or a reset keychain).
+/// this charmd, so an old "desktop" is ours: a forgotten pairing or a new PIN file).
 pub fn pair(socket: &Path, code: &str, pin: &str) -> Result<(), String> {
     let request = json!({ "cmd": "pair", "code": code, "pin": pin, "name": NAME });
     match admin(socket, &request) {
