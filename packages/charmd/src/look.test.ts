@@ -89,6 +89,36 @@ describe("CharmLook", () => {
     });
   });
 
+  it("lights the glyphs in a colour of your own, as #RRGGBB", () => {
+    const look = new CharmLook(DEFAULTS, "Pip");
+    expect(look.apply({ colour: "#ff6ec7" })).toMatchObject({
+      colour: "#FF6EC7",
+      glyph: "#FF6EC7",
+    });
+    expect(look.message().glyph).toBe("#FF6EC7");
+  });
+
+  it.each([
+    ["#FF5A1F", /orange/],
+    ["#F26B2A", /orange/],
+    ["#E0480F", /orange/],
+    ["#202020", /dark/],
+    ["#000000", /dark/],
+    ["pink", /#RRGGBB/],
+    ["#FFF", /#RRGGBB/],
+  ])("refuses %s as a colour of its own", (colour, message) => {
+    const look = new CharmLook(DEFAULTS, "Pip");
+    expect(() => look.apply({ colour })).toThrow(message);
+  });
+
+  it.each(["#FF0000", "#FFD400", "#3F7BFF", "#8A8A8A", "#F7C59F"])(
+    "takes %s, which reads on black and isn't the needs-you orange",
+    (colour) => {
+      const look = new CharmLook(DEFAULTS, "Pip");
+      expect(look.apply({ colour }).glyph).toBe(colour);
+    }
+  );
+
   it("refuses a change the charm couldn't show, and keeps the old look", () => {
     const look = new CharmLook(DEFAULTS, "Pip");
     expect(() => look.apply({ colour: "orange" })).toThrow(/colour/);

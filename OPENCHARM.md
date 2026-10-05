@@ -145,7 +145,7 @@ Full definitions (offsets, rotations, effects): `packages/design/faces.json`.
 
 ### 5.3 Colour identity
 
-You pick the charm's colour when you name it; the shell and the glyphs share it. On screen, orange (`#FF5A1F`) is reserved for "it needs you". The identity (name, colour, greeting, sleep delay, calm motion) is the `charm` block of the workspace's `opencharm.json` (spec 014): charmd sends it to the charm before every unlock, and the agent may try on a colour with `set_look` until charmd restarts.
+You pick the charm's colour when you name it; the shell and the glyphs share it. On screen, orange (`#FF5A1F`) is reserved for "it needs you". The identity (name, colour, greeting, sleep delay, calm motion) is the `charm` block of the workspace's `opencharm.json` (spec 014): charmd sends it to the charm before every unlock, and the agent may try on a colour with `set_look` until charmd restarts. Besides the six below, any colour of your own (`#RRGGBB`) lights the glyphs as it is, unless it's too dark to read on true black or could pass for the signal orange.
 
 | Colour          | Shell     | Glyphs    | Key       |
 | --------------- | --------- | --------- | --------- |

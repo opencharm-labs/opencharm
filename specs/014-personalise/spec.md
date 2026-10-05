@@ -11,7 +11,7 @@ A companion should feel like yours. Today every charm looks the same on screen (
 
 - **The charm's identity**, stored once in the workspace's `opencharm.json`, in a new `charm` block (validated with zod in charmd). It holds:
   - `name`: up to 12 characters; default: the first heading of the agent's `AGENTS.md` (Momo in the starter)
-  - `colour`: one of the six identity colours (White, Cobalt, Lime, Lilac, Sun, Coal; `packages/design`); the glyphs light up in its glyph colour
+  - `colour`: one of the six identity colours (White, Cobalt, Lime, Lilac, Sun, Coal; `packages/design`), whose glyph colour the glyphs light up in; or a colour of your own as `#RRGGBB`, used as it is for the glyphs. An own colour is refused when it's too dark to read on true black (relative luminance under 0.05) or could pass for the signal orange (a bright, saturated red-orange, hue 6–32°); charmd and the app check the same rule
   - `greeting`: the line after unlock; default "Hi! I'm {name}."
   - `sleepAfterMinutes`: how long alone before it dozes; default 4, 0 = never
   - `motion`: `full` (default) or `calm`, which keeps breathing and blinks but no glances or squash, for people who prefer less movement
@@ -19,7 +19,7 @@ A companion should feel like yours. Today every charm looks the same on screen (
 - **OpenCharm OS applies it** at runtime: the glyph colour (eyes, mouth, z's; orange stays reserved for "it needs you"), the greeting text, the sleep delay and calm motion. The emulator and the desktop charm get it for free, since they run the same core.
 - **Voice**: the local voice's macOS voice (`sayVoice`, Samantha when unset, so English text never gets the system language's voice) gets a picker. The OpenAI voice already has `voice` (13 voices); it gets a picker too.
 - **The desktop charm's Settings, "Your charm"** (spec 013's settings window):
-  - name, colour (the six swatches), greeting, voice (the macOS voices that speak the system language, with a "Try it" button), sleep delay, calm motion
+  - name, colour (the six swatches, and a seventh that opens the system colour picker, with a field to type `#RRGGBB`), greeting, voice (the macOS voices that speak the system language, with a "Try it" button), sleep delay, calm motion
   - changes are written to the workspace's `opencharm.json` and applied at once
   - for a folder that isn't a workspace, they're kept in the app's own config instead
 - **The agent can change its own look** through a new charm tool, `set_look` (spec 012), within the same limits: for example, "make yourself blue" works by voice.
@@ -29,6 +29,7 @@ A companion should feel like yours. Today every charm looks the same on screen (
 
 - One source of truth per workspace (`opencharm.json`), so the board, the emulator and the desktop charm agree, and the identity travels with the workspace (maintainer, 2 October 2026).
 - The name is what the charm shows; it doesn't rename the agent's persona file (maintainer, 2 October 2026).
+- Any colour, not only the six: a swatch for the system picker and a hex field, kept simple (maintainer, 5 October 2026). Orange and colours too dark to see stay refused (the face rules).
 - The agent may change its own look with `set_look`, as a try-on until charmd restarts; `agentCanChangeLook: false` turns it off (maintainer, 2 October 2026).
 - Orange is never an identity colour: on screen it only means "it needs you" (OPENCHARM.md, the face rules).
 - The charm holds the look only in memory; charmd sends it before every unlock. Nothing new is stored on the device (the board keeps no settings beyond its token).
@@ -51,4 +52,6 @@ A companion should feel like yours. Today every charm looks the same on screen (
 - [ ] Saying "make yourself blue" to an agent with the charm tools changes the colour (fake ACP agent test, then a real run by the maintainer).
   - `set_look` through the real `opencharm mcp` server changed the running app's charm to Lilac with a new greeting (2 October 2026). Saying it by voice to Claude Code is the maintainer's run.
 - [x] `opencharm init --name Momo --colour lilac` writes the block.
+- [x] A colour of your own: `#RRGGBB` in `opencharm.json`, `set_look` and `opencharm init --colour`; too dark or too orange is refused with a clear message (charmd look and config tests, the app's settings tests, the MCP server test).
+- [ ] Picking and typing an own colour in the desktop charm's Settings recolours the charm by the notch (verified in the built app).
 - [x] Docs: OPENCHARM.md (the face, colour identity), the protocol README, the charmd README, the desktop README; `npm run check` green.

@@ -189,6 +189,7 @@ async function poll() {
 
 // "Your charm": its look and voice, kept in the workspace (else in the app) and applied at once.
 const COLORS = window.CharmFace.COLORS;
+const OWN_COLOUR = /^#[0-9A-F]{6}$/;
 const SLEEPS = ["2", "4", "10", "30", "0"];
 let charmLook = null;
 let voices = [];
@@ -203,11 +204,16 @@ function fillLook() {
   const name = look.name || $("charm-name").placeholder;
   $("greeting").value = look.greeting;
   $("greeting").placeholder = `Hi! I'm ${name}.`;
+  const own = OWN_COLOUR.test(look.colour);
   for (const swatch of $("swatches").children) {
     const on = swatch.dataset.id === look.colour;
     swatch.setAttribute("aria-checked", String(on));
-    swatch.tabIndex = on ? 0 : -1;
+    swatch.tabIndex =
+      on || (own && swatch === $("swatches").firstChild) ? 0 : -1;
   }
+  $("own-colour").setAttribute("aria-checked", String(own));
+  if (own) $("own-colour").value = look.colour.toLowerCase();
+  $("own-hex").value = own ? look.colour : "";
   const minutes = String(look.sleepAfterMinutes);
   if (
     !SLEEPS.includes(minutes) &&
@@ -219,7 +225,13 @@ function fillLook() {
   $("agent-look").checked = look.agentCanChangeLook;
   $("say-section").hidden = settings.speak !== "system" || voices.length === 0;
   $("say-voice").value = sayVoice;
-  charm.setColour(COLORS.find((c) => c.id === look.colour) ?? COLORS[0]);
+  charm.setColour(colourOf(look.colour));
+}
+
+// A colour of your own lights the glyphs of a white charm.
+function colourOf(id) {
+  if (OWN_COLOUR.test(id)) return { ...COLORS[0], id, g: id };
+  return COLORS.find((c) => c.id === id) ?? COLORS[0];
 }
 
 async function loadLook() {
@@ -271,6 +283,26 @@ $("swatches").addEventListener("keydown", (e) => {
   void saveLook({ colour: next.id }).then(() =>
     $("swatches").querySelector(`[data-id="${next.id}"]`)?.focus()
   );
+});
+
+// Your own colour: the picker shows it as you go and saves it when it closes; or type it. charmd
+// (and the app) refuse one too dark to see or too close to the needs-you orange, and say so.
+$("own-colour").addEventListener("input", (e) =>
+  charm.setColour(colourOf(e.target.value.toUpperCase()))
+);
+$("own-colour").addEventListener(
+  "change",
+  (e) => void saveLook({ colour: e.target.value.toUpperCase() })
+);
+$("own-hex").addEventListener("change", (e) => {
+  const typed = e.target.value.trim().toUpperCase();
+  if (!typed) return;
+  const colour = typed.startsWith("#") ? typed : `#${typed}`;
+  if (!OWN_COLOUR.test(colour)) {
+    status.textContent = "TYPE A COLOUR AS #RRGGBB";
+    return react("oops", 2200);
+  }
+  void saveLook({ colour });
 });
 
 // The voices that speak the system's language first, then the rest.

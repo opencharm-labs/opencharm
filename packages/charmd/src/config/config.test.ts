@@ -215,8 +215,9 @@ describe("the charm block (its identity)", () => {
     [{ name: "" }, /charm\.name/],
     [
       { colour: "orange" },
-      /charm\.colour: .*white, cobalt, lime, lilac, sun, coal/,
+      /charm\.colour: .*white, cobalt, lime, lilac, sun, coal.*#RRGGBB/,
     ],
+    [{ colour: "#FF5A1F" }, /charm\.colour: .*orange/],
     [{ greeting: "x".repeat(41) }, /charm\.greeting: at most 40 bytes/],
     [{ sleepAfterMinutes: 1441 }, /charm\.sleepAfterMinutes/],
     [{ motion: "wild" }, /charm\.motion/],
