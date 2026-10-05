@@ -109,6 +109,14 @@ window.charmSim = {
     M._sim_forget();
     ws?.close();
   },
+  // Typed text from the desktop charm's field (spec 013): "sent", "busy" (a question or a talk), or
+  // "unsupported" (an older charmd).
+  type: (text) => {
+    let result = 0;
+    withString(text, (ptr) => (result = M._sim_type(ptr)));
+    wake();
+    return ["busy", "sent", "unsupported"][result] ?? "busy";
+  },
   // A PIN key from a keyboard or the desktop app ("0"…"9", "<", "OK").
   pinKey: (key) => {
     withString(key, (ptr) => M._sim_pin_key(ptr));
@@ -291,15 +299,22 @@ function key(down) {
   wake();
 }
 
+// Keys typed into a text field (the desktop charm's typing field) are text, not the charm's key or PIN.
+const typingInto = (e) =>
+  e.target instanceof HTMLElement &&
+  (e.target.isContentEditable ||
+    e.target.tagName === "INPUT" ||
+    e.target.tagName === "TEXTAREA");
+
 let spaceDown = false;
 addEventListener("keydown", (e) => {
-  if (e.code !== "Space" || e.repeat || spaceDown) return;
+  if (e.code !== "Space" || e.repeat || spaceDown || typingInto(e)) return;
   e.preventDefault();
   spaceDown = true;
   key(true);
 });
 addEventListener("keyup", (e) => {
-  if (e.code !== "Space") return;
+  if (e.code !== "Space" || !spaceDown) return;
   e.preventDefault();
   spaceDown = false;
   key(false);
@@ -349,6 +364,7 @@ document.getElementById("shape").addEventListener("click", () => {
 
 // The PIN can be typed on the keyboard too (the notch has no room for a pad).
 addEventListener("keydown", (e) => {
+  if (typingInto(e)) return;
   const key = /^[0-9]$/.test(e.key)
     ? e.key
     : e.key === "Backspace"

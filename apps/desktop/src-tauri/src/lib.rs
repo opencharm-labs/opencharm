@@ -29,7 +29,7 @@ use tauri::{
     WebviewWindow, WebviewWindowBuilder,
 };
 use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
-use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
+use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 use tauri_plugin_opener::OpenerExt;
 
 /// The menu-bar icon: the charm's head, a template image macOS tints for light and dark bars.
@@ -40,6 +40,22 @@ struct Tray {
     menu: Menu<tauri::Wry>,
     offered: Mutex<Option<String>>,
     speak: CheckMenuItem<tauri::Wry>,
+}
+
+/// Opens the field to type to the charm (spec 013): the charm window takes the keyboard while it's
+/// open, and `typing_done` gives it back.
+fn start_typing(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("charm") {
+        let _ = window.set_focus();
+    }
+    let _ = app.emit_to("charm", "charm-type", ());
+}
+
+/// The field closed (sent or dismissed): the app you were in gets the keyboard back.
+#[tauri::command]
+fn typing_done() {
+    #[cfg(target_os = "macos")]
+    macos::give_back_keyboard();
 }
 
 /// The settings the app's charmd is started with; a change to any of them restarts it.
@@ -424,12 +440,38 @@ fn save_settings(app: AppHandle, saved: State<Saved>, next: Settings) -> Result<
         ..next
     };
     next.valid()?;
-    if next.key != previous.key {
-        let shortcuts = app.global_shortcut();
-        shortcuts
-            .register(next.key.as_str())
-            .map_err(|e| format!("that key can't be used: {e}"))?;
-        let _ = shortcuts.unregister(previous.key.as_str());
+    // New keys are registered first (a taken key changes nothing), the old ones dropped only once
+    // the settings are saved, so a failed save never leaves a key doing the other key's job.
+    let shortcuts = app.global_shortcut();
+    let changed: Vec<(&str, &str, &str)> = [
+        (next.key.as_str(), previous.key.as_str(), "that key"),
+        (
+            next.type_key.as_str(),
+            previous.type_key.as_str(),
+            "that typing key",
+        ),
+    ]
+    .into_iter()
+    .filter(|(new, old, _)| new != old)
+    .collect();
+    let mut registered = Vec::new();
+    for (new, _, what) in &changed {
+        if let Err(e) = shortcuts.register(*new) {
+            for done in registered {
+                let _ = shortcuts.unregister(done);
+            }
+            return Err(format!("{what} can't be used: {e}"));
+        }
+        registered.push(*new);
+    }
+    if let Err(e) = next.save(&saved.path) {
+        for done in registered {
+            let _ = shortcuts.unregister(done);
+        }
+        return Err(e.to_string());
+    }
+    for (_, old, _) in &changed {
+        let _ = shortcuts.unregister(*old);
     }
     let autolaunch = app.autolaunch();
     let _ = if next.start_at_login {
@@ -437,7 +479,6 @@ fn save_settings(app: AppHandle, saved: State<Saved>, next: Settings) -> Result<
     } else {
         autolaunch.disable()
     };
-    next.save(&saved.path).map_err(|e| e.to_string())?;
     *saved.settings.lock().unwrap() = next.clone();
     if charmd_fields(&next) != charmd_fields(&previous) {
         apply_managed(&app);
@@ -614,8 +655,25 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
-                .with_handler(|app, _shortcut, event| {
+                .with_handler(|app, shortcut, event| {
                     let pressed = event.state() == ShortcutState::Pressed;
+                    // The typing key opens the field (spec 013); the talk key talks; any other key is
+                    // one being swapped out, and does nothing.
+                    let (key, type_key) = {
+                        let saved = app.state::<Saved>();
+                        let settings = saved.settings.lock().unwrap();
+                        (settings.key.clone(), settings.type_key.clone())
+                    };
+                    let is = |name: &str| name.parse::<Shortcut>().is_ok_and(|k| &k == shortcut);
+                    if is(&type_key) {
+                        if pressed {
+                            start_typing(app);
+                        }
+                        return;
+                    }
+                    if !is(&key) {
+                        return;
+                    }
                     #[cfg(target_os = "macos")]
                     if pressed {
                         if let Some(window) = app.get_webview_window("charm") {
@@ -629,6 +687,7 @@ pub fn run() {
                 .build(),
         )
         .invoke_handler(tauri::generate_handler![
+            typing_done,
             app_identity,
             charm_geometry,
             panel,
@@ -692,6 +751,10 @@ pub fn run() {
             macos::float_over_menu_bar(window.ns_window()?);
             window.show()?;
 
+            let type_key = app.state::<Saved>().settings.lock().unwrap().type_key.clone();
+            if let Err(error) = app.global_shortcut().register(type_key.as_str()) {
+                eprintln!("[charm] the typing key {type_key} is taken: {error}; choose another in Settings");
+            }
             if let Err(error) = app.global_shortcut().register(key.as_str()) {
                 eprintln!(
                     "[charm] the talk key {key} is taken: {error}; choose another in Settings"
@@ -702,6 +765,7 @@ pub fn run() {
                 MenuItem::with_id(app, "settings", "Settings…", true, Some("CmdOrCtrl+,"))?;
             let quit = MenuItem::with_id(app, "quit", "Quit OpenCharm", true, Some("CmdOrCtrl+Q"))?;
             let speak_on = app.state::<Saved>().settings.lock().unwrap().speak_replies;
+            let type_item = MenuItem::with_id(app, "type", "Type to your charm…", true, None::<&str>)?;
             let speak_item = CheckMenuItem::with_id(
                 app,
                 "speak",
@@ -714,7 +778,7 @@ pub fn run() {
             let separator_2 = PredefinedMenuItem::separator(app)?;
             let menu = Menu::with_items(
                 app,
-                &[&speak_item, &separator, &settings_item, &separator_2, &quit],
+                &[&type_item, &speak_item, &separator, &settings_item, &separator_2, &quit],
             )?;
             TrayIconBuilder::new()
                 .icon(Image::from_bytes(TRAY_ICON)?)
@@ -731,6 +795,7 @@ pub fn run() {
                             let _ = app.opener().open_url(version, None::<&str>);
                         }
                     }
+                    "type" => start_typing(app),
                     "speak" => {
                         let saved = app.state::<Saved>();
                         let speak = {

@@ -1,0 +1,9 @@
+{
+  "direction": "client",
+  "message": {
+    "type": "charm",
+    "op": "text",
+    "text": "   "
+  },
+  "error": "invalid_fields"
+}

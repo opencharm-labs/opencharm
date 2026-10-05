@@ -250,6 +250,8 @@ bool parse_server_message(std::string_view json, ServerMessage& out) {
   if (is(type, "charm")) return parse_charm(root, out);
   if (is(type, "hello")) {
     out.kind = ServerKind::Hello;
+    const cJSON* features = cJSON_GetObjectItemCaseSensitive(root, "features");
+    out.accepts_text = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(features, "text"));
     return is(str(root, "transport"), "websocket");
   }
   if (is(type, "stt")) {
@@ -332,6 +334,14 @@ std::string client_answer(std::string_view id, bool yes) {
   cJSON_AddStringToObject(m, "op", "answer");
   cJSON_AddStringToObject(m, "id", std::string(id).c_str());
   cJSON_AddBoolToObject(m, "yes", yes);
+  return print_and_free(m);
+}
+
+std::string client_text(std::string_view text) {
+  cJSON* m = cJSON_CreateObject();
+  cJSON_AddStringToObject(m, "type", "charm");
+  cJSON_AddStringToObject(m, "op", "text");
+  cJSON_AddStringToObject(m, "text", std::string(text).c_str());
   return print_and_free(m);
 }
 

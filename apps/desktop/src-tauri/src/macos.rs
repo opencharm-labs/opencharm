@@ -1,7 +1,7 @@
 //! macOS: measure the notch, and lift the window above the menu bar on every Space.
 
 use objc2::MainThreadMarker;
-use objc2_app_kit::{NSScreen, NSWindow, NSWindowCollectionBehavior};
+use objc2_app_kit::{NSApplication, NSScreen, NSWindow, NSWindowCollectionBehavior};
 
 /// The main screen's width, and the notch's width and the menu bar's height when it has a notch.
 pub fn measure() -> (f64, Option<(f64, f64)>) {
@@ -27,6 +27,13 @@ pub fn bring_to_front(ns_window: *mut std::ffi::c_void) {
     // SAFETY: Tauri hands us its live NSWindow pointer on the main thread.
     let window: &NSWindow = unsafe { &*(ns_window as *const NSWindow) };
     window.orderFrontRegardless();
+}
+
+/// Typing is done: the app you were in gets the keyboard back (OpenCharm has no window to switch to).
+pub fn give_back_keyboard() {
+    if let Some(mtm) = MainThreadMarker::new() {
+        NSApplication::sharedApplication(mtm).deactivate();
+    }
 }
 
 /// Above the menu bar (the status window level), on every Space and over full-screen apps, and never

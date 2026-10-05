@@ -49,6 +49,30 @@
       .charm.notch::before {
         display: none; /* the real notch is right there */
       }
+      /* The typing field (spec 013): a pill in the open panel, in the charm's own type. */
+      .type-field {
+        position: fixed;
+        left: 18px;
+        right: 18px;
+        height: 34px;
+        padding: 0 14px;
+        box-sizing: border-box;
+        border: 1px solid #3a3a3a;
+        border-radius: 999px;
+        background: #111;
+        color: #f6f6f4;
+        font: 500 14px/1 var(--mono);
+        outline: none;
+        caret-color: #f6f6f4;
+        -webkit-user-select: text;
+        user-select: text;
+      }
+      .type-field::placeholder {
+        color: #777;
+      }
+      .type-field:focus {
+        border-color: #6a6a6a;
+      }
     </style>
   </head>
   <body>

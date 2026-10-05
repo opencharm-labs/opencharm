@@ -59,7 +59,7 @@ Voice that sounds right:
 - [x] Measured on the maintainer's Mac (M2), per stage, in English and Italian: the voice's share about 0.6 s when warm (once 1.4 s, Microsoft's variance); recorded in `OPENCHARM.md` and `packages/charmd/README.md` (4 October 2026).
 - [x] The core's tests: a press (under 200 ms) sends no audio; a hold sends the audio from key-down, after `listen start`, in order; a question arriving mid-press drops it; a press while it speaks doesn't listen; a hold on a question never opens the mic.
 - [ ] The first run downloads the models with progress, on macOS, Windows and Linux.
-- [ ] A typed question gets a text reply; with Speak replies off, a spoken question does too; the physical charm (emulator) always speaks.
+- [x] A typed question gets a text reply (unit and real-socket tests, and the emulator end to end in Chrome); with Speak replies off, a spoken question does too; the physical charm (emulator) always speaks.
 - [ ] The docs the change makes wrong are updated in the same PR: `OPENCHARM.md` (controls and the mic rule, charmd's voice plumbing, Security: what leaves the computer by default, the reply's text to Microsoft, and the CLI's new native and runtime dependencies), `firmware/README.md`, the website FAQ (`apps/web/src/app/_lib/faq.ts`), `apps/desktop/README.md`, CONTRIBUTING.
 
 ## Next

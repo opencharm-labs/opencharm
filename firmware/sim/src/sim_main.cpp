@@ -149,6 +149,18 @@ EMSCRIPTEN_KEEPALIVE void sim_key(int down) { sim.app->on_key(down != 0, sim.now
 EMSCRIPTEN_KEEPALIVE void sim_connected() { sim.app->on_connected(sim.now); }
 EMSCRIPTEN_KEEPALIVE void sim_disconnected() { sim.app->on_disconnected(sim.now); }
 EMSCRIPTEN_KEEPALIVE void sim_text(const char* json) { sim.app->on_text(json, sim.now); }
+// Typed text from the desktop charm's field (spec 013): 1 sent, 0 busy, 2 charmd doesn't take it.
+EMSCRIPTEN_KEEPALIVE int sim_type(const char* text) {
+  switch (sim.app->on_typed(text, sim.now)) {
+    case charm::App::Typed::Sent:
+      return 1;
+    case charm::App::Typed::Busy:
+      return 0;
+    case charm::App::Typed::Unsupported:
+      return 2;
+  }
+  return 0;
+}
 
 EMSCRIPTEN_KEEPALIVE void sim_audio(const uint8_t* data, int size) {
   sim.app->on_audio(data, size_t(size));

@@ -717,3 +717,48 @@ describe("replies as text (spec 003)", () => {
     expect(logs[0]).toMatchObject({ outcome: "done" });
   });
 });
+
+describe("typed questions (spec 013)", () => {
+  it("go to the agent without listening, and the answer comes as text even when replies are spoken", async () => {
+    const out: Out[] = [];
+    const asked: string[] = [];
+    const fake = createFakeVoice();
+    let used = 0;
+    const turn = new TurnController({
+      voice: {
+        ...fake,
+        transcribe: () => {
+          used += 1;
+          return Promise.resolve("never");
+        },
+        synthesize: (text, signal) => {
+          used += 1;
+          return fake.synthesize(text, signal);
+        },
+      },
+      agent: createFakeAgent({
+        reply: (text) => {
+          asked.push(text);
+          return "Domani piove a Milano.";
+        },
+      }),
+      sessionKey: "opencharm-c_1",
+      send: (m) => out.push(m),
+      sendAudio: (p) => out.push({ audio: p.length }),
+      timeoutMs: 5000,
+      sleep: () => Promise.resolve(),
+      speakAloud: () => true,
+    });
+    await turn.typed("  Che tempo fa domani a Milano?  ");
+    expect(asked).toEqual(["Che tempo fa domani a Milano?"]);
+    expect(used).toBe(0);
+    expect(
+      out.some((m) => "audio" in m || ("type" in m && m.type === "stt"))
+    ).toBe(false);
+    expect(
+      out
+        .filter((m) => "type" in m && m.type === "tts")
+        .map((m) => ("state" in m ? m.state : ""))
+    ).toEqual(["start", "sentence_start", "stop"]);
+  });
+});

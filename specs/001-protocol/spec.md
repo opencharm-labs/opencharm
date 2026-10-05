@@ -25,4 +25,4 @@ Transport, sessions and state machines (004, 006).
 - [x] Every valid fixture parses; every invalid fixture fails with the expected error code (table test).
 - [x] Unknown `type` or `op` is rejected, not ignored.
 - [x] An invariant check fails if a schema has no fixture.
-- [ ] `charm text`: valid and invalid fixtures (empty, too long, before unlock), parsed on both sides.
+- [x] `charm text`: valid and invalid fixtures (blank, too long, missing), checked in TypeScript and built identically by the C++ core; refused before unlock by charmd (a real-socket test); charmd's hello offers it (`features.text`, fixture `server-hello-with-features`), and the core sends it only then.
