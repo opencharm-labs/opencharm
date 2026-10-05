@@ -28,9 +28,21 @@ Not everyone wants to buy a board and print a shell. The same companion can live
   - **Typing (approved by the maintainer, 4 October 2026):** press ⌥⇧Space (Ctrl Alt Shift Space on Windows; changeable) or choose **Type to your charm…** in the menu-bar menu, and a one-line field opens in the panel. Clicking the charm keeps meaning "react" (OPENCHARM.md controls). Enter sends it to charmd as typed text (spec 001), Esc closes it; the reply comes back as text in the panel (spec 003: it answers the way you asked). One line and one reply, no history: longer work belongs in the agent's own chat.
 - **Speak replies** (spec 003): a switch in the menu-bar menu and in Settings; off, every reply is text in the panel, even to a spoken question.
 - **Settings, the rest:** the talk key, start at login, the update check. Advanced: another charmd's address (turns off the managed one), the CLI's path, forget the pairing. Saved as JSON and applied at once.
-- **Its own charmd** (`managed.rs`): started with the installed `opencharm` CLI (Node 24), found once through the login shell (`$SHELL -lc 'command -v opencharm'`) or a path in Settings; Settings says how to install it if missing. Its own config, state and admin socket in the app's data folder, on port 8790 so a terminal charmd on 8787 is untouched. Restarted with backoff if it stops, stopped when the app quits, its log in the app's log. On macOS a charmd left by a killed app is stopped on the next start (checked by pid file and command line). On Windows charmd and its agent run in a job object, so they end with the app even after a crash.
+- **Its own charmd, inside the app** (approved by the maintainer, 5 October 2026: one install, nothing else to install):
+  - Every release carries, as app resources: Node (an exact 24.x version, the official build with npm and `npx`, without headers and docs) and the `opencharm` CLI built from the same commit: its package files (`dist/`, `sim/`) and its production `node_modules`, installed from the repo's lockfile for the build's target (the matching native voice engine only).
+  - The app runs it as `node <resources>/cli/dist/main.mjs` (no shebang or npm shim), for `serve`, `init` (Create a workspace) and the `--help` check. charmd and everything it starts get the bundled Node's folder first on their PATH, so `npx` (Claude Code's and Codex's ACP adapters) is the bundled one; agents that are Node tools (Gemini CLI, …) run on it too, accepted. The first start of an agent still downloads its adapter (network). `git` stays a requirement for creating a workspace.
+  - Settings → Advanced can still point at another `opencharm`, run as today with its `CliFeatures` fallbacks; "missing" then means that path is wrong. A build from source without a staged bundle (`npm run desktop`) uses the installed CLI, as today, so contributors keep their loop.
+  - The bundled CLI says the app's commit (`opencharm --version`, `status`); its version stays the CLI's own (`cli@0.0.0` from this build), on purpose: the app's identity is `desktop@x.y.z (commit)`.
+  - macOS: every Mach-O file in the resources (`node`, the voice engine's `.node` and `.dylib`) is signed ad hoc before the app is sealed, `node` with the hardened-runtime entitlements Node needs (JIT, unsigned executable memory, library validation off for native addons). One Open Anyway covers the app and everything in it.
+  - Windows: `node.exe` and `npx.cmd`; charmd, Node and the agents stay in the app's job object.
+    Its own config, state and admin socket in the app's data folder, on port 8790 so a terminal charmd on 8787 is untouched. Restarted with backoff if it stops, stopped when the app quits, its log in the app's log. On macOS a charmd left by a killed app is stopped on the next start (checked by pid file and command line). On Windows charmd and its agent run in a job object, so they end with the app even after a crash.
 - **Automatic pairing** (`pairing.rs`): the app creates a random 12-digit PIN (no modulo bias), keeps it in the system keychain (macOS Keychain, Windows Credential Manager), pairs through charmd's owner-only admin socket (re-pairing when "desktop" already exists), and types the PIN only on a boot lock, never after `opencharm lock`. The page side is `charmSim.onMessage` in `sim.js`. Another charmd pairs as a charm does: a code and a typed PIN.
 - **The update check** (`updates.rs`): once a day the app reads GitHub's public release list for `desktop@` tags; a newer version is offered in the menu and Settings. Nothing about the user is sent. It can be turned off.
+- **Bundling in the release:** a script (`apps/desktop/scripts/stage-charmd.ts`) stages the resources for a target; `desktop-release.yml` runs it in each platform's build job, and CI's `desktop` job runs it too, so a PR that breaks it fails.
+  - Node is pinned in `apps/desktop/node.json` (version, and the SHA-256 of each target's archive); the download from nodejs.org is checked against it and the build fails on a mismatch. A bump checks the new archives against Node's signed `SHASUMS256.txt` and goes in as a `fix(desktop):`, so it releases (Dependabot doesn't cover it).
+  - The Intel build runs on an Apple silicon runner: dependencies are installed for the target's OS and CPU, and the staged folder is checked to hold only that target's voice engine.
+  - A desktop release now also follows `packages/cli`, `packages/charmd` and `packages/protocol` (the release planner's units and tests, CI's path filter, CONTRIBUTING's table): a CLI or charmd change releases the app too, with those notes, accepted.
+  - Third-party notices include Node's licence and the bundled npm dependencies' licences.
 - **Releases:** CI (`ci.yml`, job `desktop`) checks every PR that touches the app on macOS and Windows. `desktop-release.yml` releases the app from `main` (CONTRIBUTING, "Releasing"): after a merged `fix`/`feat`/`perf` that touches it, it builds macOS (Apple silicon, Intel) and Windows and publishes them as `desktop@<version>` on GitHub Releases, with `SHA256SUMS.txt` and build-provenance attestations. First release: `desktop@0.1.0`, 3 October 2026.
 - Test-only environment variables (`OPENCHARM_FAKE_MIC`, `OPENCHARM_TEST_PIN`, `OPENCHARM_DATA`, …) are listed in `apps/desktop/README.md`.
 
@@ -38,14 +50,14 @@ Not everyone wants to buy a board and print a shell. The same companion can live
 
 - The desktop is one more platform for OpenCharm OS, around the same core; Tauri 2 rather than Electron, for size (maintainer, 1 October 2026).
 - Pitch it as "the charm, without the hardware", not a notch status app. Notch and desktop apps for coding agents exist (Claude Peek, NotchAgent, Clawd on Desk and others, searched 1 October 2026), but none combines a hold-to-talk key that is also yes and no, ACP, MCP tools for the face and questions, and the hardware's firmware core.
-- The app runs its own charmd with the installed CLI; bundling Node is later (maintainer, 1 October 2026).
+- The app runs its own charmd from the CLI and Node it carries, not the installed CLI (maintainer, 5 October 2026; this replaces "the installed CLI; bundling Node is later", 1 October 2026). Measured for macOS on Apple silicon (5 October 2026): Node 24.21 about 140 MB unpacked (its `.tar.xz` 27 MB), the CLI with its dependencies 49 MB; so about 190 MB installed and roughly 50–60 MB to download (estimate: the `.dmg` isn't built yet; Windows and Intel not measured), for one install that always matches.
 - The app pairs with its own charmd automatically through the admin socket, with a keychain PIN typed by the app: same user, same computer, so no code or PIN for the user. charmd's security model is unchanged; hardware charms and another charmd keep the code and PIN (maintainer, 1 October 2026).
 - On Windows the pill sits at the top centre, the same layout as the Mac (maintainer, 1 October 2026).
 - Releases are unsigned: open source with no paid signing identity; checksums, provenance and building it yourself instead (maintainer, 1 October 2026).
 
 ## Not in scope
 
-Bundling charmd inside the app, several agents at once, Windows-specific folder conventions beyond the picker, a server agent's API key from Settings (only through a workspace's `opencharm.json` for now).
+Several agents at once, an automatic updater, Windows-specific folder conventions beyond the picker, a server agent's API key from Settings (only through a workspace's `opencharm.json` for now).
 
 ## Acceptance
 
@@ -65,6 +77,16 @@ Bundling charmd inside the app, several agents at once, Windows-specific folder 
 - [ ] Typing: the field opens by shortcut and from the menu, Enter sends, Esc closes, the reply shows as text; the talk key still works while it's open.
 - [ ] Speak replies off from the menu: a spoken question gets a text reply.
 - [ ] Windows on a real machine: the pill at the top centre, the key, the managed charmd ending with the app.
+
+Bundled charmd:
+
+- [ ] A Mac without Node or the CLI: install the app, Open Anyway once, choose a folder and Claude Code, talk and type; the bundled `node` and the voice engine start (no "killed: 9", no second Gatekeeper prompt).
+- [ ] The bundled charmd matches the app: `opencharm status` through it (or the Settings footer) shows the app's commit.
+- [ ] The release checks Node's download against its pinned SHA-256 and fails if it doesn't match; the Windows and Intel Mac builds carry their own Node and voice engine.
+- [ ] Another `opencharm` chosen in Settings → Advanced is still used, with the old-CLI fallbacks.
+- [ ] The installed and download sizes per platform, recorded in `apps/desktop/README.md`.
+- [ ] The same on Windows on a real machine.
+- [ ] The docs it makes wrong, updated in the same PR: `apps/desktop/README.md` (no Node or CLI to install; the bundled charmd; sizes), `OPENCHARM.md` (the desktop section), CONTRIBUTING ("Releasing": the desktop unit's paths).
 
 ## Notes
 
