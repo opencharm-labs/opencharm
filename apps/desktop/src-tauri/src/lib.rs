@@ -967,10 +967,10 @@ pub fn run() {
                 data: data_dir,
                 env: Mutex::new(None),
             });
-            // A new address (or none, once it stops): the charm starts again on what was announced.
+            // A new address (or none, once it stops): the charm reconnects to what was announced.
             let handle = app.handle().clone();
             app.state::<Managed>().charmd.on_url(move || {
-                let _ = handle.emit_to("charm", "charm-reload", ());
+                let _ = handle.emit_to("charm", "charm-moved", ());
             });
             apply_managed(app.handle());
             if needs_setup && std::env::var("OPENCHARM_URL").is_err() {
