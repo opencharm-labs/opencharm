@@ -34,6 +34,23 @@ const LANGUAGES: [&str; 6] = ["en", "it", "es", "fr", "de", "pt"];
 pub const COLOURS: [&str; 6] = ["white", "cobalt", "lime", "lilac", "sun", "coal"];
 const MOTIONS: [&str; 2] = ["full", "calm"];
 
+/// A Microsoft voice for a language Settings offers, named exactly as charmd's config takes it
+/// (packages/charmd/src/config/config.ts, /^[A-Za-z]{2,3}-[A-Za-z]{2,4}-\w+$/), or charmd won't start.
+fn microsoft_voice_ok(language: &str, voice: &str) -> bool {
+    let parts: Vec<&str> = voice.splitn(3, '-').collect();
+    let letters = |p: &str, min: usize, max: usize| {
+        (min..=max).contains(&p.len()) && p.chars().all(|c| c.is_ascii_alphabetic())
+    };
+    LANGUAGES.contains(&language)
+        && parts.len() == 3
+        && letters(parts[0], 2, 3)
+        && letters(parts[1], 2, 4)
+        && !parts[2].is_empty()
+        && parts[2]
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
 /// A colour of your own (`#RRGGBB`) lights the glyphs as it is, so it has to read on true black and
 /// can't pass for the orange that only means "it needs you". The same rule as charmd's (look.ts).
 fn own_colour_problem(colour: &str) -> Result<(), String> {
@@ -234,6 +251,9 @@ impl Settings {
         if !LANGUAGES.contains(&self.language.as_str()) {
             self.language = DEFAULT_LANGUAGE.into();
         }
+        // A hand-edited voice charmd would refuse is dropped: charmd keeps starting, saves work.
+        self.microsoft_voices
+            .retain(|language, voice| microsoft_voice_ok(language, voice));
     }
 
     /// The old single voice keeps what it meant: "local" stays on this computer (the macOS voice
@@ -277,25 +297,12 @@ impl Settings {
         if !LANGUAGES.contains(&self.language.as_str()) {
             return Err("choose a language".into());
         }
-        // Exactly the shape charmd's config takes (packages/charmd/src/config/config.ts,
-        // /^[A-Za-z]{2,3}-[A-Za-z]{2,4}-\w+$/), or charmd wouldn't start.
-        let voice_name = |voice: &str| {
-            let parts: Vec<&str> = voice.splitn(3, '-').collect();
-            let letters = |p: &str, min: usize, max: usize| {
-                (min..=max).contains(&p.len()) && p.chars().all(|c| c.is_ascii_alphabetic())
-            };
-            parts.len() == 3
-                && letters(parts[0], 2, 3)
-                && letters(parts[1], 2, 4)
-                && !parts[2].is_empty()
-                && parts[2]
-                    .chars()
-                    .all(|c| c.is_ascii_alphanumeric() || c == '_')
-        };
-        for (language, voice) in &self.microsoft_voices {
-            if !LANGUAGES.contains(&language.as_str()) || !voice_name(voice) {
-                return Err("choose a Microsoft voice from the list".into());
-            }
+        if !self
+            .microsoft_voices
+            .iter()
+            .all(|(language, voice)| microsoft_voice_ok(language, voice))
+        {
+            return Err("choose a Microsoft voice from the list".into());
         }
         match self.agent.as_str() {
             "" => {}
@@ -477,6 +484,23 @@ mod tests {
             .is_ok());
         let old: Settings = serde_json::from_str(r#"{"speak":"microsoft"}"#).unwrap();
         assert!(old.microsoft_voices.is_empty());
+    }
+
+    #[test]
+    fn drops_a_hand_edited_voice_charmd_would_refuse_when_it_loads() {
+        let path = std::env::temp_dir().join(format!("oc-ms-{}.json", std::process::id()));
+        std::fs::write(
+            &path,
+            r#"{"microsoftVoices":{"it":"it-IT-DiegoNeural","EN":"en-US-AvaNeural","de":"Katja"}}"#,
+        )
+        .unwrap();
+        let settings = Settings::load(&path);
+        assert_eq!(
+            settings.microsoft_voices,
+            [("it".to_string(), "it-IT-DiegoNeural".to_string())].into()
+        );
+        assert!(settings.valid().is_ok());
+        let _ = std::fs::remove_file(&path);
     }
 
     #[test]

@@ -167,30 +167,37 @@ async function save(change) {
   if (charmLook) await loadLook();
 }
 
-// Microsoft's voices: one per language, set for the language chosen below (charmd picks the voice
-// by the language of each reply). The default is charmd's own; choosing it drops the override.
+// Microsoft's voices: one per language (charmd picks the voice by the language of each reply). The
+// row has its own language choice, starting at the fallback one, so setting Italian's voice doesn't
+// change the language it falls back on. The default is charmd's own; choosing it drops the override.
+let voiceLanguage = "";
 function fillMicrosoftVoice() {
-  const language = settings.language;
-  const select = $("ms-voice");
   $("ms-voice-row").hidden = settings.speak !== "microsoft";
-  $("ms-voice-label").textContent =
-    `ITS VOICE · ${$("language").selectedOptions[0]?.textContent?.toUpperCase() ?? ""}`;
+  voiceLanguage ||= settings.language;
+  $("ms-voice-lang").value = voiceLanguage;
+  const select = $("ms-voice");
+  const saved = settings.microsoftVoices?.[voiceLanguage];
+  const fallback = MICROSOFT_DEFAULTS[voiceLanguage];
+  const list = MICROSOFT_VOICES[voiceLanguage] ?? [];
   select.replaceChildren();
-  for (const [name, label] of MICROSOFT_VOICES[language] ?? [])
+  // One saved by hand that isn't in the list still shows, as itself.
+  if (saved && !list.some(([name]) => name === saved))
+    select.append(new Option(saved, saved));
+  for (const [name, label] of list)
     select.append(
-      new Option(
-        name === MICROSOFT_DEFAULTS[language] ? `${label} (default)` : label,
-        name
-      )
+      new Option(name === fallback ? `${label} (default)` : label, name)
     );
-  select.value =
-    settings.microsoftVoices?.[language] ?? MICROSOFT_DEFAULTS[language] ?? "";
+  select.value = saved ?? fallback ?? "";
 }
+$("ms-voice-lang").addEventListener("change", (e) => {
+  voiceLanguage = e.target.value;
+  fillMicrosoftVoice();
+});
 $("ms-voice").addEventListener("change", (e) => {
   const voices = { ...settings.microsoftVoices };
-  if (e.target.value === MICROSOFT_DEFAULTS[settings.language])
-    delete voices[settings.language];
-  else voices[settings.language] = e.target.value;
+  if (e.target.value === MICROSOFT_DEFAULTS[voiceLanguage])
+    delete voices[voiceLanguage];
+  else voices[voiceLanguage] = e.target.value;
   void save({ microsoftVoices: voices });
 });
 
