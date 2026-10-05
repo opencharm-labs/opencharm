@@ -55,6 +55,8 @@ The MVP is done when all of this works, in the emulator first, then on the Waves
 
 `main` is production. The website deploys on every merge (Vercel), `opencharm init` clones the starter's `main`, and the CLI and the desktop app release themselves: there is no release branch, release pull request or version bump to make by hand.
 
+**macOS signing.** Desktop releases for macOS are signed with OpenCharm's own certificate (not an Apple Developer ID), so macOS keeps users' answers across updates. It lives in two repository secrets, `MACOS_SIGNING_CERTIFICATE` and `MACOS_SIGNING_PASSWORD`, made once by the maintainer with `sh apps/desktop/scripts/create-signing-certificate.sh` (a backup goes to the maintainer's password manager). Only the `sign-macos` job sees them; without them (a fork) the app stays signed ad hoc. Replacing the certificate makes macOS ask its questions once more after the next update.
+
 **How a merge becomes a release.** After every push to `main` whose CI passed, `cli-release.yml` and `desktop-release.yml` each ask `tools/release` whether their unit has something new: the conventional-commit titles merged since its last tag, counting only the folders it ships.
 
 | Unit        | Tag             | Counts changes in                                                                                                                                                                                                            | Publishes                                                                                                                                              |

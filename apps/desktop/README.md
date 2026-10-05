@@ -10,10 +10,10 @@ It's the same OpenCharm OS as the board and the emulator: the firmware core comp
 
 Download the latest **OpenCharm Desktop** from [Releases](https://github.com/opencharm-labs/opencharm/releases):
 
-- macOS (Apple silicon or Intel): the `.dmg` (`aarch64` for Apple silicon, `x64` for Intel). Drag OpenCharm into Applications and open it. The builds are signed ad hoc, not by an Apple developer, so the first time macOS says it can't verify the developer: choose **Done**, then **System Settings → Privacy & Security → Open Anyway** (on macOS 14 and older, right-click OpenCharm and choose **Open**). If macOS says OpenCharm "is damaged" (desktop 0.2.0 and older, whose bundle wasn't signed), check the checksum (below), then run `xattr -dr com.apple.quarantine /Applications/OpenCharm.app`.
+- macOS (Apple silicon or Intel): the `.dmg` (`aarch64` for Apple silicon, `x64` for Intel). Drag OpenCharm into Applications and open it. The builds are signed with OpenCharm's own certificate, not an Apple Developer ID, so the first time macOS says it can't verify the developer: choose **Done**, then **System Settings → Privacy & Security → Open Anyway** (on macOS 14 and older, right-click OpenCharm and choose **Open**). If macOS says OpenCharm "is damaged" (desktop 0.2.0 and older, whose bundle wasn't signed), check the checksum (below), then run `xattr -dr com.apple.quarantine /Applications/OpenCharm.app`.
 - Windows: the setup `.exe`. SmartScreen warns about unsigned apps: **More info → Run anyway**.
 
-**Why unsigned, and how to check what you downloaded:** this is an open-source project without a paid signing identity, so macOS and Windows can't vouch for it. You can check it yourself:
+**Why not signed by Apple or Microsoft, and how to check what you downloaded:** this is an open-source project without a paid signing identity, so macOS and Windows can't vouch for it. On macOS every release is signed with the same certificate of OpenCharm's own (from 0.12), so macOS recognises updates as the same app and keeps your answers (the Desktop folder, the microphone, the keychain); the first update to it asks once more. You can check what you downloaded yourself:
 
 - **Checksums:** every release has a `SHA256SUMS.txt`. Compare it with `shasum -a 256 OpenCharm_*.dmg` (macOS) or `Get-FileHash OpenCharm_*.exe` (Windows).
 - **Provenance:** GitHub attests that each file was built by this repository's release workflow from a given commit. Check it with `gh attestation verify <file> --repo opencharm-labs/opencharm`.
@@ -59,7 +59,7 @@ The app's charmd listens on 127.0.0.1, on a free port the system gives it as it 
 
 - **Pairing with its own charmd** types the PIN only on a boot lock, never after `opencharm lock`.
 - **Long runs:** displays are re-measured every 4 s, and the charm moves when the notch or screen changes. The charm reconnects when the network comes back. On Windows, charmd and its agent run in a job object, so they end with the app even after a crash.
-- **Releases are unsigned by choice** (maintainer, 1 October 2026); see Install for how to check them.
+- **No paid signing identity, by choice** (maintainer, 1 October 2026): macOS builds carry OpenCharm's own certificate (5 October 2026), Windows builds are unsigned; see Install for how to check them.
 
 ## Build it yourself
 
