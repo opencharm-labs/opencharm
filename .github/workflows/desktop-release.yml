@@ -121,8 +121,12 @@ jobs:
         env:
           VERSION: ${{ needs.plan.outputs.version }}
           TARGET: ${{ matrix.target }}
+        # The app carries its own charmd (spec 013): the CLI built from this commit and Node, checked
+        # against the pin in apps/desktop/node.json, staged for this target before Tauri bundles it.
         run: |
           npm pkg set version="$VERSION" -w apps/desktop
+          npm run build -w packages/cli
+          npm run stage -w apps/desktop -- --target "$TARGET"
           npm run bundle -w apps/desktop -- --target "$TARGET"
       - uses: actions/upload-artifact@v7
         with:

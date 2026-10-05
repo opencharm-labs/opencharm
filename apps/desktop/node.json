@@ -1,0 +1,9 @@
+{
+  "_comment": "The Node the app carries (spec 013). Bump: take the checksums from the release's SHASUMS256.txt after checking its signature with Node's release keys (github.com/nodejs/release-keys), and land it as fix(desktop) so it releases.",
+  "version": "24.21.0",
+  "archives": {
+    "darwin-arm64": "6239d4cf92d864487ec8cd3615038f7b67e7f58b77b21cd2f09ea9fbd68065fe",
+    "darwin-x64": "0ae5a24c24bb7d015cd816c5036b3f90f2945aa872fcf54e58da054753b3a299",
+    "win-x64": "158f7685b44de51f6c0df1d153526cbcd3e1bc739a8dfc607721cef75de9e541"
+  }
+}

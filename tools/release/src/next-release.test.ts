@@ -210,6 +210,16 @@ describe("what each unit ships", () => {
     expect(UNITS.desktop).toContain("packages/design");
   });
 
+  it("counts the charmd the desktop app carries (spec 013): the CLI, charmd, protocol and the lockfile its dependencies are pinned from", () => {
+    for (const path of [
+      "packages/cli",
+      "packages/charmd",
+      "packages/protocol",
+      "package-lock.json",
+    ])
+      expect(UNITS.desktop).toContain(path);
+  });
+
   it("doesn't count the lockfile: the CLI's dependencies are external, installed from their ranges", () => {
     expect(UNITS.cli).not.toContain("package-lock.json");
   });

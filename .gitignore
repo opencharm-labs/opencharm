@@ -40,3 +40,7 @@ firmware/sim/build/
 
 # Agent worktrees (Claude Code isolation), never part of the repo
 .claude/worktrees/
+
+# The charmd the desktop app carries, staged by apps/desktop/scripts/stage-charmd.ts (spec 013).
+apps/desktop/charmd/*
+!apps/desktop/charmd/.gitkeep

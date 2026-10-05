@@ -15,7 +15,6 @@ mod voices;
 
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::process::Command;
 use std::sync::Mutex;
 
 use geometry::Geometry;
@@ -280,9 +279,12 @@ async fn create_workspace(app: AppHandle, folder: String, agent: String) -> Resu
         let saved = app.state::<Saved>();
         let managed = app.state::<Managed>();
         let env = managed.env();
-        let cli = cli_path(&saved.settings.lock().unwrap(), &env)?;
-        let mut init = Command::new(cli);
-        managed::quiet(&mut init);
+        let mut env = env;
+        let cli = cli_path(&app, &saved.settings.lock().unwrap(), &env)?;
+        if let Some(dir) = cli.node_dir() {
+            managed::node_first(&mut env, dir);
+        }
+        let mut init = cli.command();
         init.arg("init").arg(&folder).env_clear().envs(&env);
         if settings::PRESETS.contains(&agent.as_str()) {
             init.args(["--agent", &agent]);
@@ -304,11 +306,26 @@ async fn create_workspace(app: AppHandle, folder: String, agent: String) -> Resu
     .map_err(|e| e.to_string())?
 }
 
-fn cli_path(settings: &Settings, env: &HashMap<String, String>) -> Result<PathBuf, String> {
+/// The `opencharm` charmd runs from: a path chosen in Settings → Advanced, else the one the app
+/// carries (spec 013), else (a build from source) the one on the PATH.
+fn cli_path(
+    app: &AppHandle,
+    settings: &Settings,
+    env: &HashMap<String, String>,
+) -> Result<managed::Cli, String> {
     if let Some(path) = settings.cli_path.as_ref().filter(|p| !p.trim().is_empty()) {
-        return Ok(PathBuf::from(path.trim()));
+        return Ok(managed::Cli::executable(PathBuf::from(path.trim())));
+    }
+    if let Some(cli) = app
+        .path()
+        .resource_dir()
+        .ok()
+        .and_then(|dir| managed::bundled_cli(&dir))
+    {
+        return Ok(cli);
     }
     managed::find_cli(env.get("PATH").map_or("", String::as_str))
+        .map(managed::Cli::executable)
         .ok_or_else(|| "opencharm isn't installed: npm install -g opencharm".to_string())
 }
 
@@ -338,10 +355,13 @@ fn apply_managed(app: &AppHandle) {
             return off("folder", "That folder is gone. Choose another.");
         }
         let mut env = managed.env();
-        let cli = match cli_path(&settings, &env) {
+        let cli = match cli_path(&app, &settings, &env) {
             Ok(cli) => cli,
             Err(error) => return off("missing", &error),
         };
+        if let Some(dir) = cli.node_dir() {
+            managed::node_first(&mut env, dir);
+        }
         if settings.listen == "openai" || settings.speak == "openai" {
             if let Ok(Some(key)) = pairing::secret("openai") {
                 env.insert("OPENAI_API_KEY".into(), key);
