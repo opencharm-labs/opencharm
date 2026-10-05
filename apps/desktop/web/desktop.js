@@ -54,10 +54,11 @@ const panel = (open) => {
   else closing = setTimeout(() => void invoke("panel", { open: false }), 320);
   show(open, height);
 };
+// While the field is shown the panel stays open, and it re-fits whenever either side changes.
 window.charmSim.panel = (open, height) => {
   charmOpen = open;
   charmHeight = height;
-  if (open || !typing) panel(open);
+  panel(open || typing);
 };
 
 // Typing to the charm (spec 013): the typing key or the menu opens a one-line field in the panel;
@@ -89,7 +90,7 @@ function closeField(giveBack) {
   typing = false;
   field.hidden = true;
   field.blur();
-  if (!charmOpen) panel(false);
+  panel(charmOpen);
   if (giveBack) void invoke("typing_done");
 }
 

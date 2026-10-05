@@ -455,6 +455,21 @@ TEST_CASE("on a notch, a short reply opens a shorter panel, with all of its word
   CHECK(n.height == grown);
 }
 
+TEST_CASE("on a notch, a tall moment doesn't keep the panel tall once the reply is over") {
+  Notch n;
+  n.server(R"({"type":"charm","op":"face","state":"thinking","text":"Looking."})");
+  n.at(n.now + 1500);
+  int fitted = n.height;
+  CHECK(n.open);
+  CHECK(fitted < Notch::kH * 3 / 4);
+  n.server(R"({"type":"charm","op":"ask","id":"q1","text":"Delete it?"})");
+  CHECK(n.height == Notch::kH);
+  n.server(R"({"type":"charm","op":"ask_end","id":"q1"})");
+  n.server(R"({"type":"charm","op":"face","state":"thinking","text":"Looking."})");
+  n.at(n.now + 1500);
+  CHECK(n.height == fitted);
+}
+
 TEST_CASE("on a notch, a question takes the whole panel") {
   Notch n;
   n.server(R"({"type":"charm","op":"ask","id":"q1","text":"Delete it?"})");

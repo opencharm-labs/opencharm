@@ -780,9 +780,10 @@ void LvglView::update_panel() {
   bool open = mode_ == Mode::Connecting || mode_ == Mode::Pairing || mode_ == Mode::Pin ||
               mode_ == Mode::Blocked || mode_ == Mode::Decision || speaking_ || !say_.empty() ||
               ring_on_;
-  // While open it only grows, so a shorter sentence after a longer one doesn't make it jump.
+  // While it speaks it only grows, so a shorter sentence after a longer one doesn't make it jump;
+  // otherwise it fits what's shown now.
   int height = open ? panel_height() : 0;
-  if (open && panel_open_) height = std::max(height, panel_h_);
+  if (open && panel_open_ && speaking_) height = std::max(height, panel_h_);
   if (open == panel_open_ && height == panel_h_) return;
   panel_open_ = open;
   panel_h_ = height;
