@@ -78,7 +78,7 @@ The charm is always on, so it has to be nearly free at rest. Measured on an M-se
 - about 2% of one core in total (web view, GPU process and the app)
 - charmd at 0%
 - about 75 MB for charmd and about 80 MB for the app and its web view
-- a 4 MB app binary (a size-first, link-time-optimised release build); the whole app with its charmd is about 187 MB on macOS (Apple silicon, 5 October 2026; Intel and Windows not measured yet)
+- a 4 MB app binary (a size-first, link-time-optimised release build); the whole app with its charmd is 187 MB installed on Apple silicon (`desktop@0.7.0`; Intel and Windows not measured). Downloads for `desktop@0.7.0` (5 October 2026): 57 MB (`aarch64.dmg`), 60 MB (`x64.dmg`), 34 MB (`x64-setup.exe`).
 
 How:
 

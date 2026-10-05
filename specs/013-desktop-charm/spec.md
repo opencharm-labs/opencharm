@@ -74,19 +74,20 @@ Several agents at once, an automatic updater, Windows-specific folder convention
 - [x] CI checks every PR that touches the app on macOS and Windows; `desktop-release.yml` publishes unsigned builds with checksums and provenance.
 - [x] The maintainer's own run with the real microphone (a local build of `desktop@0.2.1`, 4 October 2026).
 - [x] A real run with Momo's folder and Claude Code, by the maintainer (4 October 2026).
-- [ ] Typing: the field opens by shortcut and from the menu, Enter sends, Esc closes, the reply shows as text; the talk key still works while it's open.
-- [ ] Speak replies off from the menu: a spoken question gets a text reply.
+- [x] Typing: the field opens by shortcut and from the menu, Enter sends, Esc closes, the reply shows as text; the talk key still works while it's open (the maintainer, `desktop@0.7.0`, 5 October 2026).
+- [x] Speak replies off from the menu: a spoken question gets a text reply (the maintainer, 5 October 2026).
 - [ ] Windows on a real machine: the pill at the top centre, the key, the managed charmd ending with the app.
 
 Bundled charmd:
 
-- [ ] A Mac without Node or the CLI: install the app, Open Anyway once, choose a folder and Claude Code, talk and type; the bundled `node` and the voice engine start (no "killed: 9", no second Gatekeeper prompt).
-- [ ] The bundled charmd matches the app: `opencharm status` through it (or the Settings footer) shows the app's commit.
-- [ ] The release checks Node's download against its pinned SHA-256 and fails if it doesn't match; the Windows and Intel Mac builds carry their own Node and voice engine.
+- [x] The app runs its own charmd, before an installed one: install it, Open Anyway once, choose a folder and Claude Code, talk and type; the bundled `node` and the voice engine start (no "killed: 9", no second Gatekeeper prompt). The maintainer's Mac with `desktop@0.7.0`, 5 October 2026.
+- [ ] The same on a Mac with no Node or CLI at all.
+- [x] The bundled charmd matches the app: `opencharm status` through it (or the Settings footer) shows the app's commit (`desktop@0.7.0`'s bundled CLI says `cli@0.0.0 (9241935)`, the app's commit).
+- [x] The release checks Node's download against its pinned SHA-256 and fails if it doesn't match; the Windows and Intel Mac builds carry their own Node and voice engine (`desktop@0.7.0` built for all three; the staging script refuses a mismatched archive or another target's engine).
 - [ ] Another `opencharm` chosen in Settings → Advanced is still used, with the old-CLI fallbacks.
-- [ ] The installed and download sizes per platform, recorded in `apps/desktop/README.md`.
+- [x] The download sizes per platform and the installed size on Apple silicon, recorded in `apps/desktop/README.md` (installed sizes on Intel and Windows not measured).
 - [ ] The same on Windows on a real machine.
-- [ ] The docs it makes wrong, updated in the same PR: `apps/desktop/README.md` (no Node or CLI to install; the bundled charmd; sizes), `OPENCHARM.md` (the desktop section), CONTRIBUTING ("Releasing": the desktop unit's paths).
+- [x] The docs it makes wrong, updated in the same PR: `apps/desktop/README.md` (no Node or CLI to install; the bundled charmd; sizes), `OPENCHARM.md` (the desktop section), CONTRIBUTING ("Releasing": the desktop unit's paths).
 
 ## Notes
 
