@@ -3,6 +3,7 @@
 //! settings window and applied at once. Keys never live here: they go to the system keychain.
 
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::path::Path;
 
 pub const DEFAULT_URL: &str = "ws://127.0.0.1:8787/charm";
@@ -157,6 +158,8 @@ pub struct Settings {
     pub look: Look,
     /// The macOS voice for the local voice ("" = the system's) when the workspace can't hold it.
     pub say_voice: String,
+    /// The Microsoft voice for each language ("it" → "it-IT-DiegoNeural"), over the workspace's.
+    pub microsoft_voices: BTreeMap<String, String>,
     /// The guided setup's progress: the highest step finished (0 = not started, 6 = done).
     pub setup_step: u32,
     /// Where the setup last created a workspace, offered first next time.
@@ -185,6 +188,7 @@ impl Default for Settings {
             cli_path: None,
             look: Look::default(),
             say_voice: String::new(),
+            microsoft_voices: BTreeMap::new(),
             setup_step: 0,
             setup_location: None,
         }
@@ -272,6 +276,22 @@ impl Settings {
         }
         if !LANGUAGES.contains(&self.language.as_str()) {
             return Err("choose a language".into());
+        }
+        // The shape charmd's config takes (packages/charmd/src/config/config.ts): xx-YY-Name.
+        let voice_name = |voice: &str| {
+            let parts: Vec<&str> = voice.split('-').collect();
+            parts.len() >= 3
+                && parts[..2].iter().all(|p| {
+                    (2..=4).contains(&p.len()) && p.chars().all(|c| c.is_ascii_alphabetic())
+                })
+                && parts[2..].iter().all(|p| {
+                    !p.is_empty() && p.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+                })
+        };
+        for (language, voice) in &self.microsoft_voices {
+            if !LANGUAGES.contains(&language.as_str()) || !voice_name(voice) {
+                return Err("choose a Microsoft voice from the list".into());
+            }
         }
         match self.agent.as_str() {
             "" => {}
@@ -432,6 +452,20 @@ mod tests {
         ] {
             assert!(with(bad).valid().is_err(), "{bad}");
         }
+    }
+
+    #[test]
+    fn a_microsoft_voice_is_picked_for_a_language_it_knows() {
+        let with = |lang: &str, voice: &str| Settings {
+            microsoft_voices: [(lang.to_string(), voice.to_string())].into(),
+            ..Settings::default()
+        };
+        assert!(with("it", "it-IT-DiegoNeural").valid().is_ok());
+        assert!(with("xx", "it-IT-DiegoNeural").valid().is_err());
+        assert!(with("it", "Diego").valid().is_err());
+        assert!(with("it", "it-IT-Diego Neural").valid().is_err());
+        let old: Settings = serde_json::from_str(r#"{"speak":"microsoft"}"#).unwrap();
+        assert!(old.microsoft_voices.is_empty());
     }
 
     #[test]
