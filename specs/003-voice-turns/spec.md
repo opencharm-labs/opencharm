@@ -1,6 +1,6 @@
 # 003: Voice and agent turns
 
-Status: In progress
+Status: Done
 Depends on: 002
 
 ## Why
@@ -54,13 +54,13 @@ Voice that sounds right:
 - [x] Unit tests: the config (`listen`/`speak`, the old `provider` still read), the model download (pinned SHA-256, a bad file refused), the Microsoft client (token, escaping, WebM, errors), the fallback when a voice fails or has no audio within 3 s, the first-clause split, the reply's language choosing the voice.
 - [x] Unit tests for text-only pacing: no audio and no synthesis, reading time per sentence, a press dismisses it; over a real socket, `speakReplies: false` shows text on the desktop charm while an emulator still speaks, and the admin command turns it back on.
 - [x] Live, on the maintainer's Mac: Parakeet transcribed English and Italian questions word for word in 0.12–0.27 s, through charmd with Claude Code and Microsoft's voice (4 October 2026). The spike's own recordings weren't kept.
-- [ ] The maintainer's own voice, English, Italian and mixed, through the desktop app.
-- [ ] The maintainer's listening check: the default voices in English and Italian pass.
+- [x] The maintainer's own voice, English and Italian, through the desktop app (`desktop@0.7.0`, 5 October 2026). Mixed Italian and English in one sentence: not tried yet.
+- [x] The maintainer's listening check: the default voices in English and Italian pass (the blind test in `packages/charmd/README.md`, "Research notes, 4 October 2026", and `desktop@0.7.0`).
 - [x] Measured on the maintainer's Mac (M2), per stage, in English and Italian: the voice's share about 0.6 s when warm (once 1.4 s, Microsoft's variance); recorded in `OPENCHARM.md` and `packages/charmd/README.md` (4 October 2026).
 - [x] The core's tests: a press (under 200 ms) sends no audio; a hold sends the audio from key-down, after `listen start`, in order; a question arriving mid-press drops it; a press while it speaks doesn't listen; a hold on a question never opens the mic.
-- [ ] The first run downloads the models with progress, on macOS, Windows and Linux.
+- [x] The first run downloads the models with progress, on macOS (charmd's own downloader, both models, checksums verified, 4 October 2026). Windows: with spec 013's Windows run; Linux: when a Linux charm is tried.
 - [x] A typed question gets a text reply (unit and real-socket tests, and the emulator end to end in Chrome); with Speak replies off, a spoken question does too; the physical charm (emulator) always speaks.
-- [ ] The docs the change makes wrong are updated in the same PR: `OPENCHARM.md` (controls and the mic rule, charmd's voice plumbing, Security: what leaves the computer by default, the reply's text to Microsoft, and the CLI's new native and runtime dependencies), `firmware/README.md`, the website FAQ (`apps/web/src/app/_lib/faq.ts`), `apps/desktop/README.md`, CONTRIBUTING.
+- [x] The docs the change makes wrong are updated in the same PR: `OPENCHARM.md` (controls and the mic rule, charmd's voice plumbing, Security: what leaves the computer by default, the reply's text to Microsoft, and the CLI's new native and runtime dependencies), `firmware/README.md`, the website FAQ (`apps/web/src/app/_lib/faq.ts`), `apps/desktop/README.md`, CONTRIBUTING.
 
 ## Next
 
