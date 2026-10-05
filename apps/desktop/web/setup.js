@@ -436,6 +436,15 @@ async function pollStatus() {
   if (stuck && s.detail) note("try-note", s.detail, "bad");
   else if (!answered && s.state === "starting")
     note("try-note", "Waking it up…");
+  else if (!answered && s.state === "running") {
+    // The first start downloads the voice models (about 600 MB): the first hello waits for them.
+    const models = await invoke("voice_progress");
+    if (models.length)
+      note(
+        "try-note",
+        `Getting its voice ready, the first time only: ${models.join(", ")}.`
+      );
+  }
 }
 function enterTry() {
   $("next").textContent = "Done";

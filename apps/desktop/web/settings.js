@@ -179,9 +179,14 @@ async function poll() {
     s.state === "off" ? settings.url : home(s.folder || "");
   const note = $("state-note");
   note.className = `note ${s.state === "running" ? "ok" : dot === "needs" ? "bad" : ""}`;
+  // The first start downloads the voice models (about 600 MB): say how far it is.
+  const models = s.state === "running" ? await invoke("voice_progress") : [];
   note.textContent =
     (s.detail && s.state !== "running" ? s.detail : text) +
-    (s.note ? ` ${s.note}` : "");
+    (s.note ? ` ${s.note}` : "") +
+    (models.length
+      ? ` Getting its voice ready, the first time only: ${models.join(", ")}.`
+      : "");
   if (s.state !== lastState && lastState) {
     if (s.state === "running") react("joy", 2000);
     if (dot === "needs") react("sad", 2000);
