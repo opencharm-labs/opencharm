@@ -20,10 +20,15 @@ pub fn needs_setup(settings: &Settings, folder_ok: bool) -> bool {
     settings.managed && (!folder_ok || (settings.setup_step > 0 && settings.setup_step < DONE))
 }
 
-/// The first step not done, from 1 (welcome) to 6 (try it).
+/// The first step not done, from 1 (welcome) to 6 (try it). A folder that went away sends it to the
+/// folder step (an upgrade from before the setup too); a finished setup opened again starts over.
 pub fn resume_step(settings: &Settings, folder_ok: bool) -> u32 {
-    if !folder_ok && settings.setup_step >= FOLDER_STEP - 1 {
+    let had_folder = settings.folder.is_some() || settings.setup_step >= FOLDER_STEP - 1;
+    if !folder_ok && had_folder {
         return FOLDER_STEP;
+    }
+    if settings.setup_step >= DONE {
+        return 1;
     }
     (settings.setup_step + 1).clamp(1, DONE)
 }
@@ -114,9 +119,30 @@ pub fn install_page(agent: &str) -> Option<&'static str> {
     }
 }
 
-/// Where a new workspace is offered: the Documents folder, else home.
+/// Makes `target` if it isn't there and runs `work` in it (`opencharm init`); when that fails, a
+/// folder made here is taken away again, so Retry finds the place free. One that was already there
+/// (an empty folder you chose) stays.
+pub fn create_then(
+    target: &Path,
+    work: impl FnOnce(&Path) -> Result<(), String>,
+) -> Result<(), String> {
+    // One step, so "made here" can't be wrong if something else makes it at the same moment.
+    let made = match std::fs::create_dir(target) {
+        Ok(()) => true,
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => false,
+        Err(e) => return Err(e.to_string()),
+    };
+    let result = work(target);
+    if result.is_err() && made {
+        let _ = std::fs::remove_dir_all(target);
+    }
+    result
+}
+
+/// Where a new workspace is offered: the Documents folder, else home; only one that's there (Linux
+/// may name a Documents folder that was never made).
 pub fn default_location(documents: Option<PathBuf>, home: Option<PathBuf>) -> Option<PathBuf> {
-    documents.or(home)
+    documents.filter(|d| d.is_dir()).or(home)
 }
 
 #[cfg(test)]
@@ -249,14 +275,58 @@ mod tests {
     }
 
     #[test]
-    fn suggests_documents_else_home() {
-        let docs = PathBuf::from("/Users/a/Documents");
-        let home = PathBuf::from("/Users/a");
+    fn suggests_documents_else_home_and_only_folders_that_are_there() {
+        let home = std::env::temp_dir().join(format!("oc-home-{}", std::process::id()));
+        let docs = home.join("Documents");
+        let _ = fs::remove_dir_all(&home);
+        fs::create_dir_all(&docs).unwrap();
         assert_eq!(
             default_location(Some(docs.clone()), Some(home.clone())),
-            Some(docs)
+            Some(docs.clone())
         );
-        assert_eq!(default_location(None, Some(home.clone())), Some(home));
+        assert_eq!(
+            default_location(None, Some(home.clone())),
+            Some(home.clone())
+        );
+        // Linux may name a Documents folder that was never made.
+        let missing = home.join("Dokumente");
+        assert_eq!(
+            default_location(Some(missing), Some(home.clone())),
+            Some(home.clone())
+        );
         assert_eq!(default_location(None, None), None);
+        fs::remove_dir_all(&home).unwrap();
+    }
+
+    #[test]
+    fn an_upgrade_whose_folder_is_gone_starts_at_the_folder_step() {
+        assert_eq!(resume_step(&with(0, Some("/gone")), false), 3);
+    }
+
+    #[test]
+    fn set_up_again_after_finishing_starts_at_the_welcome() {
+        assert_eq!(resume_step(&with(DONE, Some("/here")), true), 1);
+    }
+
+    #[test]
+    fn a_failed_create_takes_away_only_the_folder_it_made() {
+        let dir = std::env::temp_dir().join(format!("oc-undo-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(dir.join("was-there")).unwrap();
+        // It made the folder, the clone half-ran, then failed: the folder goes, so Retry works.
+        let made = dir.join("new");
+        let result = create_then(&made, |target| {
+            fs::write(target.join("half"), "x").unwrap();
+            Err("no network".to_string())
+        });
+        assert_eq!(result, Err("no network".to_string()));
+        assert!(!made.exists());
+        // A folder that was there before (empty, chosen by you) stays.
+        let kept = dir.join("was-there");
+        let _ = create_then(&kept, |_| Err("no".to_string()));
+        assert!(kept.is_dir());
+        assert_eq!(create_then(&dir.join("ok"), |_| Ok(())), Ok(()));
+        assert!(dir.join("ok").is_dir());
+        fs::remove_dir_all(&dir).unwrap();
     }
 }
