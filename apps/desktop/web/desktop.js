@@ -125,6 +125,23 @@ if (geometry.autoPair && (!geometry.testPin || geometry.testPin === "auto")) {
   };
 }
 
+// The setup's last step follows the first turn (spec 013): heard you, answered, or failed.
+const pairing = window.charmSim.onMessage;
+window.charmSim.onMessage = (m) => {
+  pairing?.(m);
+  const kind =
+    m.type === "stt"
+      ? "heard"
+      : m.type === "tts" &&
+          (m.state === "start" || m.state === "sentence_start")
+        ? "answered"
+        : m.type === "charm" && m.op === "face" && m.state === "failed"
+          ? "failed"
+          : null;
+  if (kind)
+    void window.__TAURI__.event.emit("charm-turn", { kind, text: m.text });
+};
+
 // A newer release? Once at start and once a day, unless turned off in Settings: one request to
 // GitHub's public list of desktop@ tags (a tag exists only for a published release), nothing sent
 // about you. Rust picks the version and offers it.
