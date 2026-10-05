@@ -277,16 +277,20 @@ impl Settings {
         if !LANGUAGES.contains(&self.language.as_str()) {
             return Err("choose a language".into());
         }
-        // The shape charmd's config takes (packages/charmd/src/config/config.ts): xx-YY-Name.
+        // Exactly the shape charmd's config takes (packages/charmd/src/config/config.ts,
+        // /^[A-Za-z]{2,3}-[A-Za-z]{2,4}-\w+$/), or charmd wouldn't start.
         let voice_name = |voice: &str| {
-            let parts: Vec<&str> = voice.split('-').collect();
-            parts.len() >= 3
-                && parts[..2].iter().all(|p| {
-                    (2..=4).contains(&p.len()) && p.chars().all(|c| c.is_ascii_alphabetic())
-                })
-                && parts[2..].iter().all(|p| {
-                    !p.is_empty() && p.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
-                })
+            let parts: Vec<&str> = voice.splitn(3, '-').collect();
+            let letters = |p: &str, min: usize, max: usize| {
+                (min..=max).contains(&p.len()) && p.chars().all(|c| c.is_ascii_alphabetic())
+            };
+            parts.len() == 3
+                && letters(parts[0], 2, 3)
+                && letters(parts[1], 2, 4)
+                && !parts[2].is_empty()
+                && parts[2]
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || c == '_')
         };
         for (language, voice) in &self.microsoft_voices {
             if !LANGUAGES.contains(&language.as_str()) || !voice_name(voice) {
@@ -464,6 +468,13 @@ mod tests {
         assert!(with("xx", "it-IT-DiegoNeural").valid().is_err());
         assert!(with("it", "Diego").valid().is_err());
         assert!(with("it", "it-IT-Diego Neural").valid().is_err());
+        // Exactly what charmd's config takes (/^[A-Za-z]{2,3}-[A-Za-z]{2,4}-\w+$/), or it won't start.
+        assert!(with("en", "en-US-Ava-Neural").valid().is_err());
+        assert!(with("en", "engl-US-AvaNeural").valid().is_err());
+        assert!(with("en", "en-US-Ava_Neural2").valid().is_ok());
+        assert!(with("pt", "pt-BR-ThalitaMultilingualNeural")
+            .valid()
+            .is_ok());
         let old: Settings = serde_json::from_str(r#"{"speak":"microsoft"}"#).unwrap();
         assert!(old.microsoft_voices.is_empty());
     }
