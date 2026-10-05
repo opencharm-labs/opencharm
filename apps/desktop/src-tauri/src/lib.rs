@@ -860,6 +860,11 @@ fn measure() -> Geometry {
     geometry.fake_mic = std::env::var("OPENCHARM_FAKE_MIC").is_ok_and(|v| v == "1");
     geometry.url = std::env::var("OPENCHARM_URL").ok();
     geometry.test_pin = std::env::var("OPENCHARM_TEST_PIN").ok();
+    geometry.store = geometry::store_prefix(
+        std::env::var_os("OPENCHARM_DATA")
+            .map(PathBuf::from)
+            .as_deref(),
+    );
     geometry
 }
 

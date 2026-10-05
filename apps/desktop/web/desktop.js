@@ -10,6 +10,8 @@ addEventListener("error", (e) =>
 addEventListener("unhandledrejection", (e) => log(`error: ${e.reason}`));
 
 log("starting");
+// A reload (charmd restarted, a new address) may come while the panel is open: start small.
+void invoke("panel", { open: false });
 // Listening first, before anything is awaited, so a new address (or none) is never missed.
 await listen("charm-reload", () => location.reload());
 // The app's own charmd gets a port from the system as it starts: wait until it has said which,
@@ -31,6 +33,8 @@ if (geometry.url) query.set("url", geometry.url);
 // The charm says what it runs in hello (spec 015): this app's release identity.
 query.set("version", (await invoke("app_identity")).version);
 window.charmParams = query.toString();
+// Automated tests keep the charm's token apart from the real one (OPENCHARM_DATA).
+if (geometry.store) window.charmStore = geometry.store;
 // Before every reconnect: the app's own charmd may have stopped or moved; never knock on a port it
 // no longer holds (someone else may have it by now). Its new address comes with a reload.
 if (geometry.autoPair)
@@ -71,11 +75,27 @@ const panel = (open) => {
   else closing = setTimeout(() => void invoke("panel", { open: false }), 320);
   show(open, height);
 };
+// Starting quietly: with the app's own charmd, connecting, pairing again and typing the PIN are
+// the app's plumbing, never something to look at. Until the charm is unlocked the panel stays shut
+// and the notch shows only the charm's eyes waking up; then it shows whatever the charm has to say.
+// A lock from outside or a blocked charm shows at once, and after 15 s anything still wrong shows.
+let awake = !geometry.autoPair;
+let unlocked = false;
+function wake(why) {
+  if (awake) return;
+  awake = true;
+  log(`awake (${why})`);
+  if (charmOpen) panel(true);
+}
+if (!awake) setTimeout(() => wake("not unlocked after 15 s"), 15_000);
+
 // While the field is shown the panel stays open, and it re-fits whenever either side changes.
 window.charmSim.panel = (open, height) => {
   charmOpen = open;
   charmHeight = height;
-  panel(open || typing);
+  // The charm's first panel after unlocking is the greeting (or none): that's when it wakes.
+  if (unlocked) wake("unlocked");
+  if (awake || typing) panel(open || typing);
 };
 
 // Typing to the charm (spec 013): the typing key or the menu opens a one-line field in the panel;
@@ -107,7 +127,7 @@ function closeField(giveBack) {
   typing = false;
   field.hidden = true;
   field.blur();
-  panel(charmOpen);
+  panel(charmOpen && awake);
   if (giveBack) void invoke("typing_done");
 }
 
@@ -160,6 +180,19 @@ if (geometry.autoPair && (!geometry.testPin || geometry.testPin === "auto")) {
 const pairing = window.charmSim.onMessage;
 window.charmSim.onMessage = (m) => {
   pairing?.(m);
+  // Unlocked: it wakes with the charm's next panel (the greeting), drawn on its next frame; if no
+  // panel change comes, a moment later anyway.
+  if (m.type === "charm" && m.op === "unlocked") {
+    unlocked = true;
+    setTimeout(() => wake("unlocked"), 500);
+  }
+  // Locked from outside (`opencharm lock`) or blocked after wrong PINs: that's for you to see.
+  if (
+    m.type === "charm" &&
+    m.op === "locked" &&
+    (m.reason === "remote" || m.reason === "blocked")
+  )
+    wake(`locked: ${m.reason}`);
   const kind =
     m.type === "stt"
       ? "heard"
