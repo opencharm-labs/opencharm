@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import type { AgentAdapter } from "../agent/types";
 import { createFakeAgent } from "../agent/fake";
+import { opusPacketSamples48k } from "../audio/ogg-opus";
 import { createFakeVoice } from "../voice/fake";
 import { VoiceNotReady } from "../voice/models";
 import type { VoiceProvider } from "../voice/types";
@@ -760,5 +761,71 @@ describe("typed questions (spec 013)", () => {
         .filter((m) => "type" in m && m.type === "tts")
         .map((m) => ("state" in m ? m.state : ""))
     ).toEqual(["start", "sentence_start", "stop"]);
+  });
+});
+
+describe("pacing the reply's audio", () => {
+  it("keeps the charm's player ahead through a long answer, though every sleep runs late", async () => {
+    let t = 0;
+    let firstAt: number | undefined;
+    let sentMs = 0;
+    let leastAhead = Infinity;
+    const turn = new TurnController({
+      voice: createFakeVoice({ transcript: "tell me" }),
+      agent: createFakeAgent({
+        reply: () =>
+          "Here is one long sentence that goes on and on without a single stop, so that the charm has to keep speaking it for well over ten seconds while the timers that pace it run a little late every single time they fire",
+      }),
+      sessionKey: "opencharm-c_1",
+      send: () => undefined,
+      sendAudio: (packet) => {
+        firstAt ??= t;
+        // What the player still has queued when this packet arrives; below zero it ran dry.
+        if (sentMs > 0)
+          leastAhead = Math.min(leastAhead, sentMs - (t - firstAt));
+        sentMs += opusPacketSamples48k(packet) / 48;
+      },
+      timeoutMs: 5000,
+      now: () => t,
+      // Real timers fire late; a few milliseconds each time.
+      sleep: (ms) => {
+        t += ms + 3;
+        return Promise.resolve();
+      },
+    });
+    await speak(turn);
+    expect(sentMs).toBeGreaterThan(10_000);
+    expect(leastAhead).toBeGreaterThan(0);
+  });
+
+  it("stays about the same distance ahead from one sentence to the next, so the captions keep up with the voice", async () => {
+    let t = 0;
+    let firstAt: number | undefined;
+    let sentMs = 0;
+    let mostAhead = 0;
+    let lastPacketMs = 0;
+    const turn = new TurnController({
+      voice: createFakeVoice({ transcript: "tell me" }),
+      agent: createFakeAgent({
+        reply: () =>
+          "Here is the first sentence of the answer. Then a second one follows it. A third sentence comes next. And a fourth one here. The fifth sentence ends it all.",
+      }),
+      sessionKey: "opencharm-c_1",
+      send: () => undefined,
+      sendAudio: (packet) => {
+        firstAt ??= t;
+        lastPacketMs = opusPacketSamples48k(packet) / 48;
+        sentMs += lastPacketMs;
+        mostAhead = Math.max(mostAhead, sentMs - (t - firstAt));
+      },
+      timeoutMs: 5000,
+      now: () => t,
+      sleep: (ms) => {
+        t += ms + 3;
+        return Promise.resolve();
+      },
+    });
+    await speak(turn);
+    expect(mostAhead).toBeLessThanOrEqual(250 + lastPacketMs);
   });
 });
