@@ -82,15 +82,20 @@ function wake(why) {
   if (charmOpen) panel(true);
 }
 let wakeTimer;
+let unlockTimer;
 if (!awake)
   wakeTimer = setTimeout(() => wake("not unlocked after 15 s"), 15_000);
 // charmd stopped or moved (a restart, a new port): the panel shuts while the charm finds it again,
 // exactly as at the start, and the charm reconnects without the page starting over.
-await listen("charm-moved", () => {
+await listen("charm-moved", async () => {
+  // The first announcement may come after the charm already found it: nothing moved then.
+  const now = (await invoke("charm_geometry")).url ?? null;
+  if (now && now === connectedUrl) return;
   if (geometry.autoPair) {
     awake = false;
     unlocked = false;
     clearTimeout(wakeTimer);
+    clearTimeout(unlockTimer);
     wakeTimer = setTimeout(() => wake("not unlocked after 15 s"), 15_000);
     if (!typing) panel(false);
   }
@@ -192,7 +197,7 @@ window.charmSim.onMessage = (m) => {
   // panel change comes, a moment later anyway.
   if (m.type === "charm" && m.op === "unlocked") {
     unlocked = true;
-    setTimeout(() => wake("unlocked"), 500);
+    unlockTimer = setTimeout(() => wake("unlocked"), 500);
   }
   // Locked from outside (`opencharm lock`) or blocked after wrong PINs: that's for you to see.
   if (
