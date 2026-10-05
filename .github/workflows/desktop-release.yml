@@ -5,7 +5,8 @@ name: Desktop release
 # version stamped in; `publish` then checksums and attests the installers, attaches them to a fresh
 # draft release and publishes it, which creates the desktop@<version> tag (CONTRIBUTING "Releasing").
 # A failed run publishes nothing; re-run it, or start it by hand on main (Actions → Desktop release →
-# Run workflow). The builds are unsigned for now (apps/desktop/README.md). Built from scratch on
+# Run workflow). macOS builds are signed with OpenCharm's own certificate in a job of their own
+# (sign-macos), not an Apple Developer ID; Windows builds are unsigned (apps/desktop/README.md). Built from scratch on
 # purpose: no build caches, so what we publish never depends on an earlier run (npm downloads come
 # from the setup action's cache, checked against the lockfile's integrity hashes).
 # Security: the jobs that run third-party code (npm ci, emsdk, cargo and Tauri builds) have a read-only
@@ -93,10 +94,13 @@ jobs:
         include:
           - os: macos-latest
             target: aarch64-apple-darwin
+            artifact: app-aarch64-apple-darwin
           - os: macos-latest
             target: x86_64-apple-darwin
+            artifact: app-x86_64-apple-darwin
           - os: windows-latest
             target: x86_64-pc-windows-msvc
+            artifact: installer-x86_64-pc-windows-msvc
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
@@ -128,18 +132,64 @@ jobs:
           npm run build -w packages/cli
           npm run stage -w apps/desktop -- --target "$TARGET"
           npm run bundle -w apps/desktop -- --target "$TARGET"
+      # macOS: the app itself, kept whole in a tar (links, permissions), for sign-macos.
+      - if: runner.os == 'macOS'
+        shell: bash
+        run: tar -czf "$RUNNER_TEMP/OpenCharm.app.tar.gz" -C "apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/macos" OpenCharm.app
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            ${{ runner.temp }}/OpenCharm.app.tar.gz
+            apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*.exe
+          if-no-files-found: error
+  # macOS: signed with OpenCharm's own certificate (apps/desktop/scripts/sign-macos.sh), so macOS
+  # recognises every update as the same app and keeps its answers (Desktop folder, microphone,
+  # keychain). The key reaches only this job, which installs and runs nothing but Apple's tools and that
+  # script: no npm, no cargo. Without the secret (a fork) the app stays signed ad hoc.
+  sign-macos:
+    needs: [plan, build]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            arch: aarch64
+          - target: x86_64-apple-darwin
+            arch: x64
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.SHA }}
+          persist-credentials: false
+          sparse-checkout: |
+            apps/desktop/scripts/sign-macos.sh
+            apps/desktop/src-tauri/Entitlements.plist
+          sparse-checkout-cone-mode: false
+      - uses: actions/download-artifact@v8
+        with:
+          name: app-${{ matrix.target }}
+          path: ${{ runner.temp }}/app
+      - env:
+          MACOS_SIGNING_CERTIFICATE: ${{ secrets.MACOS_SIGNING_CERTIFICATE }}
+          MACOS_SIGNING_PASSWORD: ${{ secrets.MACOS_SIGNING_PASSWORD }}
+          VERSION: ${{ needs.plan.outputs.version }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          tar -xzf "$RUNNER_TEMP/app/OpenCharm.app.tar.gz" -C "$RUNNER_TEMP/app"
+          mkdir -p "$RUNNER_TEMP/out"
+          sh apps/desktop/scripts/sign-macos.sh "$RUNNER_TEMP/app/OpenCharm.app" "$RUNNER_TEMP/out/OpenCharm_${VERSION}_${ARCH}.dmg"
       - uses: actions/upload-artifact@v7
         with:
           name: installer-${{ matrix.target }}
-          path: |
-            apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
-            apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*.exe
+          path: ${{ runner.temp }}/out/*.dmg
           if-no-files-found: error
   # Unsigned builds earn trust another way: checksums to compare, and a signed statement from GitHub
   # that these files were built by this workflow from this commit
   # (gh attestation verify <file> --repo <owner>/<repo>).
   publish:
-    needs: [plan, build]
+    needs: [plan, build, sign-macos]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -196,7 +246,7 @@ jobs:
             echo
             echo "The desktop charm: OpenCharm under your Mac's notch (Windows: a pill at the top of the screen)."
             echo "Install and first-run notes: $README"
-            echo "No developer signature yet (the macOS app is signed ad hoc): compare SHA256SUMS.txt, or run gh attestation verify <file> --repo $GITHUB_REPOSITORY."
+            echo "macOS: signed with OpenCharm's own certificate, not an Apple Developer ID, so macOS asks for Open Anyway once; it then keeps its answers across updates. Compare SHA256SUMS.txt, or run gh attestation verify <file> --repo $GITHUB_REPOSITORY."
             echo "Provided as is, with no warranty."
             echo
             echo "$MARK"

@@ -188,6 +188,9 @@ jobs:
       - run: |
           npm run build -w packages/cli
           npm run stage -w apps/desktop
+      # The release's macOS signing script, with a throwaway certificate on a tiny app (spec 013).
+      - if: runner.os == 'macOS'
+        run: sh apps/desktop/scripts/test-sign-macos.sh
       - working-directory: apps/desktop/src-tauri
         run: |
           cargo fmt --check
