@@ -70,6 +70,16 @@ const unlock = z.object({
   pin: z.string().regex(/^\d{4,12}$/),
 });
 
+// Typed text, from the desktop charm's one-line field (spec 013): answered as text (spec 003).
+const typed = z.object({
+  type: z.literal("charm"),
+  op: z.literal("text"),
+  text: z
+    .string()
+    .max(2000)
+    .refine((text) => text.trim().length > 0, { message: "empty" }),
+});
+
 // The answer to a question shown on the charm: hold = yes, press = no.
 const answer = z.object({
   type: z.literal("charm"),
@@ -84,6 +94,9 @@ const serverHello = z.object({
   transport: z.literal("websocket"),
   session_id: z.string().min(1).max(128),
   audio_params: audioParams,
+  // What this charmd accepts beyond XiaoZhi's protocol: `text`, typed text (spec 013). Absent from
+  // an older charmd, so a charm knows not to offer typing.
+  features: z.object({ text: z.boolean().optional() }).optional(),
 });
 const stt = z.object({
   session_id: sessionId,
@@ -176,6 +189,7 @@ const CLIENT_SCHEMAS = {
   abort,
   "charm:unlock": unlock,
   "charm:answer": answer,
+  "charm:text": typed,
 } as const;
 const SERVER_SCHEMAS = {
   hello: serverHello,

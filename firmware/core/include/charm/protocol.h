@@ -53,6 +53,7 @@ struct ServerMessage {
   int tries_left = -1;  // -1 when absent
   LockReason reason = LockReason::Boot;
   Look look;
+  bool accepts_text = false;  // hello: charmd accepts typed text (spec 013)
 };
 
 // Returns false for anything that is not a valid message from charmd; never throws.
@@ -74,5 +75,8 @@ std::string client_listen(bool start, std::string_view session_id);
 std::string client_abort(std::string_view session_id, std::string_view reason);
 std::string client_unlock(std::string_view pin);
 std::string client_answer(std::string_view id, bool yes);
+// Typed text from the desktop charm's field (spec 013), answered as text; only to a charmd whose
+// hello said `features.text`.
+std::string client_text(std::string_view text);
 
 }  // namespace charm

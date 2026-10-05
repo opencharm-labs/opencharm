@@ -34,15 +34,72 @@ log(
   `ready: ${geometry.width}x${geometry.height} pt, notch ${geometry.notch} pt`
 );
 
-// Grow the window before the panel animates open; shrink it after the close animation.
+// Grow the window before the panel animates open; shrink it after the close animation. The charm
+// opens it for speech and questions; the typing field below keeps it open while it's shown.
 const show = window.charmSim.panel;
 let closing;
-window.charmSim.panel = (open) => {
+let charmOpen = false;
+let typing = false;
+const panel = (open) => {
   clearTimeout(closing);
   if (open) void invoke("panel", { open: true });
   else closing = setTimeout(() => void invoke("panel", { open: false }), 320);
   show(open);
 };
+window.charmSim.panel = (open) => {
+  charmOpen = open;
+  if (open || !typing) panel(open);
+};
+
+// Typing to the charm (spec 013): the typing key or the menu opens a one-line field in the panel;
+// Enter sends it (the reply comes as text), Esc or clicking away closes it, and the app you were in
+// gets the keyboard back. One line and one reply: longer work belongs in the agent's own chat.
+const field = document.createElement("input");
+field.className = "type-field";
+field.type = "text";
+field.maxLength = 2000;
+field.spellcheck = true;
+field.placeholder = "Type, then Enter";
+field.setAttribute("aria-label", "Type to your charm");
+field.hidden = true;
+field.style.top = `${geometry.strip + 12}px`;
+document.body.append(field);
+
+function openField() {
+  typing = true;
+  field.placeholder = "Type, then Enter";
+  panel(true);
+  field.hidden = false;
+  field.value = "";
+  field.focus();
+}
+
+function closeField() {
+  if (!typing) return;
+  typing = false;
+  field.hidden = true;
+  field.blur();
+  if (!charmOpen) panel(false);
+  void invoke("typing_done");
+}
+
+field.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") return closeField();
+  if (e.key !== "Enter" || e.isComposing) return;
+  const text = field.value.trim();
+  if (!text) return;
+  const result = window.charmSim.type(text);
+  // An older charmd doesn't take typed text: say how to get it, keep the text.
+  if (result === "unsupported") {
+    field.value = "";
+    field.placeholder = "Update opencharm to type: npm install -g opencharm";
+    return;
+  }
+  // The charm refuses while it asks a question or you're holding the key: keep the text then.
+  if (result !== "sent") return;
+  closeField();
+});
+field.addEventListener("blur", () => closeField());
 
 // The app's own charmd (spec 013): pair with the code it shows and type the PIN when the charm
 // starts locked, both from the keychain through Rust, so nobody types a code or a PIN. A lock from
@@ -89,6 +146,7 @@ setInterval(checkForUpdate, 24 * 60 * 60 * 1000);
 
 // The global push-to-talk key: held anywhere on the computer, like the charm's key.
 await listen("charm-key", (event) => window.charmKey(event.payload === true));
+await listen("charm-type", () => openField());
 // From the settings window: a new charmd address (start again), or forget this charm's pairing.
 await listen("charm-reload", () => location.reload());
 await listen("charm-forget", () => window.charmSim.forget());

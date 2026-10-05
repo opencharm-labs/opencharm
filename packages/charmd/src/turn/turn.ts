@@ -170,10 +170,17 @@ class TurnController {
       this.#face("idle");
       return Promise.resolve();
     }
-    return this.#run(frames);
+    return this.#run({ frames });
   }
 
-  async #run(frames: Buffer[]): Promise<void> {
+  // Typed text from the desktop charm (spec 013): no listening, and the answer comes as text, the way
+  // it was asked (spec 003). A turn in progress is cancelled, as a new key hold would.
+  typed(text: string): Promise<void> {
+    if (this.busy) this.#cancel();
+    return this.#run({ text: text.trim() });
+  }
+
+  async #run(input: { frames: Buffer[] } | { text: string }): Promise<void> {
     const generation = ++this.#generation;
     const live = () => this.#generation === generation;
     const controller = new AbortController();
@@ -229,14 +236,18 @@ class TurnController {
     this.#state = "thinking";
     this.#face("thinking");
     try {
-      const ogg = writeOggOpus(frames, { inputSampleRate: 16000 });
-      heard = await Promise.race([
-        inStage("stt", () => this.#deps.voice.transcribe(ogg, signal)),
-        timeoutGuard,
-      ]);
-      timings.sttMs = now() - started;
-      if (!live()) return;
-      this.#deps.send({ type: "stt", text: heard });
+      if ("text" in input) {
+        heard = input.text;
+      } else {
+        const ogg = writeOggOpus(input.frames, { inputSampleRate: 16000 });
+        heard = await Promise.race([
+          inStage("stt", () => this.#deps.voice.transcribe(ogg, signal)),
+          timeoutGuard,
+        ]);
+        timings.sttMs = now() - started;
+        if (!live()) return;
+        this.#deps.send({ type: "stt", text: heard });
+      }
       if (!heard) {
         outcome = "nothing-heard";
         this.#state = "idle";
@@ -278,7 +289,8 @@ class TurnController {
         timeoutGuard,
         guessLanguage(heard) ?? this.#deps.voice.language ?? "en",
         clock,
-        this.#deps.speakAloud?.() ?? true
+        // It answers the way it was asked: typed gets text.
+        !("text" in input) && (this.#deps.speakAloud?.() ?? true)
       );
       if (!live()) return;
       if (this.#speaking) this.#deps.send({ type: "tts", state: "stop" });
@@ -314,6 +326,7 @@ class TurnController {
         outcome: live() ? outcome : "cancelled",
         ...timings,
         totalMs: now() - started,
+        ...("text" in input ? { typed: true } : {}),
         ...(this.#deps.logTranscripts ? { heard, said: said.trim() } : {}),
       });
     }

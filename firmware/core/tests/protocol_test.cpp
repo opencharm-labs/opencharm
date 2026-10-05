@@ -137,6 +137,8 @@ TEST_CASE("client messages match the shared fixtures") {
     if (f.name == "client-charm-unlock") CHECK(same_json(charm::client_unlock("482913"), f.raw));
     if (f.name == "client-charm-answer-yes")
       CHECK(same_json(charm::client_answer("q1", true), f.raw));
+    if (f.name == "client-charm-text")
+      CHECK(same_json(charm::client_text("Che tempo fa domani a \"Milano\"?"), f.raw));
     if (f.name == "client-charm-answer-no")
       CHECK(same_json(charm::client_answer("q1", false), f.raw));
   }

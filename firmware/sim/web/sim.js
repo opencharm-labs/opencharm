@@ -109,6 +109,14 @@ window.charmSim = {
     M._sim_forget();
     ws?.close();
   },
+  // Typed text from the desktop charm's field (spec 013): "sent", "busy" (a question or a talk), or
+  // "unsupported" (an older charmd).
+  type: (text) => {
+    let result = 0;
+    withString(text, (ptr) => (result = M._sim_type(ptr)));
+    wake();
+    return ["busy", "sent", "unsupported"][result] ?? "busy";
+  },
   // A PIN key from a keyboard or the desktop app ("0"…"9", "<", "OK").
   pinKey: (key) => {
     withString(key, (ptr) => M._sim_pin_key(ptr));

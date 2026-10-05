@@ -1,0 +1,17 @@
+{
+  "direction": "server",
+  "message": {
+    "type": "hello",
+    "transport": "websocket",
+    "session_id": "s1",
+    "audio_params": {
+      "format": "opus",
+      "sample_rate": 24000,
+      "channels": 1,
+      "frame_duration": 60
+    },
+    "features": {
+      "text": true
+    }
+  }
+}

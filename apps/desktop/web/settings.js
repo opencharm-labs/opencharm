@@ -17,6 +17,17 @@ const KEYS = mac
       ["alt+shift+space", "Alt + Shift + Space"],
     ];
 
+const TYPE_KEYS = mac
+  ? [
+      ["alt+shift+space", "⌥ ⇧ Option + Shift + Space"],
+      ["ctrl+shift+space", "⌃ ⇧ Control + Shift + Space"],
+      ["super+alt+space", "⌘ ⌥ Command + Option + Space"],
+    ]
+  : [
+      ["ctrl+alt+shift+space", "Ctrl + Alt + Shift + Space"],
+      ["ctrl+shift+t", "Ctrl + Shift + T"],
+    ];
+
 const $ = (id) => document.getElementById(id);
 const status = $("status");
 const charm = window.CharmFace.device($("face"), {
@@ -54,6 +65,10 @@ let settings = await invoke("get_settings");
 $("identity").textContent = (await invoke("app_identity")).text;
 let folder = null;
 for (const [value, label] of KEYS) $("key").append(new Option(label, value));
+for (const [value, label] of TYPE_KEYS)
+  $("type-key").append(new Option(label, value));
+if (!TYPE_KEYS.some(([value]) => value === settings.typeKey))
+  $("type-key").append(new Option(settings.typeKey, settings.typeKey));
 if (!KEYS.some(([value]) => value === settings.key))
   $("key").append(new Option(settings.key, settings.key));
 
@@ -61,6 +76,7 @@ const home = (path) => path.replace(/^\/(Users|home)\/[^/]+/, "~");
 
 function fill() {
   $("key").value = settings.key;
+  $("type-key").value = settings.typeKey;
   $("url").value = settings.url;
   $("login").checked = settings.startAtLogin;
   $("speak-replies").checked = settings.speakReplies;
@@ -321,6 +337,10 @@ await poll();
 setInterval(poll, 2000);
 
 $("key").addEventListener("change", (e) => void save({ key: e.target.value }));
+$("type-key").addEventListener(
+  "change",
+  (e) => void save({ typeKey: e.target.value })
+);
 $("url").addEventListener(
   "change",
   (e) => void save({ url: e.target.value.trim() })

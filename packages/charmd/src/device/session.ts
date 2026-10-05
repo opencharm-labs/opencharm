@@ -202,6 +202,7 @@ class Session {
       transport: "websocket",
       session_id: this.sessionId,
       audio_params: AUDIO_DOWN,
+      features: { text: true },
     });
     const { token } = this.#deps;
     if (token === undefined) {
@@ -247,6 +248,8 @@ class Session {
       else if (message.state === "stop") void turn.listenStop();
     } else if (message.type === "abort") {
       turn.abort();
+    } else if (message.type === "charm" && message.op === "text") {
+      void turn.typed(message.text);
     }
   }
 

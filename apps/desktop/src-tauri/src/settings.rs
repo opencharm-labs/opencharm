@@ -10,6 +10,11 @@ pub const DEFAULT_URL: &str = "ws://127.0.0.1:8787/charm";
 pub const DEFAULT_KEY: &str = "alt+space";
 #[cfg(not(target_os = "macos"))]
 pub const DEFAULT_KEY: &str = "ctrl+alt+space";
+/// Opens the one-line field to type to the charm (spec 013).
+#[cfg(target_os = "macos")]
+pub const DEFAULT_TYPE_KEY: &str = "alt+shift+space";
+#[cfg(not(target_os = "macos"))]
+pub const DEFAULT_TYPE_KEY: &str = "ctrl+alt+shift+space";
 /// The best voice with no key and no setup, on every platform (spec 003): Parakeet listens on this
 /// computer, Microsoft's voices speak (the text of each spoken reply goes to Microsoft; Settings says so).
 pub const DEFAULT_LISTEN: &str = "local";
@@ -81,6 +86,8 @@ impl Look {
 pub struct Settings {
     /// The push-to-talk shortcut, in Tauri's notation ("alt+space").
     pub key: String,
+    /// The shortcut that opens the field to type to the charm.
+    pub type_key: String,
     /// Another charmd's WebSocket address, used when `managed` is off.
     pub url: String,
     pub start_at_login: bool,
@@ -121,6 +128,7 @@ impl Default for Settings {
     fn default() -> Self {
         Settings {
             key: DEFAULT_KEY.into(),
+            type_key: DEFAULT_TYPE_KEY.into(),
             url: DEFAULT_URL.into(),
             start_at_login: false,
             check_updates: true,
@@ -198,6 +206,9 @@ impl Settings {
         }
         if self.key.trim().is_empty() {
             return Err("choose a talk key".into());
+        }
+        if self.type_key.trim().is_empty() || self.type_key == self.key {
+            return Err("choose a typing key other than the talk key".into());
         }
         if !LISTENS.contains(&self.listen.as_str())
             || !SPEAKS.contains(&self.speak.as_str())

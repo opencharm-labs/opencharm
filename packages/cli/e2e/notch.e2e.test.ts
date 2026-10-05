@@ -52,4 +52,37 @@ describe("the desktop charm under a notch", () => {
       15_000
     );
   }, 60_000);
+
+  it("sends typed text and shows the reply as text, with no audio (spec 013)", async () => {
+    const { page } = emulator;
+    const before = (await waitFor(page, () => true, "a trace")).messages.length;
+    // What the desktop page calls when Enter is pressed in its field.
+    const result = await page.evaluate(() =>
+      (
+        globalThis as unknown as {
+          charmSim: { type: (text: string) => string };
+        }
+      ).charmSim.type("Che tempo fa domani?")
+    );
+    expect(result).toBe("sent");
+    const trace = await waitFor(
+      page,
+      (t) =>
+        t.panelOpen === true &&
+        t.messages.some(
+          (m) =>
+            m.type === "tts" &&
+            m.state === "sentence_start" &&
+            m.text === "You said: Che tempo fa domani?."
+        ),
+      "the typed question's reply shown as text",
+      15_000
+    );
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: join(SHOTS, "8-notch-typed-reply.png") });
+    // No transcript: nothing was listened to.
+    expect(trace.messages.slice(before).some((m) => m.type === "stt")).toBe(
+      false
+    );
+  }, 60_000);
 });

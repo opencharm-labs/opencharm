@@ -25,5 +25,5 @@ target_link_options(charm_sim PRIVATE
   -sEXPORT_NAME=createCharm
   -sENVIRONMENT=web
   -sALLOW_MEMORY_GROWTH=1
-  "-sEXPORTED_FUNCTIONS=['_malloc','_free','_sim_init','_sim_frame','_sim_frame_dirty','_sim_tick','_sim_pointer','_sim_key','_sim_connected','_sim_disconnected','_sim_text','_sim_audio','_sim_mic_pcm','_sim_token','_sim_forget','_sim_set_build','_sim_commit']"
+  "-sEXPORTED_FUNCTIONS=['_malloc','_free','_sim_init','_sim_frame','_sim_frame_dirty','_sim_tick','_sim_pointer','_sim_key','_sim_connected','_sim_disconnected','_sim_text','_sim_audio','_sim_mic_pcm','_sim_token','_sim_forget','_sim_set_build','_sim_commit','_sim_type']"
   "-sEXPORTED_RUNTIME_METHODS=['HEAPU8','HEAP16','HEAP32','HEAPF32','UTF8ToString','stringToUTF8','lengthBytesUTF8']")

@@ -40,6 +40,10 @@ class App {
   void on_key(bool down, uint32_t now);
   void on_touch_face(uint32_t now);
   void on_pin_entered(std::string_view pin, uint32_t now);
+  // Typed text from the desktop charm's field (spec 013): sent on the face, never during a question
+  // or a talk; a reply in progress stops first. Unsupported when charmd's hello didn't offer it.
+  enum class Typed { Sent, Busy, Unsupported };
+  Typed on_typed(std::string_view text, uint32_t now);
   // How loud the voice is right now (0..1), from the platform's microphone; used while talking.
   void on_mic_level(float level);
 
@@ -107,6 +111,7 @@ class App {
   bool calm_ = false;
   // A question from charmd (decision layout): hold = yes, press = no.
   bool asking_ = false;
+  bool can_type_ = false;  // charmd's hello said it accepts typed text
   std::string ask_id_;
   std::string ask_text_;
   std::string ask_yes_;

@@ -205,6 +205,7 @@ void App::handle(const ServerMessage& m, uint32_t now) {
   switch (m.kind) {
     case ServerKind::Hello:
       session_id_ = m.session_id;
+      can_type_ = m.accepts_text;
       break;
     case ServerKind::PairCode:
       pair_code_ = m.code;
@@ -406,6 +407,18 @@ void App::on_touch_face(uint32_t now) {
 
 void App::on_mic_level(float level) {
   if (talking_) view_.set_voice_level(level < 0 ? 0 : level > 1 ? 1 : level);
+}
+
+App::Typed App::on_typed(std::string_view text, uint32_t now) {
+  if (!can_type_) return Typed::Unsupported;
+  if (screen_ != Screen::Face || asking_ || talking_ || key_down_ || text.empty())
+    return Typed::Busy;
+  activity(now);
+  if (speaking_) stop_speech(true);
+  stop_reacting();
+  line_.clear();
+  hal_.send_text(client_text(text));
+  return Typed::Sent;
 }
 
 void App::on_pin_entered(std::string_view pin, uint32_t now) {

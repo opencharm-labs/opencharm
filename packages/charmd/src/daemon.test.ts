@@ -526,3 +526,30 @@ describe("replies as text over a real socket (spec 003)", () => {
     await expect(d.admin.replies({ speak: "yes" })).rejects.toThrow();
   });
 });
+
+describe("typed text over a real socket (spec 013)", () => {
+  it("is answered as text once unlocked, and refused before", async () => {
+    const { daemon: d } = await start();
+    const charm = await connectFakeCharm(d.url, undefined, {
+      build: { kind: "desktop", version: "desktop@0.0.0", commit: "abc1234" },
+    });
+    const code = await charm.next(isOp("pair_code"));
+    if (code.type !== "charm" || code.op !== "pair_code")
+      throw new Error("no code");
+    await d.admin.pair({ code: code.code, pin: "482913", name: "desk" });
+    await charm.next(isOp("locked"));
+    charm.send({ type: "charm", op: "text", text: "hello?" });
+    expect(await charm.next(isOp("locked"))).toBeTruthy();
+    charm.send({ type: "charm", op: "unlock", pin: "482913" });
+    await charm.next(isOp("unlocked"));
+    charm.send({ type: "charm", op: "text", text: "hello?" });
+    expect(
+      await charm.next(
+        (m) => m.type === "tts" && m.state === "sentence_start",
+        10_000
+      )
+    ).toMatchObject({ text: "You said: hello?." });
+    await charm.next((m) => m.type === "tts" && m.state === "stop", 10_000);
+    expect(charm.audioFrames()).toBe(0);
+  });
+});
