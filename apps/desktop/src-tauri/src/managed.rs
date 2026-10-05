@@ -1309,12 +1309,21 @@ mod tests {
     fn finds_the_charmd_the_app_carries_and_runs_it_with_its_node() {
         let resources = temp("resources");
         assert_eq!(bundled_cli(&resources), None);
+        // Built a component at a time, as the app does, so Windows paths compare equal.
         let node = if cfg!(windows) {
-            resources.join("charmd/node/node.exe")
+            resources.join("charmd").join("node").join("node.exe")
         } else {
-            resources.join("charmd/node/bin/node")
+            resources
+                .join("charmd")
+                .join("node")
+                .join("bin")
+                .join("node")
         };
-        let script = resources.join("charmd/cli/dist/main.mjs");
+        let script = resources
+            .join("charmd")
+            .join("cli")
+            .join("dist")
+            .join("main.mjs");
         std::fs::create_dir_all(node.parent().unwrap()).unwrap();
         std::fs::create_dir_all(script.parent().unwrap()).unwrap();
         std::fs::write(&node, "").unwrap();
