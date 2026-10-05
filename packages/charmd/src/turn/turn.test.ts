@@ -829,3 +829,30 @@ describe("pacing the reply's audio", () => {
     expect(mostAhead).toBeLessThanOrEqual(250 + lastPacketMs);
   });
 });
+
+describe("getting the voice ready while you speak", () => {
+  it("primes the speaking voice when the key goes down, unless replies are text", () => {
+    let primed = 0;
+    const voice: VoiceProvider = {
+      ...createFakeVoice(),
+      prime: () => {
+        primed += 1;
+      },
+    };
+    let aloud = true;
+    const turn = new TurnController({
+      voice,
+      agent: createFakeAgent(),
+      sessionKey: "opencharm-c_1",
+      send: () => undefined,
+      sendAudio: () => undefined,
+      timeoutMs: 5000,
+      speakAloud: () => aloud,
+    });
+    turn.listenStart();
+    expect(primed).toBe(1);
+    aloud = false;
+    turn.listenStart();
+    expect(primed).toBe(1);
+  });
+});

@@ -148,8 +148,10 @@ class TurnController {
     this.#state = "listening";
     this.#frames = [];
     this.#face("listening");
-    // The user is speaking for a few seconds anyway: a good moment for a slow agent to start up.
+    // The user is speaking for a few seconds anyway: a good moment for a slow agent to start up,
+    // and for the voice to get ready to answer (when the answer will be spoken).
     this.#deps.agent.warm?.(this.#deps.sessionKey);
+    if (this.#deps.speakAloud?.() ?? true) this.#deps.voice.prime?.();
   }
 
   audio(frame: Buffer): void {

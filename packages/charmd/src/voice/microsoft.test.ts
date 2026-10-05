@@ -1,6 +1,6 @@
 import type { AddressInfo } from "node:net";
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { WebSocketServer, type WebSocket } from "ws";
 
 import { readOggOpus } from "../audio/ogg-opus";
@@ -157,5 +157,85 @@ describe("Microsoft's voice", () => {
     const t = Date.UTC(2026, 9, 4, 12, 0, 0);
     expect(secMsGec(t)).toBe(secMsGec(t + 299_000));
     expect(secMsGec(t)).not.toBe(secMsGec(t + 300_000));
+  });
+});
+
+// A voice service that answers each connection's request on that connection, and counts them.
+async function serveEach(): Promise<{
+  url: string;
+  connections: () => number;
+}> {
+  const server = new WebSocketServer({ port: 0, host: "127.0.0.1" });
+  servers.push(server);
+  await new Promise<void>((resolve) => server.on("listening", resolve));
+  let connections = 0;
+  server.on("connection", (socket) => {
+    connections += 1;
+    let messages = 0;
+    socket.on("message", () => {
+      messages += 1;
+      if (messages !== 2) return;
+      socket.send(audioFrame(webm(FRAMES)));
+      socket.send("X-RequestId:abc\r\nPath:turn.end\r\n\r\n{}");
+    });
+  });
+  return {
+    url: `ws://127.0.0.1:${(server.address() as AddressInfo).port}/`,
+    connections: () => connections,
+  };
+}
+
+describe("Microsoft's voice, primed while you speak", () => {
+  it("opens the connection while the key is held, and the first sentence uses it", async () => {
+    const { url, connections } = await serveEach();
+    const speaker = createMicrosoftSpeaker({ url });
+    speaker.prime();
+    speaker.prime();
+    await vi.waitFor(() => expect(connections()).toBe(1));
+    const ogg = await speaker.synthesize("Hi.", new AbortController().signal);
+    expect(readOggOpus(ogg).packets).toEqual(FRAMES);
+    expect(connections()).toBe(1);
+    // The next sentence opens its own, as before.
+    await speaker.synthesize("Again.", new AbortController().signal);
+    expect(connections()).toBe(2);
+  });
+
+  it("lets a spare connection go after a while, and opens a fresh one", async () => {
+    const { url, connections } = await serveEach();
+    const speaker = createMicrosoftSpeaker({ url, spareMs: 50 });
+    speaker.prime();
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    const ogg = await speaker.synthesize("Hi.", new AbortController().signal);
+    expect(readOggOpus(ogg).packets).toEqual(FRAMES);
+    expect(connections()).toBe(2);
+  });
+});
+
+describe("Microsoft's voice, when the primed connection has gone bad", () => {
+  it("tries once more on a fresh connection before any audio, so the voice doesn't rest", async () => {
+    const server = new WebSocketServer({ port: 0, host: "127.0.0.1" });
+    servers.push(server);
+    await new Promise<void>((resolve) => server.on("listening", resolve));
+    let connections = 0;
+    server.on("connection", (socket) => {
+      connections += 1;
+      // The first (primed) connection dies as soon as it's asked; the next one answers.
+      const dies = connections === 1;
+      let messages = 0;
+      socket.on("message", () => {
+        messages += 1;
+        if (messages !== 2) return;
+        if (dies) return socket.terminate();
+        socket.send(audioFrame(webm(FRAMES)));
+        socket.send("X-RequestId:abc\r\nPath:turn.end\r\n\r\n{}");
+      });
+    });
+    const url = `ws://127.0.0.1:${(server.address() as AddressInfo).port}/`;
+    const speaker = createMicrosoftSpeaker({ url });
+    speaker.prime();
+    await vi.waitFor(() => expect(connections).toBe(1));
+    const ogg = await speaker.synthesize("Hi.", new AbortController().signal);
+    expect(readOggOpus(ogg).packets).toEqual(FRAMES);
+    expect(connections).toBe(2);
   });
 });

@@ -22,6 +22,8 @@ type Speaker = {
     language?: string
   ) => AsyncIterable<Buffer>;
   warm?: () => Promise<void>;
+  // A reply is coming soon (the key is down): get ready to speak, e.g. open a connection ahead.
+  prime?: () => void;
   // Runs on this computer: slow when busy, but not gone, so no first-audio deadline (voice/speak.ts).
   onDevice?: boolean;
 };
@@ -31,6 +33,7 @@ type VoiceProvider = {
   synthesize: Speaker["synthesize"];
   stream?: Speaker["stream"];
   warm?: () => Promise<void>;
+  prime?: Speaker["prime"];
   // The language to fall back on when a transcript or a sentence doesn't show one.
   language?: string;
 };
