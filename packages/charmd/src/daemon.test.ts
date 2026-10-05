@@ -552,4 +552,23 @@ describe("typed text over a real socket (spec 013)", () => {
     await charm.next((m) => m.type === "tts" && m.state === "stop", 10_000);
     expect(charm.audioFrames()).toBe(0);
   });
+
+  it("is offered to the desktop charm only, and ignored from any other (a board has no keyboard)", async () => {
+    const { daemon: d } = await start();
+    const charm = await connectFakeCharm(d.url, undefined, {
+      build: { kind: "board", version: "board@0.0.0", commit: "abc1234" },
+    });
+    const code = await charm.next(isOp("pair_code"));
+    if (code.type !== "charm" || code.op !== "pair_code")
+      throw new Error("no code");
+    await d.admin.pair({ code: code.code, pin: "482913", name: "board" });
+    await charm.next(isOp("locked"));
+    charm.send({ type: "charm", op: "unlock", pin: "482913" });
+    await charm.next(isOp("unlocked"));
+    expect(charm.received.find((m) => m.type === "hello")).not.toHaveProperty(
+      "features"
+    );
+    charm.send({ type: "charm", op: "text", text: "hello?" });
+    await expect(charm.next((m) => m.type === "tts", 1500)).rejects.toThrow();
+  });
 });

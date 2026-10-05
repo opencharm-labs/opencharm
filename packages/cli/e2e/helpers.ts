@@ -80,7 +80,9 @@ function toneWav(path: string): void {
 
 async function startEmulator(
   transcript: string,
-  query = ""
+  query = "",
+  // Present as the desktop app does (its hello says kind "desktop"), for what only it offers.
+  options: { desktop?: boolean } = {}
 ): Promise<Emulator> {
   const dir = mkdtempSync(join(tmpdir(), "oc-e2e-"));
   const wav = join(dir, "mic.wav");
@@ -114,6 +116,8 @@ async function startEmulator(
     if (message.type() === "warning" || message.type() === "error")
       console.error("page:", message.text());
   });
+  if (options.desktop)
+    await page.addInitScript("window.charmParams = location.search.slice(1);");
   await page.goto(
     `http://127.0.0.1:${(server.address() as AddressInfo).port}/${query}`
   );

@@ -74,22 +74,24 @@ function openField() {
   field.focus();
 }
 
-function closeField() {
+// Enter and Esc give the keyboard back to the app you were in; clicking away already moved it.
+function closeField(giveBack) {
   if (!typing) return;
   typing = false;
   field.hidden = true;
   field.blur();
   if (!charmOpen) panel(false);
-  void invoke("typing_done");
+  if (giveBack) void invoke("typing_done");
 }
 
 field.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") return closeField();
-  if (e.key !== "Enter" || e.isComposing) return;
+  if (e.key === "Escape") return closeField(true);
+  // An input method's confirming Enter (Japanese, Chinese) isn't a send: WebKit reports it as 229.
+  if (e.key !== "Enter" || e.isComposing || e.keyCode === 229) return;
   const text = field.value.trim();
   if (!text) return;
   const result = window.charmSim.type(text);
-  // An older charmd doesn't take typed text: say how to get it, keep the text.
+  // An older charmd doesn't take typed text: the field clears to say how to get it.
   if (result === "unsupported") {
     field.value = "";
     field.placeholder = "Update opencharm to type: npm install -g opencharm";
@@ -97,9 +99,9 @@ field.addEventListener("keydown", (e) => {
   }
   // The charm refuses while it asks a question or you're holding the key: keep the text then.
   if (result !== "sent") return;
-  closeField();
+  closeField(true);
 });
-field.addEventListener("blur", () => closeField());
+field.addEventListener("blur", () => closeField(false));
 
 // The app's own charmd (spec 013): pair with the code it shows and type the PIN when the charm
 // starts locked, both from the keychain through Rust, so nobody types a code or a PIN. A lock from

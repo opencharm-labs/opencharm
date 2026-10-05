@@ -202,7 +202,8 @@ class Session {
       transport: "websocket",
       session_id: this.sessionId,
       audio_params: AUDIO_DOWN,
-      features: { text: true },
+      // Typed text (spec 013) is for the desktop charm only: a board has no keyboard.
+      ...(this.#build?.kind === "desktop" ? { features: { text: true } } : {}),
     });
     const { token } = this.#deps;
     if (token === undefined) {
@@ -249,7 +250,8 @@ class Session {
     } else if (message.type === "abort") {
       turn.abort();
     } else if (message.type === "charm" && message.op === "text") {
-      void turn.typed(message.text);
+      // Only the desktop charm has a keyboard (spec 013); a board's charm can't type.
+      if (this.#build?.kind === "desktop") void turn.typed(message.text);
     }
   }
 

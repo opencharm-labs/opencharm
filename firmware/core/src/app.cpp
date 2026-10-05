@@ -13,6 +13,18 @@ constexpr uint32_t kQuickTapsMs = 2000;  // three taps within this = dizzy
 // Up to about a second of 60 ms frames before a hold is confirmed (it takes 200 ms): enough for a
 // late tick, bounded for the board's memory.
 constexpr size_t kPrerollFrames = 16;
+// Typed text charmd accepts (spec 001): not blank, at most 2,000 characters (code points).
+constexpr size_t kMaxTypedChars = 2000;
+
+bool sendable(std::string_view text) {
+  size_t chars = 0;
+  bool blank = true;
+  for (unsigned char c : text) {
+    if ((c & 0xC0) != 0x80) ++chars;  // a character starts at every byte that isn't a continuation
+    if (c != ' ' && c != '\t' && c != '\n' && c != '\r') blank = false;
+  }
+  return !blank && chars <= kMaxTypedChars;
+}
 
 struct Reaction {
   const char* face;
@@ -189,6 +201,7 @@ void App::on_connected(uint32_t) { hal_.send_text(client_hello(options_.build));
 
 void App::on_disconnected(uint32_t) {
   asking_ = false;
+  can_type_ = false;  // the next charmd says again in its hello
   end_talk(false);
   if (speaking_) stop_speech(false);
   set_needs_you(false);
@@ -410,9 +423,10 @@ void App::on_mic_level(float level) {
 }
 
 App::Typed App::on_typed(std::string_view text, uint32_t now) {
+  // Not connected and unlocked yet: not now (charmd's hello hasn't said whether it takes text).
+  if (screen_ != Screen::Face) return Typed::Busy;
   if (!can_type_) return Typed::Unsupported;
-  if (screen_ != Screen::Face || asking_ || talking_ || key_down_ || text.empty())
-    return Typed::Busy;
+  if (asking_ || talking_ || key_down_ || !sendable(text)) return Typed::Busy;
   activity(now);
   if (speaking_) stop_speech(true);
   stop_reacting();

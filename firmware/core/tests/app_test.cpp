@@ -729,7 +729,7 @@ TEST_CASE("typed text goes to charmd from the face, stopping a reply in progress
 
 TEST_CASE("typed text is refused during a question, a talk, or before unlocking") {
   Rig r;
-  CHECK(r.app.on_typed("hi", r.now) == charm::App::Typed::Unsupported);  // no hello yet
+  CHECK(r.app.on_typed("hi", r.now) == charm::App::Typed::Busy);  // not connected yet: not now
   r.unlocked();
   r.server(kHelloText);
   r.server(kAskEarly);
@@ -750,4 +750,19 @@ TEST_CASE("typing is unsupported when charmd's hello doesn't offer it") {
   r.unlocked();  // the rig's hello has no features
   CHECK(r.app.on_typed("hi", r.now) == charm::App::Typed::Unsupported);
   CHECK_FALSE(r.hal.sent_contains(R"("op":"text")"));
+}
+
+TEST_CASE("typed text that charmd would refuse is never sent, and a new connection asks again") {
+  Rig r;
+  r.unlocked();
+  r.server(kHelloText);
+  CHECK(r.app.on_typed("   \n", r.now) == charm::App::Typed::Busy);
+  CHECK(r.app.on_typed(std::string(2001, 'a'), r.now) == charm::App::Typed::Busy);
+  // 2,000 characters of two bytes each is still 2,000 characters.
+  std::string accents;
+  for (int i = 0; i < 2000; ++i) accents += "\xC3\xA8";  // è
+  CHECK(r.app.on_typed(accents, r.now) == charm::App::Typed::Sent);
+  r.app.on_disconnected(r.now);
+  r.unlocked();  // this charmd's hello doesn't offer typing
+  CHECK(r.app.on_typed("hi", r.now) == charm::App::Typed::Unsupported);
 }

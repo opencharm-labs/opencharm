@@ -15,7 +15,9 @@ import {
 let emulator: Emulator;
 
 beforeAll(async () => {
-  emulator = await startEmulator("what's the weather", "?shape=notch");
+  emulator = await startEmulator("what's the weather", "?shape=notch", {
+    desktop: true,
+  });
 }, 60_000);
 
 afterAll(async () => {
@@ -84,5 +86,18 @@ describe("the desktop charm under a notch", () => {
     expect(trace.messages.slice(before).some((m) => m.type === "stt")).toBe(
       false
     );
+  }, 60_000);
+
+  it("keys typed into a text field stay text: spaces aren't the talk key, digits aren't the PIN", async () => {
+    const { page } = emulator;
+    const opens = (await waitFor(page, () => true, "a trace")).micOpens;
+    // A text field like the desktop app's, focused.
+    await page.evaluate(
+      "const f = document.createElement('input'); f.id = 'e2e-field'; document.body.append(f); f.focus();"
+    );
+    await page.keyboard.type("che tempo fa 12");
+    expect(await page.inputValue("#e2e-field")).toBe("che tempo fa 12");
+    await page.waitForTimeout(500);
+    expect((await waitFor(page, () => true, "a trace")).micOpens).toBe(opens);
   }, 60_000);
 });

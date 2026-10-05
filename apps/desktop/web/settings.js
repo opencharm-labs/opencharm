@@ -21,11 +21,11 @@ const TYPE_KEYS = mac
   ? [
       ["alt+shift+space", "⌥ ⇧ Option + Shift + Space"],
       ["ctrl+shift+space", "⌃ ⇧ Control + Shift + Space"],
-      ["super+alt+space", "⌘ ⌥ Command + Option + Space"],
+      ["ctrl+alt+shift+space", "⌃ ⌥ ⇧ Control + Option + Shift + Space"],
     ]
   : [
       ["ctrl+alt+shift+space", "Ctrl + Alt + Shift + Space"],
-      ["ctrl+shift+t", "Ctrl + Shift + T"],
+      ["alt+shift+space", "Alt + Shift + Space"],
     ];
 
 const $ = (id) => document.getElementById(id);

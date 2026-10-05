@@ -440,19 +440,38 @@ fn save_settings(app: AppHandle, saved: State<Saved>, next: Settings) -> Result<
         ..next
     };
     next.valid()?;
-    if next.key != previous.key {
-        let shortcuts = app.global_shortcut();
-        shortcuts
-            .register(next.key.as_str())
-            .map_err(|e| format!("that key can't be used: {e}"))?;
-        let _ = shortcuts.unregister(previous.key.as_str());
+    // New keys are registered first (a taken key changes nothing), the old ones dropped only once
+    // the settings are saved, so a failed save never leaves a key doing the other key's job.
+    let shortcuts = app.global_shortcut();
+    let changed: Vec<(&str, &str, &str)> = [
+        (next.key.as_str(), previous.key.as_str(), "that key"),
+        (
+            next.type_key.as_str(),
+            previous.type_key.as_str(),
+            "that typing key",
+        ),
+    ]
+    .into_iter()
+    .filter(|(new, old, _)| new != old)
+    .collect();
+    let mut registered = Vec::new();
+    for (new, _, what) in &changed {
+        if let Err(e) = shortcuts.register(*new) {
+            for done in registered {
+                let _ = shortcuts.unregister(done);
+            }
+            return Err(format!("{what} can't be used: {e}"));
+        }
+        registered.push(*new);
     }
-    if next.type_key != previous.type_key {
-        let shortcuts = app.global_shortcut();
-        shortcuts
-            .register(next.type_key.as_str())
-            .map_err(|e| format!("that typing key can't be used: {e}"))?;
-        let _ = shortcuts.unregister(previous.type_key.as_str());
+    if let Err(e) = next.save(&saved.path) {
+        for done in registered {
+            let _ = shortcuts.unregister(done);
+        }
+        return Err(e.to_string());
+    }
+    for (_, old, _) in &changed {
+        let _ = shortcuts.unregister(*old);
     }
     let autolaunch = app.autolaunch();
     let _ = if next.start_at_login {
@@ -460,7 +479,6 @@ fn save_settings(app: AppHandle, saved: State<Saved>, next: Settings) -> Result<
     } else {
         autolaunch.disable()
     };
-    next.save(&saved.path).map_err(|e| e.to_string())?;
     *saved.settings.lock().unwrap() = next.clone();
     if charmd_fields(&next) != charmd_fields(&previous) {
         apply_managed(&app);
@@ -639,12 +657,21 @@ pub fn run() {
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, shortcut, event| {
                     let pressed = event.state() == ShortcutState::Pressed;
-                    // The typing key opens the field (spec 013); every other key is the talk key.
-                    let type_key = app.state::<Saved>().settings.lock().unwrap().type_key.clone();
-                    if type_key.parse::<Shortcut>().is_ok_and(|key| &key == shortcut) {
+                    // The typing key opens the field (spec 013); the talk key talks; any other key is
+                    // one being swapped out, and does nothing.
+                    let (key, type_key) = {
+                        let saved = app.state::<Saved>();
+                        let settings = saved.settings.lock().unwrap();
+                        (settings.key.clone(), settings.type_key.clone())
+                    };
+                    let is = |name: &str| name.parse::<Shortcut>().is_ok_and(|k| &k == shortcut);
+                    if is(&type_key) {
                         if pressed {
                             start_typing(app);
                         }
+                        return;
+                    }
+                    if !is(&key) {
                         return;
                     }
                     #[cfg(target_os = "macos")]
