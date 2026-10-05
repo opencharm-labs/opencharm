@@ -311,6 +311,7 @@ summary {
   gap: 10px;
 }
 .swatch {
+  flex: none; /* the own-colour swatch is an input, which would grow to fill the row */
   width: 38px;
   height: 38px;
   padding: 0;
