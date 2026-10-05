@@ -244,7 +244,7 @@ Brand colours (pages):
 - **highlight (#FFD479):** the one highlight in code blocks (names on night); never a page accent and never on the device screen.
 - **signal (#FF5A1F):** orange means only one thing: "it needs you" (the decision layout's ring and hint). Never use it as a brand accent, link or button colour.
 
-Identity colours (the device): the user picks one when naming the charm. The shell and the glyphs share it; the key has its own colour. White is the default.
+Identity colours (the device): the user picks one when naming the charm. The shell and the glyphs share it; the key has its own colour. White is the default. A colour of the user's own (`#RRGGBB`) lights only the glyphs, never orange-like or too dark (OPENCHARM.md 5.3).
 
 | Identity | Shell   | Glyphs  | Key     |
 | -------- | ------- | ------- | ------- |
