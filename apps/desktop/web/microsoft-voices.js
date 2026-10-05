@@ -1,0 +1,75 @@
+// Microsoft's voices for the languages charmd answers in, from the read-aloud service's own list
+// (checked 5 October 2026). charmd's default for each language is its DEFAULT_VOICES
+// (packages/charmd/src/voice/microsoft.ts).
+export const MICROSOFT_VOICES = {
+  en: [
+    ["en-US-AvaNeural", "Ava · US"],
+    ["en-US-AndrewNeural", "Andrew · US"],
+    ["en-US-EmmaNeural", "Emma · US"],
+    ["en-US-BrianNeural", "Brian · US"],
+    ["en-US-AnaNeural", "Ana · US"],
+    ["en-US-AndrewMultilingualNeural", "Andrew · US · multilingual"],
+    ["en-US-AriaNeural", "Aria · US"],
+    ["en-US-AvaMultilingualNeural", "Ava · US · multilingual"],
+    ["en-US-BrianMultilingualNeural", "Brian · US · multilingual"],
+    ["en-US-ChristopherNeural", "Christopher · US"],
+    ["en-US-EmmaMultilingualNeural", "Emma · US · multilingual"],
+    ["en-US-EricNeural", "Eric · US"],
+    ["en-US-GuyNeural", "Guy · US"],
+    ["en-US-JennyNeural", "Jenny · US"],
+    ["en-US-MichelleNeural", "Michelle · US"],
+    ["en-US-RogerNeural", "Roger · US"],
+    ["en-US-SteffanNeural", "Steffan · US"],
+    ["en-GB-LibbyNeural", "Libby · UK"],
+    ["en-GB-MaisieNeural", "Maisie · UK"],
+    ["en-GB-RyanNeural", "Ryan · UK"],
+    ["en-GB-SoniaNeural", "Sonia · UK"],
+    ["en-GB-ThomasNeural", "Thomas · UK"],
+  ],
+  it: [
+    ["it-IT-GiuseppeMultilingualNeural", "Giuseppe · Italia · multilingual"],
+    ["it-IT-DiegoNeural", "Diego · Italia"],
+    ["it-IT-ElsaNeural", "Elsa · Italia"],
+    ["it-IT-IsabellaNeural", "Isabella · Italia"],
+  ],
+  es: [
+    ["es-ES-XimenaNeural", "Ximena · España"],
+    ["es-ES-AlvaroNeural", "Alvaro · España"],
+    ["es-ES-ElviraNeural", "Elvira · España"],
+    ["es-MX-DaliaNeural", "Dalia · México"],
+    ["es-MX-JorgeNeural", "Jorge · México"],
+  ],
+  fr: [
+    ["fr-FR-VivienneMultilingualNeural", "Vivienne · France · multilingual"],
+    ["fr-FR-RemyMultilingualNeural", "Remy · France · multilingual"],
+    ["fr-FR-DeniseNeural", "Denise · France"],
+    ["fr-FR-EloiseNeural", "Eloise · France"],
+    ["fr-FR-HenriNeural", "Henri · France"],
+  ],
+  de: [
+    [
+      "de-DE-SeraphinaMultilingualNeural",
+      "Seraphina · Deutschland · multilingual",
+    ],
+    ["de-DE-FlorianMultilingualNeural", "Florian · Deutschland · multilingual"],
+    ["de-DE-AmalaNeural", "Amala · Deutschland"],
+    ["de-DE-ConradNeural", "Conrad · Deutschland"],
+    ["de-DE-KatjaNeural", "Katja · Deutschland"],
+    ["de-DE-KillianNeural", "Killian · Deutschland"],
+  ],
+  pt: [
+    ["pt-BR-ThalitaMultilingualNeural", "Thalita · Brasil · multilingual"],
+    ["pt-BR-AntonioNeural", "Antonio · Brasil"],
+    ["pt-BR-FranciscaNeural", "Francisca · Brasil"],
+    ["pt-PT-DuarteNeural", "Duarte · Portugal"],
+    ["pt-PT-RaquelNeural", "Raquel · Portugal"],
+  ],
+};
+export const MICROSOFT_DEFAULTS = {
+  en: "en-US-AvaMultilingualNeural",
+  it: "it-IT-IsabellaNeural",
+  es: "es-ES-ElviraNeural",
+  fr: "fr-FR-DeniseNeural",
+  de: "de-DE-KatjaNeural",
+  pt: "pt-BR-FranciscaNeural",
+};

@@ -2,6 +2,7 @@
 // charmd restarts for a new folder, agent or voice, the charm reconnects, start-at-login follows).
 // The charm at the top is the real face engine, reacting.
 import { colourOf, mountColourPicker } from "./colour-picker.js";
+import { MICROSOFT_DEFAULTS, MICROSOFT_VOICES } from "./microsoft-voices.js";
 import { describeModels } from "./voice-progress.js";
 
 const { invoke } = window.__TAURI__.core;
@@ -126,6 +127,8 @@ function fill() {
     fake: "No speaker: a soft tone stands in for speech. For trying.",
   }[settings.speak];
 
+  fillMicrosoftVoice();
+
   const note = $("folder-note");
   $("create").hidden = !(folder?.exists && folder.empty);
   if (!folder) {
@@ -163,6 +166,33 @@ async function save(change) {
   void poll();
   if (charmLook) await loadLook();
 }
+
+// Microsoft's voices: one per language, set for the language chosen below (charmd picks the voice
+// by the language of each reply). The default is charmd's own; choosing it drops the override.
+function fillMicrosoftVoice() {
+  const language = settings.language;
+  const select = $("ms-voice");
+  $("ms-voice-row").hidden = settings.speak !== "microsoft";
+  $("ms-voice-label").textContent =
+    `ITS VOICE · ${$("language").selectedOptions[0]?.textContent?.toUpperCase() ?? ""}`;
+  select.replaceChildren();
+  for (const [name, label] of MICROSOFT_VOICES[language] ?? [])
+    select.append(
+      new Option(
+        name === MICROSOFT_DEFAULTS[language] ? `${label} (default)` : label,
+        name
+      )
+    );
+  select.value =
+    settings.microsoftVoices?.[language] ?? MICROSOFT_DEFAULTS[language] ?? "";
+}
+$("ms-voice").addEventListener("change", (e) => {
+  const voices = { ...settings.microsoftVoices };
+  if (e.target.value === MICROSOFT_DEFAULTS[settings.language])
+    delete voices[settings.language];
+  else voices[settings.language] = e.target.value;
+  void save({ microsoftVoices: voices });
+});
 
 // The status line follows the app's own charmd.
 let lastState = "";
