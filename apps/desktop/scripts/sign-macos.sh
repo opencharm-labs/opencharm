@@ -26,10 +26,10 @@ else
   keychain_password=$(openssl rand -hex 24)
   # codesign looks for identities in the keychain search list: this run's keychain joins it, and the
   # list is put back as it was afterwards, whatever happens.
-  original=$(security list-keychains -d user | sed 's/^ *"//; s/"$//')
+  # As security prints it: one quoted path a line, which xargs reads back whole, spaces included.
+  original=$(security list-keychains -d user)
   cleanup() {
-    # shellcheck disable=SC2086
-    security list-keychains -d user -s $original 2>/dev/null || true
+    printf '%s\n' "$original" | xargs security list-keychains -d user -s 2>/dev/null || true
     security delete-keychain "$keychain" 2>/dev/null || true
     rm -rf "$work"
   }
@@ -43,8 +43,7 @@ else
   security import "$work/certificate.p12" -k "$keychain" -P "$MACOS_SIGNING_PASSWORD" \
     -T /usr/bin/codesign >/dev/null
   security set-key-partition-list -S apple-tool:,apple: -s -k "$keychain_password" "$keychain" >/dev/null
-  # shellcheck disable=SC2086
-  security list-keychains -d user -s "$keychain" $original
+  printf '%s\n' "$original" | xargs security list-keychains -d user -s "$keychain"
   rm -f "$work/certificate.p12"
   # Its hash: a self-made certificate isn't trusted by macOS, so it's listed as such; codesign takes it.
   identity=$(security find-identity -p codesigning "$keychain" | awk '$1 ~ /^[0-9]+\)$/ {print $2; exit}')

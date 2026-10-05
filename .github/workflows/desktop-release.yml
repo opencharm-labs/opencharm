@@ -149,6 +149,8 @@ jobs:
   # script: no npm, no cargo. Without the secret (a fork) the app stays signed ad hoc.
   sign-macos:
     needs: [plan, build]
+    # The key lives in this environment, which only main may use: no other branch's workflow can read it.
+    environment: macos-signing
     strategy:
       fail-fast: false
       matrix:
@@ -177,7 +179,9 @@ jobs:
           VERSION: ${{ needs.plan.outputs.version }}
           ARCH: ${{ matrix.arch }}
         run: |
-          tar -xzf "$RUNNER_TEMP/app/OpenCharm.app.tar.gz" -C "$RUNNER_TEMP/app"
+          # One app and nothing else in it, unpacked as this runner's user.
+          [ "$(tar -tzf "$RUNNER_TEMP/app/OpenCharm.app.tar.gz" | cut -d/ -f1 | sort -u)" = "OpenCharm.app" ]
+          tar -xzf "$RUNNER_TEMP/app/OpenCharm.app.tar.gz" --no-same-owner -C "$RUNNER_TEMP/app"
           mkdir -p "$RUNNER_TEMP/out"
           sh apps/desktop/scripts/sign-macos.sh "$RUNNER_TEMP/app/OpenCharm.app" "$RUNNER_TEMP/out/OpenCharm_${VERSION}_${ARCH}.dmg"
       - uses: actions/upload-artifact@v7
@@ -196,11 +200,20 @@ jobs:
       id-token: write
       attestations: write
     steps:
+      # By exact name: only the signed macOS images and the Windows installer, nothing else a build
+      # job might upload.
       - uses: actions/download-artifact@v8
         with:
-          pattern: installer-*
-          path: ${{ runner.temp }}/download
-          merge-multiple: true
+          name: installer-aarch64-apple-darwin
+          path: ${{ runner.temp }}/download/aarch64
+      - uses: actions/download-artifact@v8
+        with:
+          name: installer-x86_64-apple-darwin
+          path: ${{ runner.temp }}/download/x64
+      - uses: actions/download-artifact@v8
+        with:
+          name: installer-x86_64-pc-windows-msvc
+          path: ${{ runner.temp }}/download/windows
       - uses: actions/download-artifact@v8
         with:
           name: desktop-notes
@@ -246,7 +259,7 @@ jobs:
             echo
             echo "The desktop charm: OpenCharm under your Mac's notch (Windows: a pill at the top of the screen)."
             echo "Install and first-run notes: $README"
-            echo "macOS: signed with OpenCharm's own certificate, not an Apple Developer ID, so macOS asks for Open Anyway once; it then keeps its answers across updates. Compare SHA256SUMS.txt, or run gh attestation verify <file> --repo $GITHUB_REPOSITORY."
+            echo "macOS: signed with OpenCharm's own certificate, not an Apple Developer ID: each download still needs Open Anyway, but macOS keeps its other answers (Desktop folder, microphone, keychain) across updates. Compare SHA256SUMS.txt, or run gh attestation verify <file> --repo $GITHUB_REPOSITORY."
             echo "Provided as is, with no warranty."
             echo
             echo "$MARK"
