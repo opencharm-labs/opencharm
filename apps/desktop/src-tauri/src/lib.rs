@@ -591,10 +591,15 @@ fn log(message: String) {
 
 /// The panel opens below the notch for speech and questions; the window follows, to the front.
 #[tauri::command]
-fn panel(window: WebviewWindow, screen: State<Screen>, open: bool) -> Result<(), String> {
+fn panel(
+    window: WebviewWindow,
+    screen: State<Screen>,
+    open: bool,
+    height: Option<f64>,
+) -> Result<(), String> {
     let geometry = screen.0.lock().unwrap().clone();
     let height = if open {
-        geometry.height
+        geometry::panel_height(&geometry, height)
     } else {
         geometry.strip
     };

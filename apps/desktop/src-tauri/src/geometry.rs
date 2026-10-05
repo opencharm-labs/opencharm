@@ -4,7 +4,7 @@ use serde::Serialize;
 
 /// Each side of the notch keeps an "ear" this wide for an eye.
 pub const EAR: f64 = 64.0;
-/// The panel's height when it opens below the notch.
+/// The panel's full height below the notch: questions, pairing and the PIN; words take less.
 pub const OPEN_HEIGHT: f64 = 180.0;
 /// Without a notch (older Macs, external displays, Windows) the charm draws a black pill this wide
 /// and this tall at the top centre, where a notch would be.
@@ -32,6 +32,15 @@ pub struct Geometry {
     pub test_pin: Option<String>,
     /// The app runs this charmd (spec 013): pair and unlock without a code or a PIN.
     pub auto_pair: bool,
+}
+
+/// How tall the open panel is: what the charm asks for (words take only what they need), within the
+/// strip and the full panel; the full panel when it doesn't say.
+pub fn panel_height(geometry: &Geometry, asked: Option<f64>) -> f64 {
+    match asked {
+        Some(height) if height.is_finite() => height.clamp(geometry.strip, geometry.height),
+        _ => geometry.height,
+    }
 }
 
 /// `notch`: the real notch's width and the menu bar's height beside it, when the screen has one.
@@ -70,6 +79,16 @@ mod tests {
         assert_eq!(g.notch, PILL_NOTCH);
         assert_eq!(g.strip, PILL_STRIP);
         assert_eq!(g.x, ((1920.0 - (PILL_NOTCH + 2.0 * EAR)) / 2.0).round());
+    }
+
+    #[test]
+    fn opens_only_as_far_as_the_charm_asks_within_the_panel() {
+        let g = layout(1512.0, Some((185.0, 38.0)));
+        assert_eq!(panel_height(&g, Some(108.5)), 108.5);
+        assert_eq!(panel_height(&g, Some(10.0)), 38.0);
+        assert_eq!(panel_height(&g, Some(900.0)), OPEN_HEIGHT);
+        assert_eq!(panel_height(&g, Some(f64::NAN)), OPEN_HEIGHT);
+        assert_eq!(panel_height(&g, None), OPEN_HEIGHT);
     }
 
     #[test]
