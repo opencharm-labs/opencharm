@@ -28,8 +28,9 @@ class LvglView : public View {
 
   void on_pin(void (*callback)(void* ctx, const char* pin), void* ctx);
   void on_face_tap(void (*callback)(void* ctx), void* ctx);
-  // Notch shape: told when the panel below the notch opens or closes (the window grows or shrinks).
-  void on_panel(void (*callback)(void* ctx, bool open), void* ctx);
+  // Notch shape: told when the panel below the notch opens, closes or needs more room, with its
+  // height in pixels (the window grows or shrinks to it).
+  void on_panel(void (*callback)(void* ctx, bool open, int height), void* ctx);
   // One key of the PIN pad ("0"…"9", "<", "OK"): the touch pad and a keyboard both end up here.
   void press_pad_key(const char* key);
 
@@ -64,6 +65,7 @@ class LvglView : public View {
   void apply_notch(const design::Face& f, float breath, float sx, float sy, float swell,
                    float spin);
   void update_panel();
+  int panel_height() const;
   void apply();
   void place_glyph(lv_obj_t* label, const char* text, const lv_font_t* font, float x, float y,
                    float sx, float sy, float degrees);
@@ -145,9 +147,12 @@ class LvglView : public View {
   void (*pin_callback_)(void*, const char*) = nullptr;
   void* pin_ctx_ = nullptr;
   void (*tap_callback_)(void*) = nullptr;
-  void (*panel_callback_)(void*, bool) = nullptr;
+  void (*panel_callback_)(void*, bool, int) = nullptr;
   void* panel_ctx_ = nullptr;
   bool panel_open_ = false;
+  int panel_h_ = 0;
+  int text_top_ = 0;
+  int text_h_ = 0;  // the whole line's height, before it's typed out
   bool ring_on_ = false;
   int notch_w_ = 0;
   int strip_h_ = 0;

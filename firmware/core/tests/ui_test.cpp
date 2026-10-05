@@ -345,12 +345,14 @@ struct Notch {
   charm::App app{hal, view};
   uint32_t now = 0;
   bool open = false;
+  int height = 0;
   int panel_changes = 0;
   Notch() {
     view.on_panel(
-        [](void* ctx, bool is_open) {
+        [](void* ctx, bool is_open, int panel_height) {
           auto* self = static_cast<Notch*>(ctx);
           self->open = is_open;
+          self->height = panel_height;
           ++self->panel_changes;
         },
         this);
@@ -428,6 +430,51 @@ TEST_CASE("on a notch, a question opens the panel with its hint and the orange o
   CHECK(n.screen.count_colour(0, 0, Notch::kW, Notch::kStrip, 0xFF5A1F, 60) == 0);
   CHECK(n.screen.count_lit(40, Notch::kH - 50, Notch::kW - 40, Notch::kH - 10) > 50);  // the hint
   CHECK(n.notch_lit() == 0);
+}
+
+TEST_CASE("on a notch, a short reply opens a shorter panel, with all of its words inside") {
+  Notch n;
+  n.server(R"({"type":"tts","state":"start"})");
+  n.server(R"({"type":"tts","state":"sentence_start","text":"Sure."})");
+  n.at(n.now + 1500);
+  CHECK(n.open);
+  CHECK(n.height >= Notch::kH / 2);
+  CHECK(n.height < Notch::kH * 3 / 4);
+  n.screen.save_png("notch-short");
+  CHECK(n.screen.count_lit(40, Notch::kStrip + 60, Notch::kW - 40, n.height) > 50);
+  CHECK(n.screen.count_lit(0, n.height, Notch::kW, Notch::kH) == 0);
+
+  // A longer sentence grows it; a shorter one after doesn't shrink it while it's open.
+  n.server(
+      R"({"type":"tts","state":"sentence_start","text":"You have two meetings today, the first at nine with the design team."})");
+  n.at(n.now + 4000);
+  int grown = n.height;
+  CHECK(grown > Notch::kH * 3 / 4);
+  CHECK(n.screen.count_lit(0, grown, Notch::kW, Notch::kH) == 0);
+  n.server(R"({"type":"tts","state":"sentence_start","text":"Okay."})");
+  CHECK(n.height == grown);
+}
+
+TEST_CASE("on a notch, a tall moment doesn't keep the panel tall once the reply is over") {
+  Notch n;
+  n.server(R"({"type":"charm","op":"face","state":"thinking","text":"Looking."})");
+  n.at(n.now + 1500);
+  int fitted = n.height;
+  CHECK(n.open);
+  CHECK(fitted < Notch::kH * 3 / 4);
+  n.server(R"({"type":"charm","op":"ask","id":"q1","text":"Delete it?"})");
+  CHECK(n.height == Notch::kH);
+  n.server(R"({"type":"charm","op":"ask_end","id":"q1"})");
+  n.server(R"({"type":"charm","op":"face","state":"thinking","text":"Looking."})");
+  n.at(n.now + 1500);
+  CHECK(n.height == fitted);
+}
+
+TEST_CASE("on a notch, a question takes the whole panel") {
+  Notch n;
+  n.server(R"({"type":"charm","op":"ask","id":"q1","text":"Delete it?"})");
+  CHECK(n.open);
+  CHECK(n.height == Notch::kH);
 }
 
 TEST_CASE("on a notch, asleep is closed eyes on the ears with z's, and no panel") {
