@@ -19,7 +19,7 @@ Download the latest **OpenCharm Desktop** from [Releases](https://github.com/ope
 - **Provenance:** GitHub attests that each file was built by this repository's release workflow from a given commit. Check it with `gh attestation verify <file> --repo opencharm-labs/opencharm`.
 - **Build it yourself** (below).
 
-**Updates:** once a day the app asks GitHub for the public list of `desktop@` release tags whether there's a newer version (nothing about you is sent). If there is, the menu-bar menu and Settings offer it, and you download it the same way. Turn this off in Settings. After an update, macOS may ask again for the microphone and the keychain, because an unsigned app's identity changes with each build.
+**Updates:** once a day the app asks GitHub for the public list of `desktop@` release tags whether there's a newer version (nothing about you is sent). If there is, the menu-bar menu and Settings offer it, and you download it the same way. Turn this off in Settings. After an update, macOS may ask again for the microphone, because an unsigned app's identity changes with each build.
 
 Nothing else to install: the app carries its own charmd and Node (spec 013). Your agent is yours to install (Claude Code, Codex…); creating a workspace from Settings also needs `git`.
 
@@ -36,7 +36,7 @@ Open OpenCharm and the setup walks you through it, one step at a time (spec 013)
 
 Each step is saved when you continue, so if you quit halfway it opens at the step you left. It opens again if your folder disappears, and **Set up again…** in the menu-bar menu reopens it. Settings is for changing things afterwards.
 
-There's no code or PIN to type: the app pairs with its own charmd through charmd's owner-only admin socket. It keeps a random 12-digit PIN in your keychain and types it when the charm starts locked. Because the builds aren't signed, macOS may ask once after an update whether OpenCharm may use its keychain item: choose **Always Allow**.
+There's no code or PIN to type: the app pairs with its own charmd through charmd's owner-only admin socket. It keeps a random 12-digit PIN in a file only you can read, in the app's data folder (`pin`, owner-only), and types it when the charm starts locked. Not the keychain: an unsigned app's identity changes with each build, so macOS asked for the keychain item at every start, and anything running as you can already use charmd's owner-only admin socket. An install from before this pairs again by itself, once; its old keychain item stays there unused (Keychain Access can delete `dev.opencharm.desktop`, account `pin`). The keychain is read only for an OpenAI key, if you choose OpenAI.
 
 The app's charmd listens on port 8790, with its own config, state and log, so a charmd you run in a terminal (8787) is never touched. It restarts if it stops and quits with the app.
 
@@ -100,7 +100,7 @@ These are environment variables for tests, never for normal use:
 - `OPENCHARM_FAKE_MIC=1`: a soft tone instead of the microphone, so no real mic is ever opened.
 - `OPENCHARM_TEST_PIN=<pin>`: with the fake mic, types the PIN when asked, holds the key for one turn, and logs what the charm receives.
 - `OPENCHARM_TEST_PIN=auto`: the same, with the app's own charmd pairing and unlocking by itself.
-- `OPENCHARM_DATA=<folder>`: settings and the app's own charmd in this folder, and a separate keychain entry (`dev.opencharm.desktop.test`), so a test never touches your own.
+- `OPENCHARM_DATA=<folder>`: settings and the app's own charmd in this folder, its own PIN file, and a separate keychain entry for an OpenAI key (`dev.opencharm.desktop.test`), so a test never touches your own.
 - `OPENCHARM_URL`: another charmd.
 - `OPENCHARM_KEY`: another talk key.
 
