@@ -192,6 +192,19 @@ impl Default for Settings {
 }
 
 impl Settings {
+    /// What a window saves, over what's saved: the look has its own command (save_look) and the
+    /// setup's progress its own (setup_step_done, create_new_workspace), so a window's older copy
+    /// never rolls them back.
+    pub fn from_window(previous: &Settings, next: Settings) -> Settings {
+        Settings {
+            look: previous.look.clone(),
+            say_voice: previous.say_voice.clone(),
+            setup_step: previous.setup_step,
+            setup_location: previous.setup_location.clone(),
+            ..next
+        }
+    }
+
     /// Missing or unreadable settings are the defaults: the charm always starts.
     pub fn load(path: &Path) -> Settings {
         let mut settings: Settings = std::fs::read_to_string(path)
@@ -419,6 +432,29 @@ mod tests {
         ] {
             assert!(with(bad).valid().is_err(), "{bad}");
         }
+    }
+
+    #[test]
+    fn a_window_never_rolls_back_the_look_or_the_setup() {
+        let previous = Settings {
+            setup_step: 4,
+            setup_location: Some("/Users/a/Documents".into()),
+            look: Look {
+                colour: "lilac".into(),
+                ..Look::default()
+            },
+            ..Settings::default()
+        };
+        // A Settings window opened before the setup saved: its copy is older.
+        let stale = Settings {
+            start_at_login: true,
+            ..Settings::default()
+        };
+        let merged = Settings::from_window(&previous, stale);
+        assert!(merged.start_at_login);
+        assert_eq!(merged.setup_step, 4);
+        assert_eq!(merged.setup_location.as_deref(), Some("/Users/a/Documents"));
+        assert_eq!(merged.look.colour, "lilac");
     }
 
     #[test]

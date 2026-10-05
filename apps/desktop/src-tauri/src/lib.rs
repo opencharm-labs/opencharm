@@ -360,6 +360,7 @@ fn setup_step_done(app: AppHandle, saved: State<Saved>, step: u32) -> Result<(),
         settings.setup_step = settings.setup_step.max(step.min(setup::DONE));
         settings.save(&saved.path).map_err(|e| e.to_string())?;
     }
+    let _ = app.emit_to("settings", "settings-changed", ());
     if step >= setup::DONE {
         if let Some(window) = app.get_webview_window("setup") {
             let _ = window.close();
@@ -433,6 +434,8 @@ async fn create_new_workspace(
     let mut settings = saved.settings.lock().unwrap();
     settings.setup_location = Some(location);
     settings.save(&saved.path).map_err(|e| e.to_string())?;
+    drop(settings);
+    let _ = app.emit_to("settings", "settings-changed", ());
     Ok(target.to_string_lossy().to_string())
 }
 
@@ -615,12 +618,7 @@ fn get_settings(saved: State<Saved>) -> Settings {
 #[tauri::command]
 fn save_settings(app: AppHandle, saved: State<Saved>, next: Settings) -> Result<(), String> {
     let previous = saved.settings.lock().unwrap().clone();
-    // The look has its own command (save_look); a window's older copy never overwrites it.
-    let next = Settings {
-        look: previous.look.clone(),
-        say_voice: previous.say_voice.clone(),
-        ..next
-    };
+    let next = Settings::from_window(&previous, next);
     next.valid()?;
     // New keys are registered first (a taken key changes nothing), the old ones dropped only once
     // the settings are saved, so a failed save never leaves a key doing the other key's job.
@@ -670,6 +668,8 @@ fn save_settings(app: AppHandle, saved: State<Saved>, next: Settings) -> Result<
     if next.managed != previous.managed || (!next.managed && next.url != previous.url) {
         let _ = app.emit_to("charm", "charm-reload", ());
     }
+    // An open Settings window reloads, so its copy is never older than what the setup saved.
+    let _ = app.emit_to("settings", "settings-changed", ());
     Ok(())
 }
 

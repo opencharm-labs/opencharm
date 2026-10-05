@@ -24,6 +24,8 @@ const SPEAK_NOTES = {
   local:
     "A voice on this computer: nothing leaves it, but it sounds less natural (about 130 MB the first time).",
   system: "A voice from macOS. Nothing leaves this Mac.",
+  openai: "OpenAI's voices. The key stays in your keychain.",
+  fake: "No speaker: a soft tone stands in for speech. For trying.",
 };
 
 const $ = (id) => document.getElementById(id);
@@ -90,7 +92,11 @@ function folderNameProblem(name) {
   return "";
 }
 
-// Step 2: the agent. Found ones first; a missing one says where to get it.
+// Step 2: the agent. Found ones first; a missing one says where to get it. The choice is kept here
+// until step 3 saves it with the folder (a workspace may keep its own), so quitting in between
+// doesn't lose it.
+const PENDING = "opencharm.setup.agent";
+const pending = () => JSON.parse(localStorage.getItem(PENDING) ?? "null");
 let agents = null;
 let agent = "";
 async function enterAgent() {
@@ -102,10 +108,12 @@ async function enterAgent() {
     ...AGENTS.filter(([id]) => found.has(id)),
     ...AGENTS.filter(([id]) => !found.has(id)),
   ];
-  const preset = AGENTS.some(([id]) => id === settings.agent);
-  agent = preset
-    ? settings.agent
-    : (order.find(([id]) => found.has(id))?.[0] ?? "claude");
+  const kept = pending()?.agent ?? settings.agent;
+  const known =
+    AGENTS.some(([id]) => id === kept) ||
+    kept === "command" ||
+    kept === "server";
+  agent = known ? kept : (order.find(([id]) => found.has(id))?.[0] ?? "claude");
   for (const [id, label] of order) {
     const row = choice(
       "agent",
@@ -184,6 +192,15 @@ async function saveAgent() {
     $("server-url").focus();
     return false;
   }
+  localStorage.setItem(
+    PENDING,
+    JSON.stringify({
+      agent,
+      agentCommand: $("command").value.trim(),
+      serverUrl: $("server-url").value.trim(),
+      serverModel: $("server-model").value.trim(),
+    })
+  );
   return true;
 }
 
@@ -249,21 +266,28 @@ $("choose").addEventListener("click", async () => {
   showFolder();
 });
 
-const preset = () => AGENTS.some(([id]) => id === agent);
 async function saveFolder() {
-  // A preset is written into a new workspace; a command or a server stays the app's choice.
-  const chosen = {
-    agent: preset() ? "" : agent,
-    agentCommand: $("command").value.trim(),
-    serverUrl: $("server-url").value.trim(),
-    serverModel: $("server-model").value.trim(),
+  // Step 2's choice (kept across a restart), else what's saved. A preset is written into a new
+  // workspace; a command or a server stays the app's choice.
+  settings = await invoke("get_settings");
+  const pick = pending() ?? {
+    agent: settings.agent || "claude",
+    agentCommand: settings.agentCommand,
+    serverUrl: settings.serverUrl,
+    serverModel: settings.serverModel,
   };
-  const initAgent = preset() ? agent : "claude";
+  const preset = AGENTS.some(([id]) => id === pick.agent);
+  const chosen = { ...pick, agent: preset ? "" : pick.agent };
+  const initAgent = preset ? pick.agent : "claude";
   let folder;
   note("folder-note", "Creating your workspace (a copy of the starter)…");
   react("thinking", 60000);
   try {
-    if (folderMode() === "create") {
+    const target = joined(location, $("ws-name").value.trim());
+    if (folderMode() === "create" && settings.folder === target) {
+      // Back from a later step: this workspace was already created.
+      folder = target;
+    } else if (folderMode() === "create") {
       folder = await invoke("create_new_workspace", {
         location,
         name: $("ws-name").value.trim(),
@@ -279,7 +303,7 @@ async function saveFolder() {
       folder = existing.path;
       note("folder-note", "");
       // Any other folder runs the agent chosen in step 2, as it is.
-      if (!existing.isWorkspace && preset()) chosen.agent = agent;
+      if (!existing.isWorkspace && preset) chosen.agent = pick.agent;
     }
     settings = await invoke("get_settings");
     const next = { ...settings, ...chosen, folder };
@@ -339,9 +363,25 @@ async function saveLook(change) {
 
 // Step 5: the voice and the microphone (asked now, not in the middle of a first sentence).
 $("speak").querySelector('[value="system"]').hidden = !mac;
+const LISTEN_NOTES = {
+  local:
+    "It hears you on this computer: your voice never leaves it. The first time, it downloads about 490 MB.",
+  openai:
+    "OpenAI hears what you say (set in Settings). The key stays in your keychain.",
+  fake: "No microphone: it hears a test sentence (set in Settings). For trying.",
+};
+// A voice chosen in Settings that the setup doesn't offer (OpenAI, none) is kept and shown.
+const OTHER_SPEAKS = { openai: "OpenAI (your key)", fake: "None, for trying" };
 function enterVoice() {
-  $("speak").value = ["microsoft", "local", "system"].includes(settings.speak)
-    ? settings.speak
+  note("listen-note", LISTEN_NOTES[settings.listen] ?? LISTEN_NOTES.local);
+  const current = settings.speak;
+  if (
+    OTHER_SPEAKS[current] &&
+    !$("speak").querySelector(`[value="${current}"]`)
+  )
+    $("speak").append(new Option(OTHER_SPEAKS[current], current));
+  $("speak").value = $("speak").querySelector(`[value="${current}"]`)
+    ? current
     : "microsoft";
   $("language").value = settings.language;
   note("speak-note", SPEAK_NOTES[$("speak").value]);
@@ -376,7 +416,6 @@ async function saveVoice() {
     ...settings,
     speak: $("speak").value,
     language: $("language").value,
-    listen: "local",
   };
   await invoke("save_settings", { next });
   settings = next;
@@ -426,10 +465,10 @@ $("retry").addEventListener("click", async () => {
   note("try-note", "Starting it again…");
   react("thinking", 2000);
 });
-$("finish").addEventListener(
-  "click",
-  () => void invoke("setup_step_done", { step: 6 })
-);
+$("finish").addEventListener("click", () => {
+  localStorage.removeItem(PENDING);
+  void invoke("setup_step_done", { step: 6 });
+});
 
 const ENTER = {
   2: enterAgent,
@@ -468,6 +507,7 @@ $("next").addEventListener("click", async () => {
   try {
     const ok = (await SAVE[step]?.()) ?? true;
     if (!ok) return;
+    if (step === 6) localStorage.removeItem(PENDING);
     await invoke("setup_step_done", { step });
     if (step < 6) await show(step + 1);
   } finally {
