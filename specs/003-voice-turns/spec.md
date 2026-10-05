@@ -39,7 +39,7 @@ Listening and speaking are the main way to use the charm, so the defaults must b
 
 ## Not in scope
 
-MCP charm tools (012), the permissions engine and questions on the charm (011), notifications. In the voice update: ElevenLabs and Azure keys (Next), follow-up listening, wake words, speech-to-speech models, voice cloning.
+MCP charm tools (012), the permissions engine and questions on the charm (011), notifications. In the voice update: ElevenLabs and Azure as their own options (the `openai` voice takes any OpenAI-compatible service), follow-up listening, wake words, speech-to-speech models, voice cloning.
 
 ## Acceptance
 
@@ -64,7 +64,13 @@ Voice that sounds right:
 
 ## Next
 
-Not approved. ElevenLabs (listening with key terms, and the best-rated voices) and Azure (the same Microsoft voices, official, with a key) as options in Settings. Observed in the first real test on the maintainer's Mac (1 October 2026); latency, language and recognition are now in Scope above:
+Not approved. Decided against (maintainer, 5 October 2026; the charm stays lean and works with any agent):
+
+- **ElevenLabs and Azure as their own options:** any speech service that speaks the OpenAI API already works through the `openai` voice with its key, `baseUrl` and `model`.
+- **A follow-up window after an answer:** the mic is on only while the key is held.
+- **Memory across restarts:** it belongs to the agent (its own files and memory); charmd keeps one agent session per charm while it runs and adds none of its own.
+
+Observed in the first real test on the maintainer's Mac (1 October 2026); latency, language and recognition are now in Scope above:
 
 - **Slow to start talking:** about 3 s from releasing the key to the first word when warm, 7–8 s on the first turn, 4–9 s with a tool. Speech-to-text is about 0.6 s; then the agent's first sentence, then its synthesis.
 - **Every exchange needs the key:** no natural back-and-forth ("And tomorrow?").
@@ -77,10 +83,9 @@ Not approved. ElevenLabs (listening with key terms, and the best-rated voices) a
 Proposals:
 
 - Latency: stream speech-to-text while the key is held; synthesise from the first clause; keep the agent warm; a faster model for voice with a smarter one on request; measure each stage per turn.
-- Turn-taking: a short follow-up window after an answer (press once to answer back); "Hmm…" fillers or a thinking sound for slow answers. Barge-in already works: a hold interrupts.
+- Turn-taking: "Hmm…" fillers or a thinking sound for slow answers. Barge-in already works: a hold interrupts.
 - Answer shape: voice-first answers by default (one or two sentences, offer more); a "tell me more" gesture; long content to the screen or a file.
 - Language: one setting for listening, persona and voice (English or Italian first), checked by `opencharm init`.
 - Recognition: a bigger or multilingual whisper model; a vocabulary hint from the workspace; confirm before acting on a misheard command.
-- Continuity: resume the agent's session across restarts (ACP `session/load` where offered) or summarise into notes.
 - Quality: a per-turn record (heard, interrupted, length, time to first word) without transcripts by default, and scripted conversations to replay in tests (fake voice, real agent).
 - Wake words stay out: the mic opens only while the key is held, by design.
