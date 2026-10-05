@@ -307,7 +307,8 @@ async fn create_workspace(app: AppHandle, folder: String, agent: String) -> Resu
 }
 
 /// The `opencharm` charmd runs from: a path chosen in Settings → Advanced, else the one the app
-/// carries (spec 013), else (a build from source) the one on the PATH.
+/// carries (spec 013), else the one on the PATH. A development build uses the one on the PATH unless
+/// OPENCHARM_BUNDLED=1, so it never runs a bundle staged for an earlier change.
 fn cli_path(
     app: &AppHandle,
     settings: &Settings,
@@ -316,10 +317,13 @@ fn cli_path(
     if let Some(path) = settings.cli_path.as_ref().filter(|p| !p.trim().is_empty()) {
         return Ok(managed::Cli::executable(PathBuf::from(path.trim())));
     }
+    let use_bundled =
+        !cfg!(debug_assertions) || std::env::var("OPENCHARM_BUNDLED").is_ok_and(|v| v == "1");
     if let Some(cli) = app
         .path()
         .resource_dir()
         .ok()
+        .filter(|_| use_bundled)
         .and_then(|dir| managed::bundled_cli(&dir))
     {
         return Ok(cli);

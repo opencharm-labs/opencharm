@@ -56,7 +56,7 @@ jobs:
           area firmware '^firmware/|^packages/protocol/'
           area emulator '^firmware/|^packages/(cli|charmd|protocol|design)/'
           area website '^apps/web/|^packages/design/'
-          area desktop '^apps/desktop/|^firmware/|^brand/icon/|^packages/(design|cli|charmd|protocol)/'
+          area desktop '^apps/desktop/|^firmware/|^brand/icon/|^packages/(design|cli|charmd|protocol)/|^package-lock\.json$'
           # Dependencies changed (any package.json or the lockfile): the audit then gates the change.
           if [ "$CHANGED" = ALL ] || grep -qE '(^|/)package\.json$|^package-lock\.json$' <<<"$CHANGED"; then
             echo "deps=true" >> "$GITHUB_OUTPUT"

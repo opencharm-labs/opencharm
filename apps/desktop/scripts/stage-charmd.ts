@@ -24,7 +24,12 @@ import { parseArgs } from "node:util";
 
 type Target = { node: string; os: string; cpu: string; windows: boolean };
 type Pin = { version: string; archives: Record<string, string> };
-type Lock = { packages: Record<string, { version?: string }> };
+type LockEntry = {
+  version?: string;
+  integrity?: string;
+  optionalDependencies?: Record<string, string>;
+};
+type Lock = { packages: Record<string, LockEntry> };
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const APP = join(HERE, "..");
@@ -98,7 +103,12 @@ async function nodeArchive(pin: Pin, target: Target): Promise<string> {
 function stageNode(archive: string, target: Target, version: string): void {
   const unpacked = mkdtempSync(join(tmpdir(), "oc-node-"));
   try {
-    execFileSync("tar", ["-xf", archive, "-C", unpacked]);
+    // Windows' own tar reads .zip; in Git Bash (the release's shell) a GNU tar can come first on PATH.
+    const tar =
+      process.platform === "win32"
+        ? join(process.env.SystemRoot ?? "C:\\Windows", "System32", "tar.exe")
+        : "tar";
+    execFileSync(tar, ["-xf", archive, "-C", unpacked]);
     const root = join(unpacked, `node-v${version}-${target.node}`);
     const out = join(OUT, "node");
     if (target.windows) {
@@ -132,8 +142,10 @@ function stageNode(archive: string, target: Target, version: string): void {
   }
 }
 
-// The CLI as npm would ship it (dist/, sim/), its dependencies pinned to the versions in the repo's
-// lockfile (they have no dependencies of their own, so the install is reproducible), for this target.
+// The CLI as npm would ship it (dist/, sim/, its licence), with its dependencies exactly as the repo's
+// lockfile has them, integrity hashes included: a lockfile for the staged folder is written from the
+// root one (the CLI's dependencies and the voice engine's platform packages), and `npm ci` installs
+// this target's. Nothing is resolved from version ranges at build time.
 function stageCli(target: Target): void {
   for (const needed of [
     join(CLI, "dist", "main.mjs"),
@@ -146,37 +158,72 @@ function stageCli(target: Target): void {
   const out = join(OUT, "cli");
   cpSync(join(CLI, "dist"), join(out, "dist"), { recursive: true });
   cpSync(join(CLI, "sim"), join(out, "sim"), { recursive: true });
+  cpSync(join(ROOT, "LICENSE"), join(out, "LICENSE"));
   const pkg = JSON.parse(readFileSync(join(CLI, "package.json"), "utf8")) as {
     name: string;
     version: string;
     type: string;
     dependencies: Record<string, string>;
   };
-  const lock = JSON.parse(
+  const root = JSON.parse(
     readFileSync(join(ROOT, "package-lock.json"), "utf8")
   ) as Lock;
-  const dependencies = Object.fromEntries(
-    Object.keys(pkg.dependencies).map((name) => {
-      const version = lock.packages[`node_modules/${name}`]?.version;
-      if (!version) throw new Error(`${name} isn't in package-lock.json`);
-      return [name, version];
-    })
+  const entry = (name: string): LockEntry => {
+    const found = root.packages[`node_modules/${name}`];
+    if (!found?.version || !found.integrity)
+      throw new Error(
+        `${name} isn't locked (with an integrity hash) in package-lock.json`
+      );
+    return found;
+  };
+  const names = Object.keys(pkg.dependencies);
+  // The packages the CLI's dependencies pull in: today only the voice engine's per-platform builds.
+  const nested = names.flatMap((name) =>
+    Object.keys(entry(name).optionalDependencies ?? {})
   );
+  const dependencies = Object.fromEntries(
+    names.map((name) => [name, entry(name).version!])
+  );
+  const manifest = {
+    name: pkg.name,
+    version: pkg.version,
+    type: pkg.type,
+    private: true,
+    dependencies,
+  };
   writeFileSync(
     join(out, "package.json"),
-    `${JSON.stringify({ name: pkg.name, version: pkg.version, type: pkg.type, private: true, dependencies }, null, 2)}\n`
+    `${JSON.stringify(manifest, null, 2)}\n`
+  );
+  const lockfile = {
+    name: pkg.name,
+    version: pkg.version,
+    lockfileVersion: 3,
+    requires: true,
+    packages: {
+      "": { name: pkg.name, version: pkg.version, dependencies },
+      ...Object.fromEntries(
+        [...names, ...nested]
+          .filter((name) => root.packages[`node_modules/${name}`])
+          .map((name) => [`node_modules/${name}`, entry(name)])
+      ),
+    },
+  };
+  writeFileSync(
+    join(out, "package-lock.json"),
+    `${JSON.stringify(lockfile, null, 2)}\n`
   );
   execFileSync(
     "npm",
     [
-      "install",
+      "ci",
       "--omit=dev",
       `--os=${target.os}`,
       `--cpu=${target.cpu}`,
       "--ignore-scripts",
       "--no-audit",
       "--no-fund",
-      "--no-package-lock",
+      // Every version is pinned by the lockfile: a release-age wait on the build machine adds nothing.
       "--min-release-age=0",
     ],
     { cwd: out, stdio: "inherit", shell: process.platform === "win32" }
@@ -190,6 +237,42 @@ function stageCli(target: Target): void {
     throw new Error(
       `Expected only ${wanted} in the bundle, found: ${engines.join(", ") || "none"}`
     );
+}
+
+// Who wrote what the app carries: Node (its LICENSE is next to it) and each npm package, with the
+// licence it declares; the package folders keep their own licence files where they ship one.
+function writeNotices(version: string): void {
+  const modules = join(OUT, "cli", "node_modules");
+  const rows = readdirSync(modules)
+    .filter((name) => !name.startsWith("."))
+    .flatMap((name) =>
+      name.startsWith("@")
+        ? readdirSync(join(modules, name)).map((sub) => `${name}/${sub}`)
+        : [name]
+    )
+    .map((name) => {
+      const meta = JSON.parse(
+        readFileSync(join(modules, name, "package.json"), "utf8")
+      ) as {
+        version: string;
+        license?: string;
+      };
+      return `| ${name} | ${meta.version} | ${meta.license ?? "see its package"} |`;
+    });
+  writeFileSync(
+    join(OUT, "THIRD_PARTY_NOTICES.md"),
+    [
+      "# What the desktop app's charmd carries",
+      "",
+      `- Node ${version}: MIT and the licences of its bundled code, in \`node/LICENSE\`.`,
+      "- The OpenCharm CLI: MIT, in `cli/LICENSE`.",
+      "",
+      "| npm package | Version | Licence |",
+      "| --- | --- | --- |",
+      ...rows,
+      "",
+    ].join("\n")
+  );
 }
 
 function size(path: string): number {
@@ -219,6 +302,7 @@ for (const name of existsSync(OUT) ? readdirSync(OUT) : [])
     rmSync(join(OUT, name), { recursive: true, force: true });
 stageNode(await nodeArchive(pin, target), target, pin.version);
 stageCli(target);
+writeNotices(pin.version);
 console.log(
   `Staged charmd for ${targetName}: Node ${pin.version}, ${Math.round(size(OUT) / 1e6)} MB in ${OUT}`
 );
