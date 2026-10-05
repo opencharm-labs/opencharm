@@ -7,6 +7,7 @@
 
 use std::io::{Read, Write};
 use std::path::Path;
+use std::time::Duration;
 
 use serde_json::{json, Value};
 
@@ -99,11 +100,31 @@ fn write_private(dir: &Path, path: &Path, text: &str) -> std::io::Result<()> {
     std::fs::rename(&temp, path)
 }
 
+/// How long the app waits for its charmd on the admin channel: a stalled charmd never holds a
+/// thread (Settings asks every 2 s).
+const ADMIN_TIMEOUT: Duration = Duration::from_secs(3);
+
 /// One request on the admin socket, one reply (the protocol of `opencharm`'s admin client).
 pub fn admin(socket: &Path, request: &Value) -> Result<Value, String> {
+    admin_within(socket, request, ADMIN_TIMEOUT)
+}
+
+/// The same, giving up after `timeout` (macOS and Linux; a Windows pipe opened as a file has none).
+pub fn admin_within(socket: &Path, request: &Value, timeout: Duration) -> Result<Value, String> {
     #[cfg(unix)]
     let mut stream =
         std::os::unix::net::UnixStream::connect(socket).map_err(|e| format!("charmd: {e}"))?;
+    #[cfg(unix)]
+    {
+        stream
+            .set_read_timeout(Some(timeout))
+            .map_err(|e| format!("charmd: {e}"))?;
+        stream
+            .set_write_timeout(Some(timeout))
+            .map_err(|e| format!("charmd: {e}"))?;
+    }
+    #[cfg(windows)]
+    let _ = timeout;
     #[cfg(windows)]
     let mut stream = std::fs::OpenOptions::new()
         .read(true)
@@ -194,6 +215,27 @@ mod tests {
         assert_eq!(pin.len(), 12);
         assert!(pin.chars().all(|c| c.is_ascii_digit()));
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn gives_up_on_a_charmd_that_never_answers() {
+        use std::os::unix::net::UnixListener;
+        let socket = std::env::temp_dir().join(format!("oc-mute-{}.sock", std::process::id()));
+        let _ = std::fs::remove_file(&socket);
+        let listener = UnixListener::bind(&socket).unwrap();
+        // Accepts, reads nothing back, never replies.
+        let held = std::thread::spawn(move || listener.accept().map(|(s, _)| s));
+        let started = std::time::Instant::now();
+        let answer = admin_within(
+            &socket,
+            &json!({ "cmd": "status" }),
+            Duration::from_millis(300),
+        );
+        assert!(answer.is_err());
+        assert!(started.elapsed() < Duration::from_secs(2));
+        drop(held.join());
+        let _ = std::fs::remove_file(&socket);
     }
 
     #[cfg(unix)]

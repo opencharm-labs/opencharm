@@ -2,6 +2,7 @@
 // charmd restarts for a new folder, agent or voice, the charm reconnects, start-at-login follows).
 // The charm at the top is the real face engine, reacting.
 import { colourOf, mountColourPicker } from "./colour-picker.js";
+import { describeModels } from "./voice-progress.js";
 
 const { invoke } = window.__TAURI__.core;
 
@@ -165,33 +166,42 @@ async function save(change) {
 
 // The status line follows the app's own charmd.
 let lastState = "";
+let polling = false;
 async function poll() {
-  const s = await invoke("charmd_status");
-  const [dot, text] = STATES[s.state] ?? ["needs", ""];
-  $("dot").className = `dot ${dot}`;
-  $("who").textContent =
-    s.state === "off"
-      ? "Another charmd"
-      : s.name
-        ? `${s.name} · ${s.agent}`
-        : "No agent yet";
-  $("where").textContent =
-    s.state === "off" ? settings.url : home(s.folder || "");
-  const note = $("state-note");
-  note.className = `note ${s.state === "running" ? "ok" : dot === "needs" ? "bad" : ""}`;
-  // The first start downloads the voice models (about 600 MB): say how far it is.
-  const models = s.state === "running" ? await invoke("voice_progress") : [];
-  note.textContent =
-    (s.detail && s.state !== "running" ? s.detail : text) +
-    (s.note ? ` ${s.note}` : "") +
-    (models.length
-      ? ` Getting its voice ready, the first time only: ${models.join(", ")}.`
-      : "");
-  if (s.state !== lastState && lastState) {
-    if (s.state === "running") react("joy", 2000);
-    if (dot === "needs") react("sad", 2000);
+  // One at a time: a slow answer never lands after a newer one.
+  if (polling) return;
+  polling = true;
+  try {
+    const s = await invoke("charmd_status");
+    // The first start downloads the voice models (about 600 MB): say how far it is.
+    const models = s.state === "running" ? await invoke("voice_progress") : [];
+    const [dot, text] = STATES[s.state] ?? ["needs", ""];
+    $("dot").className = `dot ${dot}`;
+    $("who").textContent =
+      s.state === "off"
+        ? "Another charmd"
+        : s.name
+          ? `${s.name} · ${s.agent}`
+          : "No agent yet";
+    $("where").textContent =
+      s.state === "off" ? settings.url : home(s.folder || "");
+    const note = $("state-note");
+    note.className = `note ${s.state === "running" ? "ok" : dot === "needs" ? "bad" : ""}`;
+    note.textContent = [
+      s.detail && s.state !== "running" ? s.detail : text,
+      s.note,
+      describeModels(models),
+    ]
+      .filter(Boolean)
+      .join(" ");
+    if (s.state !== lastState && lastState) {
+      if (s.state === "running") react("joy", 2000);
+      if (dot === "needs") react("sad", 2000);
+    }
+    lastState = s.state;
+  } finally {
+    polling = false;
   }
-  lastState = s.state;
 }
 
 // "Your charm": its look and voice, kept in the workspace (else in the app) and applied at once.
