@@ -122,8 +122,10 @@ window.charmSim = {
     withString(key, (ptr) => M._sim_pin_key(ptr));
     wake();
   },
-  // The desktop charm's panel opens below the notch for speech and questions, and closes after.
-  panel: (open) => {
+  // The desktop charm's panel opens below the notch for speech and questions, and closes after;
+  // `height` (pixels) is how far: words take only what they need.
+  panel: (open, height = H) => {
+    if (open) charmEl.style.setProperty("--panel", `${height * scale}px`);
     charmEl.classList.toggle("open", open);
     trace.panelOpen = open;
   },

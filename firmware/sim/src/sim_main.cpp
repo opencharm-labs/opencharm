@@ -74,7 +74,7 @@ void read_pointer(lv_indev_t*, lv_indev_data_t* data) {
 }  // namespace
 
 // The desktop charm's panel (spec 013): sim.js grows or shrinks the view under the notch.
-EM_JS(void, js_panel, (int open), { charmSim.panel(!!open); });
+EM_JS(void, js_panel, (int open, int height), { charmSim.panel(!!open, height); });
 
 extern "C" {
 
@@ -116,7 +116,8 @@ EMSCRIPTEN_KEEPALIVE uint8_t* sim_init(int width, int height, int round, uint32_
   sim.app = std::make_unique<charm::App>(*sim.platform, *sim.view, app_options);
   sim.view->on_pin([](void*, const char* pin) { sim.app->on_pin_entered(pin, sim.now); }, nullptr);
   sim.view->on_face_tap([](void*) { sim.app->on_touch_face(sim.now); }, nullptr);
-  sim.view->on_panel([](void*, bool open) { js_panel(open ? 1 : 0); }, nullptr);
+  sim.view->on_panel([](void*, bool open, int height) { js_panel(open ? 1 : 0, height); },
+                     nullptr);
   sim.app->start(0);
   return sim.rgba.data();
 }

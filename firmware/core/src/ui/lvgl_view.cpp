@@ -251,6 +251,7 @@ void LvglView::set_mode(Mode mode) {
   int32_t room = text_bottom - text_top;
   lv_obj_set_width(line_box_, int(w_ * (options_.notch ? 0.86f : options_.round ? 0.72f : 0.82f)));
   lv_obj_align(line_box_, LV_ALIGN_TOP_MID, 0, text_top);
+  text_top_ = text_top;
   int32_t lines = std::max<int32_t>(1, (room + kLineSpace) / line);
   if (decision) lines = std::min<int32_t>(lines, 3);
   lv_obj_set_height(line_box_, lines * line - kLineSpace);
@@ -289,6 +290,12 @@ void LvglView::set_line(std::string_view text, bool typed) {
   say_chars_ = utf8_length(say_);
   shown_chars_ = typed ? 0 : say_chars_;
   type_start_ = now_;
+  // On a notch the panel fits the whole line, so measure it before it's typed out.
+  if (options_.notch) {
+    lv_label_set_text(line_, say_.c_str());
+    lv_obj_update_layout(line_);
+    text_h_ = say_.empty() ? 0 : lv_obj_get_height(line_);
+  }
   lv_label_set_text(line_, typed ? "" : say_.c_str());
   hide(line_, say_.empty());
   place_line();
@@ -465,7 +472,7 @@ void LvglView::press_pad_key(const char* key) {
   update_dots();
 }
 
-void LvglView::on_panel(void (*callback)(void* ctx, bool open), void* ctx) {
+void LvglView::on_panel(void (*callback)(void* ctx, bool open, int height), void* ctx) {
   panel_callback_ = callback;
   panel_ctx_ = ctx;
 }
@@ -773,9 +780,23 @@ void LvglView::update_panel() {
   bool open = mode_ == Mode::Connecting || mode_ == Mode::Pairing || mode_ == Mode::Pin ||
               mode_ == Mode::Blocked || mode_ == Mode::Decision || speaking_ || !say_.empty() ||
               ring_on_;
-  if (open == panel_open_) return;
+  // While open it only grows, so a shorter sentence after a longer one doesn't make it jump.
+  int height = open ? panel_height() : 0;
+  if (open && panel_open_) height = std::max(height, panel_h_);
+  if (open == panel_open_ && height == panel_h_) return;
   panel_open_ = open;
-  if (panel_callback_) panel_callback_(panel_ctx_, open);
+  panel_h_ = height;
+  if (panel_callback_) panel_callback_(panel_ctx_, open, height);
+}
+
+// Questions, pairing and the PIN take the whole panel; words only take what they need (at least
+// half), so a short reply covers less of the screen.
+int LvglView::panel_height() const {
+  if (mode_ == Mode::Pairing || mode_ == Mode::Pin || mode_ == Mode::Blocked ||
+      mode_ == Mode::Decision || ring_on_)
+    return h_;
+  int text = std::min<int>(text_h_, lv_obj_get_height(line_box_));
+  return std::clamp(text_top_ + text + int(strip_h_ * 0.6f), h_ / 2, h_);
 }
 
 }  // namespace charm

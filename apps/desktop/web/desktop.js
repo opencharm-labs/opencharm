@@ -36,18 +36,27 @@ log(
 
 // Grow the window before the panel animates open; shrink it after the close animation. The charm
 // opens it for speech and questions; the typing field below keeps it open while it's shown.
+// Heights are the charm's pixels (2x); the window is sized in points.
 const show = window.charmSim.panel;
+// The typing field needs the strip and the field with a margin, whatever the charm shows.
+const FIELD_HEIGHT = (geometry.strip + 58) * 2;
 let closing;
 let charmOpen = false;
+let charmHeight = 0;
 let typing = false;
 const panel = (open) => {
+  const height = Math.max(
+    charmOpen ? charmHeight : 0,
+    typing ? FIELD_HEIGHT : 0
+  );
   clearTimeout(closing);
-  if (open) void invoke("panel", { open: true });
+  if (open) void invoke("panel", { open: true, height: height / 2 });
   else closing = setTimeout(() => void invoke("panel", { open: false }), 320);
-  show(open);
+  show(open, height);
 };
-window.charmSim.panel = (open) => {
+window.charmSim.panel = (open, height) => {
   charmOpen = open;
+  charmHeight = height;
   if (open || !typing) panel(open);
 };
 
