@@ -59,6 +59,6 @@ A new spec is only for a new feature. If a change could be described as "the des
 | 010 | [Agents over ACP](010-acp-agents/spec.md)                             | Done        |
 | 011 | [Ask on the charm](011-ask-on-charm/spec.md)                          | Done        |
 | 012 | [Charm tools for the agent (MCP)](012-charm-tools/spec.md)            | Done        |
-| 013 | [The desktop charm](013-desktop-charm/spec.md)                        | Approved    |
+| 013 | [The desktop charm](013-desktop-charm/spec.md)                        | In progress |
 | 014 | [Personalise your charm](014-personalise/spec.md)                     | In progress |
 | 015 | [Build identity](015-build-identity/spec.md)                          | Done        |
