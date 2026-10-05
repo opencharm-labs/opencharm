@@ -213,25 +213,25 @@ fn charm_geometry(screen: State<Screen>, saved: State<Saved>) -> Geometry {
     g
 }
 
-/// The managed charmd shows a pairing code: pair with the keychain's PIN, no one types anything.
+/// The managed charmd shows a pairing code: pair with the app's PIN, no one types anything.
 #[tauri::command]
 fn auto_pair(saved: State<Saved>, managed: State<Managed>, code: String) -> Result<(), String> {
     if !is_managed(&saved) {
         return Err("not the app's own charmd".into());
     }
-    pairing::pair(&managed.socket(), &code, &pairing::pin()?)
+    pairing::pair(&managed.socket(), &code, &pairing::pin(&managed.data)?)
 }
 
 /// The PIN the charm types when it starts locked (the app's own charmd only).
 #[tauri::command]
-fn auto_pin(saved: State<Saved>) -> Result<String, String> {
+fn auto_pin(saved: State<Saved>, managed: State<Managed>) -> Result<String, String> {
     if !is_managed(&saved) {
         return Err("not the app's own charmd".into());
     }
-    pairing::pin()
+    pairing::pin(&managed.data)
 }
 
-/// The PIN was refused (a reset keychain): drop the old pairing so the charm pairs again.
+/// The PIN was refused (a new or reset PIN file): drop the old pairing so the charm pairs again.
 #[tauri::command]
 fn auto_reset(saved: State<Saved>, managed: State<Managed>) -> Result<(), String> {
     if !is_managed(&saved) {

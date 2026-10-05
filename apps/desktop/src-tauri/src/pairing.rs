@@ -1,7 +1,9 @@
-//! Automatic pairing with the managed charmd (spec 013). The app keeps a long random PIN in the
-//! system keychain, pairs through charmd's owner-only admin socket (the same request as `opencharm
-//! pair`), and types the PIN itself when the charm starts locked. Nobody sees a code or a PIN;
-//! charmd's security model is unchanged.
+//! Automatic pairing with the managed charmd (spec 013). The app keeps a long random PIN in an
+//! owner-only file in its data folder, pairs through charmd's owner-only admin socket (the same
+//! request as `opencharm pair`), and types the PIN itself when the charm starts locked. Nobody sees
+//! a code or a PIN; charmd's security model is unchanged. The file, not the keychain: an unsigned
+//! app's identity changes with every build, so macOS asked for the keychain item at each start, and
+//! anything that can read your files as you can already use the admin socket.
 
 use std::io::{Read, Write};
 use std::path::Path;
@@ -13,6 +15,8 @@ const SERVICE: &str = "dev.opencharm.desktop";
 const TEST_SERVICE: &str = "dev.opencharm.desktop.test";
 /// The charm's name in the managed charmd.
 pub const NAME: &str = "desktop";
+/// The PIN's file in the app's data folder.
+const PIN_FILE: &str = "pin";
 
 fn entry(account: &str) -> Result<keyring::Entry, String> {
     let service = if std::env::var_os("OPENCHARM_DATA").is_some() {
@@ -58,10 +62,14 @@ pub fn new_pin(bytes: &[u8]) -> Option<String> {
     (pin.len() == 12).then_some(pin)
 }
 
-/// The PIN for the desktop charm, created on first use.
-pub fn pin() -> Result<String, String> {
-    if let Some(pin) = secret("pin")? {
-        return Ok(pin);
+/// The PIN for the desktop charm in `dir` (the app's data folder), created on first use. A file
+/// that doesn't hold a PIN is replaced; charmd then refuses the old pairing and the app pairs again.
+pub fn pin(dir: &Path) -> Result<String, String> {
+    let path = dir.join(PIN_FILE);
+    if let Ok(text) = std::fs::read_to_string(&path) {
+        if text.len() == 12 && text.chars().all(|c| c.is_ascii_digit()) {
+            return Ok(text);
+        }
     }
     let pin = loop {
         let mut bytes = [0u8; 32];
@@ -70,8 +78,25 @@ pub fn pin() -> Result<String, String> {
             break pin;
         }
     };
-    set_secret("pin", &pin)?;
+    write_private(dir, &path, &pin).map_err(|e| format!("the PIN file: {e}"))?;
     Ok(pin)
+}
+
+/// Written owner-only from the start (0600 on macOS and Linux; on Windows the app's data folder is
+/// already the user's own) and moved into place, so it's never readable by others or half-written.
+fn write_private(dir: &Path, path: &Path, text: &str) -> std::io::Result<()> {
+    std::fs::create_dir_all(dir)?;
+    let temp = dir.join(format!("{PIN_FILE}.{}", std::process::id()));
+    let _ = std::fs::remove_file(&temp);
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
+    let mut file = options.open(&temp)?;
+    file.write_all(text.as_bytes())?;
+    file.sync_all()?;
+    drop(file);
+    std::fs::rename(&temp, path)
 }
 
 /// One request on the admin socket, one reply (the protocol of `opencharm`'s admin client).
@@ -127,6 +152,48 @@ mod tests {
         let pin = new_pin(&[0, 9, 10, 255, 128, 77, 3, 41, 200, 199, 5, 6, 252, 11]).unwrap();
         assert_eq!(pin, "090873109561");
         assert_eq!(new_pin(&[255; 32]), None);
+    }
+
+    fn temp_dir(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("oc-pin-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn keeps_one_pin_in_a_file_and_reuses_it() {
+        let dir = temp_dir("keep");
+        let first = pin(&dir).unwrap();
+        assert_eq!(first.len(), 12);
+        assert!(first.chars().all(|c| c.is_ascii_digit()));
+        assert_eq!(pin(&dir).unwrap(), first);
+        assert_eq!(std::fs::read_to_string(dir.join(PIN_FILE)).unwrap(), first);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn only_you_can_read_the_pin_file() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = temp_dir("mode");
+        pin(&dir).unwrap();
+        let mode = std::fs::metadata(dir.join(PIN_FILE))
+            .unwrap()
+            .permissions()
+            .mode();
+        assert_eq!(mode & 0o777, 0o600);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn replaces_a_pin_file_that_isnt_a_pin() {
+        let dir = temp_dir("bad");
+        std::fs::write(dir.join(PIN_FILE), "not a pin").unwrap();
+        let pin = pin(&dir).unwrap();
+        assert_eq!(pin.len(), 12);
+        assert!(pin.chars().all(|c| c.is_ascii_digit()));
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[cfg(unix)]
