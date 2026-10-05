@@ -28,9 +28,44 @@ const LISTENS: [&str; 3] = ["local", "openai", "fake"];
 const SPEAKS: [&str; 5] = ["microsoft", "local", "system", "openai", "fake"];
 /// The languages charmd tells apart and has a Microsoft voice for (`packages/charmd/src/voice`).
 const LANGUAGES: [&str; 6] = ["en", "it", "es", "fr", "de", "pt"];
-/// The six identity colours (`packages/design/faces.json`); orange is never one of them.
+/// The six identity colours (`packages/design/faces.json`); orange is never one of them. A colour of
+/// your own is `#RRGGBB`.
 pub const COLOURS: [&str; 6] = ["white", "cobalt", "lime", "lilac", "sun", "coal"];
 const MOTIONS: [&str; 2] = ["full", "calm"];
+
+/// A colour of your own (`#RRGGBB`) lights the glyphs as it is, so it has to read on true black and
+/// can't pass for the orange that only means "it needs you". The same rule as charmd's (look.ts).
+fn own_colour_problem(colour: &str) -> Result<(), String> {
+    let hex = colour
+        .strip_prefix('#')
+        .filter(|hex| hex.len() == 6 && hex.chars().all(|c| c.is_ascii_hexdigit()));
+    let Some(hex) = hex else {
+        return Err("choose a colour, or type one as #RRGGBB".into());
+    };
+    let channel = |at: usize| f64::from(u8::from_str_radix(&hex[at..at + 2], 16).unwrap()) / 255.0;
+    let (r, g, b) = (channel(0), channel(2), channel(4));
+    let linear = |v: f64| {
+        if v <= 0.04045 {
+            v / 12.92
+        } else {
+            ((v + 0.055) / 1.055).powf(2.4)
+        }
+    };
+    if 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b) < 0.05 {
+        return Err("that colour is too dark to see on black".into());
+    }
+    let max = r.max(g).max(b);
+    let spread = max - r.min(g).min(b);
+    if max == r && max >= 0.5 && spread / max >= 0.5 {
+        let hue = 60.0 * (g - b) / spread;
+        if (6.0..=40.0).contains(&hue) {
+            return Err(
+                "that colour is too close to the orange that means \"it needs you\"".into(),
+            );
+        }
+    }
+    Ok(())
+}
 
 /// The charm's identity (spec 014): the workspace's `charm` block, or the app's own for a folder
 /// that isn't a workspace. An empty name or greeting means charmd's default (the AGENTS.md heading,
@@ -66,7 +101,7 @@ impl Look {
             return Err("the name is up to 12 characters".into());
         }
         if !COLOURS.contains(&self.colour.as_str()) {
-            return Err("choose a colour".into());
+            own_colour_problem(&self.colour)?;
         }
         if self.greeting.len() > 40 {
             return Err("the greeting is too long".into());
@@ -122,6 +157,10 @@ pub struct Settings {
     pub look: Look,
     /// The macOS voice for the local voice ("" = the system's) when the workspace can't hold it.
     pub say_voice: String,
+    /// The guided setup's progress: the highest step finished (0 = not started, 6 = done).
+    pub setup_step: u32,
+    /// Where the setup last created a workspace, offered first next time.
+    pub setup_location: Option<String>,
 }
 
 impl Default for Settings {
@@ -146,11 +185,26 @@ impl Default for Settings {
             cli_path: None,
             look: Look::default(),
             say_voice: String::new(),
+            setup_step: 0,
+            setup_location: None,
         }
     }
 }
 
 impl Settings {
+    /// What a window saves, over what's saved: the look has its own command (save_look) and the
+    /// setup's progress its own (setup_step_done, create_new_workspace), so a window's older copy
+    /// never rolls them back.
+    pub fn from_window(previous: &Settings, next: Settings) -> Settings {
+        Settings {
+            look: previous.look.clone(),
+            say_voice: previous.say_voice.clone(),
+            setup_step: previous.setup_step,
+            setup_location: previous.setup_location.clone(),
+            ..next
+        }
+    }
+
     /// Missing or unreadable settings are the defaults: the charm always starts.
     pub fn load(path: &Path) -> Settings {
         let mut settings: Settings = std::fs::read_to_string(path)
@@ -359,6 +413,48 @@ mod tests {
             ..Settings::default()
         };
         assert!(settings.valid().is_err());
+    }
+
+    #[test]
+    fn a_colour_of_your_own_reads_on_black_and_isnt_the_needs_you_orange() {
+        let with = |colour: &str| Look {
+            colour: colour.into(),
+            ..Look::default()
+        };
+        for good in [
+            "#FF6EC7", "#ff6ec7", "#FF0000", "#FFD400", "#FFB800", "#3F7BFF", "#8A8A8A", "#F7C59F",
+        ] {
+            assert!(with(good).valid().is_ok(), "{good}");
+        }
+        for bad in [
+            "#FF5A1F", "#F26B2A", "#E0480F", "#FFA500", "#FF8C00", "#202020", "#000000", "#FFF",
+            "pink", "#GGGGGG",
+        ] {
+            assert!(with(bad).valid().is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn a_window_never_rolls_back_the_look_or_the_setup() {
+        let previous = Settings {
+            setup_step: 4,
+            setup_location: Some("/Users/a/Documents".into()),
+            look: Look {
+                colour: "lilac".into(),
+                ..Look::default()
+            },
+            ..Settings::default()
+        };
+        // A Settings window opened before the setup saved: its copy is older.
+        let stale = Settings {
+            start_at_login: true,
+            ..Settings::default()
+        };
+        let merged = Settings::from_window(&previous, stale);
+        assert!(merged.start_at_login);
+        assert_eq!(merged.setup_step, 4);
+        assert_eq!(merged.setup_location.as_deref(), Some("/Users/a/Documents"));
+        assert_eq!(merged.look.colour, "lilac");
     }
 
     #[test]

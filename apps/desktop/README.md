@@ -25,12 +25,16 @@ Nothing else to install: the app carries its own charmd and Node (spec 013). You
 
 ## First run
 
-1. Open OpenCharm. Settings opens: under **Your agent**, choose a folder.
-   - An OpenCharm workspace (for example one made with `opencharm init`) is used as it's configured.
-   - An empty folder: **Create a workspace here**.
-   - Any other folder (a repo): your agent works in it as it is.
-2. Choose the agent (Claude Code by default, Codex, Gemini CLI, goose, Hermes, OpenClaw, another ACP command, or an OpenAI-compatible server) and the voice. The status line says when charmd is running.
-3. Hold **⌥ Option + Space** (Windows: **Ctrl + Alt + Space**) and talk. The first time, allow the microphone. It's only on while you hold the key.
+Open OpenCharm and the setup walks you through it, one step at a time (spec 013):
+
+1. **Welcome:** where the charm lives and the talk key (⌥ Space on a Mac, Ctrl Alt Space on Windows).
+2. **Your agent:** Claude Code, Codex, Gemini CLI, goose, Hermes or OpenClaw, marked Found when its command is on your PATH (on Windows also with `.cmd`/`.exe` and npm's global folder), with a link to install a missing one; or another agent, by its ACP command or an OpenAI-compatible server.
+3. **Its folder:** create a new workspace from a name and a location (your Documents folder to start, the last one remembered), or use a folder you have: a workspace is used as its `opencharm.json` says, any other folder is where your agent works.
+4. **Your charm:** its name and colour (the six, or your own).
+5. **Its voice:** how it speaks and the language to fall back on, and the microphone, asked now rather than mid-sentence.
+6. **Say hi:** hold the key and talk; it ticks off "awake", "heard you" and "answered", or says what's wrong.
+
+Each step is saved when you continue, so if you quit halfway it opens at the step you left. It opens again if your folder disappears, and **Set up again…** in the menu-bar menu reopens it. Settings is for changing things afterwards.
 
 There's no code or PIN to type: the app pairs with its own charmd through charmd's owner-only admin socket. It keeps a random 12-digit PIN in a file only you can read, in the app's data folder (`pin`, owner-only), and types it when the charm starts locked. Not the keychain: an unsigned app's identity changes with each build, so macOS asked for the keychain item at every start, and anything running as you can already use charmd's owner-only admin socket. An install from before this pairs again by itself, once; its old keychain item stays there unused (Keychain Access can delete `dev.opencharm.desktop`, account `pin`). The keychain is read only for an OpenAI key, if you choose OpenAI.
 
@@ -45,7 +49,7 @@ The app's charmd listens on port 8790, with its own config, state and log, so a 
 - **The window** floats above the menu bar on every Space and comes to the front when it opens. It measures the real notch, or draws a black pill without one; on Windows the pill sits at the top centre, the same layout as the Mac's.
 - **Its own charmd** (spec 013): the app carries the `opencharm` CLI built from its own commit and Node 24 (pinned in `node.json`, checked against its SHA-256 when it's staged), as resources, and runs charmd with them. That Node is first on the PATH charmd and your agent get, so `npx` (Claude Code's and Codex's adapters) is the app's own; an agent's adapter is still downloaded the first time it starts. Settings → Advanced can point at another `opencharm` instead; a development build (`npm run desktop`) uses the installed one, unless `OPENCHARM_BUNDLED=1` (after `npm run stage -w apps/desktop`). It keeps its state and admin socket in the app's data folder. `charmd/THIRD_PARTY_NOTICES.md` in the app lists Node and every bundled npm package with its licence; Node's and the CLI's licence files are next to them.
 - **Settings:** under your agent: a folder, the agent (an ACP preset, a custom ACP command, or an OpenAI-compatible server), **Listening** (on this computer, OpenAI with the key in the keychain, or none), **Speaking** (Microsoft's free voices, the default: the text of each spoken reply goes to Microsoft, through an unofficial service; on this computer, private; a macOS voice; OpenAI; or none) and the **language** to fall back on (it answers in the language you speak), a status line and Restart. **Speak replies** (also in the menu bar): off, replies show as text by the notch, for a quiet office; it changes from the next reply, without restarting charmd. The **typing key** (⌥⇧ Space; Ctrl Alt Shift Space on Windows; also **Type to your charm…** in the menu bar) opens a one-line field in the panel: Enter sends it and the reply comes as text, Esc or clicking away closes it, and the app you were in gets the keyboard back. One line, one reply: longer work belongs in your agent's own chat. With another `opencharm` (Settings → Advanced) that's older than the app, the field says to update it. With the default voice, the first start downloads the voice models (about 620 MB). Another `opencharm` older than the app gets the voice it understands, and the status line says to update it (`npm install -g opencharm`). Then **Your charm** (spec 014):
-  - its name, its colour (the six identity colours; the charm in Settings and by the notch follows it) and its greeting
+  - its name, its colour (the six identity colours or your own, picked or typed as `#RRGGBB`; the charm in Settings and by the notch follows it) and its greeting
   - its macOS voice, when Speaking is "A macOS voice": those of your system language first, with **Try it**
   - when it falls asleep (2, 4, 10 or 30 minutes alone, or never), calm motion, and whether the agent may change its look (`set_look`)
 

@@ -1,6 +1,8 @@
 // The settings window: every change is saved and applied at once (the key is live, the app's own
 // charmd restarts for a new folder, agent or voice, the charm reconnects, start-at-login follows).
 // The charm at the top is the real face engine, reacting.
+import { colourOf, mountColourPicker } from "./colour-picker.js";
+
 const { invoke } = window.__TAURI__.core;
 
 const mac = navigator.platform.toLowerCase().includes("mac");
@@ -188,7 +190,6 @@ async function poll() {
 }
 
 // "Your charm": its look and voice, kept in the workspace (else in the app) and applied at once.
-const COLORS = window.CharmFace.COLORS;
 const SLEEPS = ["2", "4", "10", "30", "0"];
 let charmLook = null;
 let voices = [];
@@ -203,11 +204,7 @@ function fillLook() {
   const name = look.name || $("charm-name").placeholder;
   $("greeting").value = look.greeting;
   $("greeting").placeholder = `Hi! I'm ${name}.`;
-  for (const swatch of $("swatches").children) {
-    const on = swatch.dataset.id === look.colour;
-    swatch.setAttribute("aria-checked", String(on));
-    swatch.tabIndex = on ? 0 : -1;
-  }
+  picker.set(look.colour);
   const minutes = String(look.sleepAfterMinutes);
   if (
     !SLEEPS.includes(minutes) &&
@@ -219,7 +216,7 @@ function fillLook() {
   $("agent-look").checked = look.agentCanChangeLook;
   $("say-section").hidden = settings.speak !== "system" || voices.length === 0;
   $("say-voice").value = sayVoice;
-  charm.setColour(COLORS.find((c) => c.id === look.colour) ?? COLORS[0]);
+  charm.setColour(colourOf(look.colour));
 }
 
 async function loadLook() {
@@ -247,30 +244,37 @@ async function saveLook(change, voice) {
   fillLook();
 }
 
-for (const colour of COLORS) {
-  const swatch = document.createElement("button");
-  swatch.type = "button";
-  swatch.className = colour.id === "white" ? "swatch light" : "swatch";
-  swatch.dataset.id = colour.id;
-  swatch.style.setProperty("--c", colour.c);
-  swatch.setAttribute("role", "radio");
-  swatch.setAttribute("aria-label", colour.name);
-  swatch.title = colour.name;
-  swatch.addEventListener("click", () => void saveLook({ colour: colour.id }));
-  $("swatches").append(swatch);
-}
-// Arrow keys move between the swatches, like any radio group.
-$("swatches").addEventListener("keydown", (e) => {
-  const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[
-    e.key
-  ];
-  if (!step) return;
-  e.preventDefault();
-  const at = COLORS.findIndex((c) => c.id === charmLook.look.colour);
-  const next = COLORS[(at + step + COLORS.length) % COLORS.length];
-  void saveLook({ colour: next.id }).then(() =>
-    $("swatches").querySelector(`[data-id="${next.id}"]`)?.focus()
-  );
+const picker = mountColourPicker($("colours"), {
+  labelledBy: "colour-label",
+  onPick: (colour) => saveLook({ colour }),
+  onPreview: (colour) => charm.setColour(colour),
+  onError: (text) => {
+    status.textContent = text.toUpperCase();
+    react("oops", 2200);
+  },
+});
+
+// Your own colour: the picker shows it as you go and saves it when it closes; or type it. charmd
+// (and the app) refuse one too dark to see or too close to the needs-you orange, and say so.
+$("own-colour").addEventListener("input", (e) =>
+  charm.setColour(colourOf(e.target.value.toUpperCase()))
+);
+// macOS's colour panel may report every move as a change: save once it rests.
+let ownColourSave;
+$("own-colour").addEventListener("change", (e) => {
+  clearTimeout(ownColourSave);
+  const colour = e.target.value.toUpperCase();
+  ownColourSave = setTimeout(() => void saveLook({ colour }), 400);
+});
+$("own-hex").addEventListener("change", (e) => {
+  const typed = e.target.value.trim().toUpperCase();
+  if (!typed) return;
+  const colour = typed.startsWith("#") ? typed : `#${typed}`;
+  if (!OWN_COLOUR.test(colour)) {
+    status.textContent = "TYPE A COLOUR AS #RRGGBB";
+    return react("oops", 2200);
+  }
+  void saveLook({ colour });
 });
 
 // The voices that speak the system's language first, then the rest.

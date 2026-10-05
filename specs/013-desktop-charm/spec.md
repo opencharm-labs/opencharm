@@ -1,6 +1,6 @@
 # 013: The desktop charm
 
-Status: Approved
+Status: In progress
 Depends on: 004, 005, 006, 010, 011
 
 ## Why
@@ -13,12 +13,21 @@ Not everyone wants to buy a board and print a shell. The same companion can live
 - **The notch layout in the core** (`ViewOptions.notch`: `notch_width`, `strip_height`):
   - compact: the eyes sit on the ears either side of the notch, a size up from the board's; nothing is drawn inside the notch or below the strip
   - open: a panel below the notch with the mouth just below the notch, the speech captions, the question and its hint, or a status line; the orange needs-you outline only on the panel
-  - `on_panel` tells the platform when the panel opens and closes; `press_pad_key` lets a keyboard type the PIN
+  - `on_panel` tells the platform when the panel opens and closes, and how tall it is: questions, pairing and the PIN take the whole panel; words take only the height they need, at least half (a one-line reply about 60%), and it only grows while it speaks, so a shorter sentence doesn't make it jump; `press_pad_key` lets a keyboard type the PIN
   - the emulator's `?shape=notch` (or "Try: Mac notch"): 360 × 180 pt at 2x, cropped to the strip when closed
 - **The app** (`apps/desktop`, Tauri 2: the system web view, not a bundled browser):
-  - **The window:** borderless, above the menu bar on every Space and over full-screen apps, no Dock icon. It measures the real notch (`NSScreen` safe area and auxiliary areas) and draws a black pill at the top centre without one. On Windows the pill sits at the top centre too. The panel grows the window and brings it to the front; it shrinks after the close animation. Displays are re-measured every 4 s.
+  - **The window:** borderless, above the menu bar on every Space and over full-screen apps, no Dock icon. It measures the real notch (`NSScreen` safe area and auxiliary areas) and draws a black pill at the top centre without one. On Windows the pill sits at the top centre too. The panel grows the window to the height the core asks for and brings it to the front; it shrinks after the close animation. Displays are re-measured every 4 s.
   - **The key:** a global push-to-talk shortcut that works in any app, press and release (⌥ Space on macOS, Ctrl Alt Space on Windows), changeable in Settings. The mic is open only while it's held.
   - **A menu-bar icon:** the charm's head as a template image (from `brand/build_icon.py`), with Settings… and Quit. Settings also opens from a right-click on the charm.
+  - **Guided setup (approved by the maintainer, 5 October 2026):** the one way to set the charm up; Settings stays for changing things later. A window (`setup.html`, about 480 × 600 pt, the brand's paper and grid) with the real charm face at the top, reacting to each step and wearing the chosen name and colour from step 4; step dots, Back and Continue (Enter). It opens on a first run and whenever the app's own charmd has no usable folder (none, or gone), instead of Settings; **Set up again…** in the menu-bar menu reopens it. Each step saves through the same commands as Settings when you continue, so quitting halfway leaves a valid state, and the next start resumes at the first step not done. Six steps:
+    1. **Welcome:** where the charm lives and the key, as this computer has it (⌥ Space on macOS, Ctrl Alt Space elsewhere): hold to talk, press to stop.
+    2. **Your agent:** Claude Code, Codex, Gemini CLI, goose, Hermes, OpenClaw as cards marked Found or Not found (its command on the PATH charmd gets; on Windows with `PATHEXT` and npm's global folder); found ones first, the first selected; a missing one shows its install line and a link. "Another agent…" takes a command or a server, as in Settings. Sign-in isn't checked here: Try it shows it.
+    3. **Your folder**, as an IDE's New Project:
+       - **Create a new workspace:** a name (`my-charm` to start) and a location (the system's Documents folder, from Tauri, on every OS; the last one used is remembered) with Browse…, and the path it will create, in the OS's own form. The name must be a folder name valid on every OS (no `/ \ : * ? " < > |`, no trailing dot or space, not a Windows reserved name such as `CON` or `COM1`, at most 64 characters), and the target must not be a folder with files in it; Create stays off until both hold. Create makes the folder and runs `opencharm init` there with the chosen agent, showing progress; a missing `git` or network gets a plain error and Retry.
+       - **Use a folder I have:** the system picker; a workspace is used as its `opencharm.json` says, any other folder is the agent's working folder as it is.
+    4. **Your charm:** name (from the workspace, Momo in the starter) and colour (spec 014: the six, or your own), saved to the workspace's `charm` block.
+    5. **Voice:** speaking with Microsoft's voices (the default, with the note on what goes to Microsoft) or on this computer (and a macOS voice on a Mac); the language to fall back on; **Allow the microphone**, which asks now through the web view, and if refused says where to change it (macOS: System Settings → Privacy & Security → Microphone; Windows: Settings → Privacy → Microphone). Listening stays on this computer, with its one-time download noted.
+    6. **Try it:** "Hold the key and say hi", following charmd's status and the first turn (heard you, your agent answered). A failure shows the status line's detail and Retry; **Finish anyway** closes it, to fix later in Settings. **Done** closes the window.
   - **Settings → Your agent:**
     - Folder (the system picker): an OpenCharm workspace (has `opencharm.json`) is used as configured; an empty folder offers **Create a workspace here** (`opencharm init`); any other folder is the agent's working folder as it is.
     - Agent: Claude Code, Codex, Gemini CLI, goose, Hermes, OpenClaw (ACP presets), a custom ACP command, or an OpenAI-compatible server by URL.
@@ -56,6 +65,8 @@ Not everyone wants to buy a board and print a shell. The same companion can live
 - On Windows the pill sits at the top centre, the same layout as the Mac (maintainer, 1 October 2026).
 - Releases are unsigned: open source with no paid signing identity; checksums, provenance and building it yourself instead (maintainer, 1 October 2026).
 
+- Setup is a guided flow of its own, not a mode of Settings; creating a workspace works like an IDE's New Project (a name and a location, Documents by default), with no OpenCharm folder chosen for the user, and it works the same on every OS the app runs on: paths, keys, agent lookup and the microphone follow the platform (maintainer, 5 October 2026).
+
 ## Not in scope
 
 Several agents at once, an automatic updater, Windows-specific folder conventions beyond the picker, a server agent's API key from Settings (only through a workspace's `opencharm.json` for now).
@@ -90,6 +101,16 @@ Bundled charmd:
 - [x] The download sizes per platform and the installed size on Apple silicon, recorded in `apps/desktop/README.md` (installed sizes on Intel and Windows not measured).
 - [ ] The same on Windows on a real machine.
 - [x] The docs it makes wrong, updated in the same PR: `apps/desktop/README.md` (no Node or CLI to install; the bundled charmd; sizes), `OPENCHARM.md` (the desktop section), CONTRIBUTING ("Releasing": the desktop unit's paths).
+
+Guided setup:
+
+- [ ] A first run opens the setup, not Settings; so does a folder that's gone; **Set up again…** reopens it; quitting halfway resumes at the first step not done (Rust tests for the resume state).
+  - The rules are tested (`setup.rs`); in the built app a half-finished setup (step 3 done) started charmd and ran a turn whose events reached the setup window without an error (5 October 2026). Seeing the window open is the maintainer's run.
+- [x] Agent detection finds a command on a PATH, with `PATHEXT` on Windows (Rust tests with a fake PATH; Windows CI runs them).
+- [x] The new workspace's name rules and target check (Rust tests: reserved names, separators, trailing dot or space, a folder with files); Create makes `<location>/<name>` and runs `opencharm init` there.
+- [ ] The whole flow in the built app with a throwaway `OPENCHARM_DATA`, the fake agent, voice and mic: create a workspace, name and colour it, one spoken turn on the Try it step; a screenshot of every step.
+  - Every step rendered in headless Chrome with a stand-in for the app's commands, on macOS and Windows settings, and screenshotted (5 October 2026); the click-through in the built app is the maintainer's run.
+- [ ] The same on Windows on a real machine.
 
 ## Notes
 

@@ -5,6 +5,7 @@
     <title>OpenCharm</title>
     <link rel="icon" href="data:," />
     <link rel="stylesheet" href="settings.css" />
+    <link rel="stylesheet" href="colour-picker.css" />
     <script src="charm-face.js"></script>
   </head>
   <body>
@@ -124,12 +125,7 @@
         <input id="charm-name" maxlength="12" spellcheck="false" />
 
         <span class="mono" id="colour-label">COLOUR</span>
-        <div
-          class="swatches"
-          id="swatches"
-          role="radiogroup"
-          aria-labelledby="colour-label"
-        ></div>
+        <div id="colours"></div>
 
         <label class="mono" for="greeting">GREETING</label>
         <input id="greeting" maxlength="40" />
@@ -295,7 +291,6 @@
     <footer class="mono dim">
       <span id="status">ALL SAVED</span>
       <span id="identity"></span>
-      <span>NO WARRANTY · OPENCHARM.DEV</span>
     </footer>
     <script type="module" src="settings.js"></script>
   </body>
