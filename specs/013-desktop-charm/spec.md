@@ -1,6 +1,6 @@
 # 013: The desktop charm
 
-Status: Approved
+Status: In progress
 Depends on: 004, 005, 006, 010, 011
 
 ## Why
@@ -103,9 +103,11 @@ Bundled charmd:
 Guided setup:
 
 - [ ] A first run opens the setup, not Settings; so does a folder that's gone; **Set up again…** reopens it; quitting halfway resumes at the first step not done (Rust tests for the resume state).
-- [ ] Agent detection finds a command on a PATH, with `PATHEXT` on Windows (Rust tests with a fake PATH; Windows CI runs them).
-- [ ] The new workspace's name rules and target check (Rust tests: reserved names, separators, trailing dot or space, a folder with files); Create makes `<location>/<name>` and runs `opencharm init` there.
+  - The rules are tested (`setup.rs`); in the built app a half-finished setup (step 3 done) started charmd and ran a turn whose events reached the setup window without an error (5 October 2026). Seeing the window open is the maintainer's run.
+- [x] Agent detection finds a command on a PATH, with `PATHEXT` on Windows (Rust tests with a fake PATH; Windows CI runs them).
+- [x] The new workspace's name rules and target check (Rust tests: reserved names, separators, trailing dot or space, a folder with files); Create makes `<location>/<name>` and runs `opencharm init` there.
 - [ ] The whole flow in the built app with a throwaway `OPENCHARM_DATA`, the fake agent, voice and mic: create a workspace, name and colour it, one spoken turn on the Try it step; a screenshot of every step.
+  - Every step rendered in headless Chrome with a stand-in for the app's commands, on macOS and Windows settings, and screenshotted (5 October 2026); the click-through in the built app is the maintainer's run.
 - [ ] The same on Windows on a real machine.
 
 ## Notes

@@ -25,12 +25,16 @@ Nothing else to install: the app carries its own charmd and Node (spec 013). You
 
 ## First run
 
-1. Open OpenCharm. Settings opens: under **Your agent**, choose a folder.
-   - An OpenCharm workspace (for example one made with `opencharm init`) is used as it's configured.
-   - An empty folder: **Create a workspace here**.
-   - Any other folder (a repo): your agent works in it as it is.
-2. Choose the agent (Claude Code by default, Codex, Gemini CLI, goose, Hermes, OpenClaw, another ACP command, or an OpenAI-compatible server) and the voice. The status line says when charmd is running.
-3. Hold **⌥ Option + Space** (Windows: **Ctrl + Alt + Space**) and talk. The first time, allow the microphone. It's only on while you hold the key.
+Open OpenCharm and the setup walks you through it, one step at a time (spec 013):
+
+1. **Welcome:** where the charm lives and the talk key (⌥ Space on a Mac, Ctrl Alt Space on Windows).
+2. **Your agent:** Claude Code, Codex, Gemini CLI, goose, Hermes or OpenClaw, marked Found when its command is on your PATH (on Windows also with `.cmd`/`.exe` and npm's global folder), with a link to install a missing one; or another agent, by its ACP command or an OpenAI-compatible server.
+3. **Its folder:** create a new workspace from a name and a location (your Documents folder to start, the last one remembered), or use a folder you have: a workspace is used as its `opencharm.json` says, any other folder is where your agent works.
+4. **Your charm:** its name and colour (the six, or your own).
+5. **Its voice:** how it speaks and the language to fall back on, and the microphone, asked now rather than mid-sentence.
+6. **Say hi:** hold the key and talk; it ticks off "awake", "heard you" and "answered", or says what's wrong.
+
+Each step is saved when you continue, so if you quit halfway it opens at the step you left. It opens again if your folder disappears, and **Set up again…** in the menu-bar menu reopens it. Settings is for changing things afterwards.
 
 There's no code or PIN to type: the app pairs with its own charmd through charmd's owner-only admin socket. It keeps a random 12-digit PIN in your keychain and types it when the charm starts locked. Because the builds aren't signed, macOS may ask once after an update whether OpenCharm may use its keychain item: choose **Always Allow**.
 
