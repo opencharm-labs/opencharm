@@ -6,6 +6,7 @@
   "description": "The desktop charm: OpenCharm under your Mac's notch",
   "scripts": {
     "web": "tsx scripts/build-web.ts",
+    "stage": "tsx scripts/stage-charmd.ts",
     "dev": "npm run web && tauri dev",
     "bundle": "tauri build",
     "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",

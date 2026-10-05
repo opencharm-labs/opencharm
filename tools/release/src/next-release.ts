@@ -35,8 +35,9 @@ type Version = [number, number, number];
 // What each unit ships, so only changes there count for it. The CLI bundles charmd, protocol, design
 // and the emulator (firmware/core, firmware/sim; not a board port); its npm dependencies are external,
 // installed from their ranges, so the lockfile never ships. The desktop app is its own code, the
-// emulator, the app icon and the face engine its pages include (packages/design). The website is
-// apps/web and the face engine it shows.
+// emulator, the app icon and the face engine its pages include (packages/design), and since spec 013
+// the charmd it carries: the CLI, charmd and protocol, with dependencies pinned from the lockfile (and
+// Node, pinned in apps/desktop/node.json). The website is apps/web and the face engine it shows.
 const UNITS: Record<Unit, readonly string[]> = {
   cli: [
     "packages/cli",
@@ -52,6 +53,10 @@ const UNITS: Record<Unit, readonly string[]> = {
     "firmware/sim",
     "brand/icon",
     "packages/design",
+    "packages/cli",
+    "packages/charmd",
+    "packages/protocol",
+    "package-lock.json",
   ],
   web: ["apps/web", "packages/design"],
 };

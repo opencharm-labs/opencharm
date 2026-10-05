@@ -21,7 +21,7 @@ Download the latest **OpenCharm Desktop** from [Releases](https://github.com/ope
 
 **Updates:** once a day the app asks GitHub for the public list of `desktop@` release tags whether there's a newer version (nothing about you is sent). If there is, the menu-bar menu and Settings offer it, and you download it the same way. Turn this off in Settings. After an update, macOS may ask again for the microphone and the keychain, because an unsigned app's identity changes with each build.
 
-It needs Node 24 and the OpenCharm CLI (`npm install -g opencharm`): the app runs charmd with it, next to your agent.
+Nothing else to install: the app carries its own charmd and Node (spec 013). Your agent is yours to install (Claude Code, Codex…); creating a workspace from Settings also needs `git`.
 
 ## First run
 
@@ -43,8 +43,8 @@ The app's charmd listens on port 8790, with its own config, state and log, so a 
 ## How it behaves
 
 - **The window** floats above the menu bar on every Space and comes to the front when it opens. It measures the real notch, or draws a black pill without one; on Windows the pill sits at the top centre, the same layout as the Mac's.
-- **Its own charmd** (spec 013) is started with the installed `opencharm` CLI, found through the login shell or a path in Settings. It keeps its state and admin socket in the app's data folder.
-- **Settings:** under your agent: a folder, the agent (an ACP preset, a custom ACP command, or an OpenAI-compatible server), **Listening** (on this computer, OpenAI with the key in the keychain, or none), **Speaking** (Microsoft's free voices, the default: the text of each spoken reply goes to Microsoft, through an unofficial service; on this computer, private; a macOS voice; OpenAI; or none) and the **language** to fall back on (it answers in the language you speak), a status line and Restart. **Speak replies** (also in the menu bar): off, replies show as text by the notch, for a quiet office; it changes from the next reply, without restarting charmd. The **typing key** (⌥⇧ Space; Ctrl Alt Shift Space on Windows; also **Type to your charm…** in the menu bar) opens a one-line field in the panel: Enter sends it and the reply comes as text, Esc or clicking away closes it, and the app you were in gets the keyboard back. One line, one reply: longer work belongs in your agent's own chat. An older `opencharm` doesn't take typed text, and the field says to update it. With the default voice, the first start downloads the voice models (about 620 MB). An `opencharm` older than the app gets the voice it understands, and the status line says to update it (`npm install -g opencharm`). Then **Your charm** (spec 014):
+- **Its own charmd** (spec 013): the app carries the `opencharm` CLI built from its own commit and Node 24 (pinned in `node.json`, checked against its SHA-256 when it's staged), as resources, and runs charmd with them. That Node is first on the PATH charmd and your agent get, so `npx` (Claude Code's and Codex's adapters) is the app's own; an agent's adapter is still downloaded the first time it starts. Settings → Advanced can point at another `opencharm` instead; a development build (`npm run desktop`) uses the installed one, unless `OPENCHARM_BUNDLED=1` (after `npm run stage -w apps/desktop`). It keeps its state and admin socket in the app's data folder. `charmd/THIRD_PARTY_NOTICES.md` in the app lists Node and every bundled npm package with its licence; Node's and the CLI's licence files are next to them.
+- **Settings:** under your agent: a folder, the agent (an ACP preset, a custom ACP command, or an OpenAI-compatible server), **Listening** (on this computer, OpenAI with the key in the keychain, or none), **Speaking** (Microsoft's free voices, the default: the text of each spoken reply goes to Microsoft, through an unofficial service; on this computer, private; a macOS voice; OpenAI; or none) and the **language** to fall back on (it answers in the language you speak), a status line and Restart. **Speak replies** (also in the menu bar): off, replies show as text by the notch, for a quiet office; it changes from the next reply, without restarting charmd. The **typing key** (⌥⇧ Space; Ctrl Alt Shift Space on Windows; also **Type to your charm…** in the menu bar) opens a one-line field in the panel: Enter sends it and the reply comes as text, Esc or clicking away closes it, and the app you were in gets the keyboard back. One line, one reply: longer work belongs in your agent's own chat. With another `opencharm` (Settings → Advanced) that's older than the app, the field says to update it. With the default voice, the first start downloads the voice models (about 620 MB). Another `opencharm` older than the app gets the voice it understands, and the status line says to update it (`npm install -g opencharm`). Then **Your charm** (spec 014):
   - its name, its colour (the six identity colours; the charm in Settings and by the notch follows it) and its greeting
   - its macOS voice, when Speaking is "A macOS voice": those of your system language first, with **Try it**
   - when it falls asleep (2, 4, 10 or 30 minutes alone, or never), calm motion, and whether the agent may change its look (`set_look`)
@@ -59,7 +59,7 @@ The app's charmd listens on port 8790, with its own config, state and log, so a 
 
 ## Build it yourself
 
-You need Node 24, Rust (`rustup`), and the emulator built once (`npm run firmware:sim`, needs Emscripten; see `firmware/README.md`).
+You need Node 24, Rust (`rustup`), and the emulator built once (`npm run firmware:sim`, needs Emscripten; see `firmware/README.md`). To carry charmd as a release does: `npm run build -w packages/cli`, then `npm run stage -w apps/desktop` (downloads the pinned Node into `apps/desktop/charmd/`).
 
 ```bash
 npm run desktop          # run it (development)
@@ -69,7 +69,7 @@ npm run test:rust -w apps/desktop
 
 ## Releases
 
-The app releases itself from `main` (CONTRIBUTING, "Releasing"): when a merged pull request's title is a `fix`, `feat` or `perf` and it touches `apps/desktop`, `firmware/core`, `firmware/sim`, `brand/icon` or `packages/design` (the face engine its pages include), `.github/workflows/desktop-release.yml` builds the emulator once, then macOS (Apple silicon and Intel) and Windows with `tauri build`, and a final job attaches the installers, `SHA256SUMS.txt` and build-provenance attestations to a draft and publishes it as `desktop@<version>`. The version comes from the tag (the code says `0.0.0`); a build from source offers no updates. The update check looks for `desktop@` releases in `opencharm-labs/opencharm`.
+The app releases itself from `main` (CONTRIBUTING, "Releasing"): when a merged pull request's title is a `fix`, `feat` or `perf` and it touches `apps/desktop`, `firmware/core`, `firmware/sim`, `brand/icon`, `packages/design` (the face engine its pages include), or the charmd it carries (`packages/cli`, `packages/charmd`, `packages/protocol`, `package-lock.json`), `.github/workflows/desktop-release.yml` builds the emulator once, then for macOS (Apple silicon and Intel) and Windows builds the CLI, stages it with the pinned Node for that target, and runs `tauri build`, and a final job attaches the installers, `SHA256SUMS.txt` and build-provenance attestations to a draft and publishes it as `desktop@<version>`. The version comes from the tag (the code says `0.0.0`); a build from source offers no updates. The update check looks for `desktop@` releases in `opencharm-labs/opencharm`.
 
 ## Resource use
 
@@ -78,7 +78,7 @@ The charm is always on, so it has to be nearly free at rest. Measured on an M-se
 - about 2% of one core in total (web view, GPU process and the app)
 - charmd at 0%
 - about 75 MB for charmd and about 80 MB for the app and its web view
-- a 4 MB app (a size-first, link-time-optimised release build)
+- a 4 MB app binary (a size-first, link-time-optimised release build); the whole app with its charmd is about 187 MB on macOS (Apple silicon, 5 October 2026; Intel and Windows not measured yet)
 
 How:
 

@@ -60,10 +60,86 @@ pub struct Status {
     pub note: String,
 }
 
+/// The `opencharm` to run: the one the app carries (its Node running the CLI's `main.mjs`, spec 013),
+/// or an executable chosen in Settings (or found on the PATH, for a build from source).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Cli {
+    pub program: PathBuf,
+    /// The bundled CLI's script, run by `program` (the bundled Node).
+    pub script: Option<PathBuf>,
+}
+
+impl Cli {
+    pub fn executable(path: PathBuf) -> Cli {
+        Cli {
+            program: path,
+            script: None,
+        }
+    }
+
+    pub fn command(&self) -> Command {
+        let mut command = Command::new(&self.program);
+        quiet(&mut command);
+        if let Some(script) = &self.script {
+            command.arg(script);
+        }
+        command
+    }
+
+    /// What identifies this CLI for the feature check's cache.
+    fn file(&self) -> &Path {
+        self.script.as_deref().unwrap_or(&self.program)
+    }
+
+    /// The bundled Node's folder, first on the PATH charmd and its agents get, so `npx` (the ACP
+    /// adapters) is the bundled one too.
+    pub fn node_dir(&self) -> Option<&Path> {
+        self.script.as_ref().and(self.program.parent())
+    }
+
+    pub fn display(&self) -> String {
+        self.file().display().to_string()
+    }
+}
+
+/// The charmd the app carries, staged into its resources by `scripts/stage-charmd.ts`; none in a build
+/// from source that didn't stage it.
+pub fn bundled_cli(resources: &Path) -> Option<Cli> {
+    let root = resources.join("charmd");
+    let node = if cfg!(windows) {
+        root.join("node").join("node.exe")
+    } else {
+        root.join("node").join("bin").join("node")
+    };
+    let script = root.join("cli").join("dist").join("main.mjs");
+    (node.is_file() && script.is_file()).then_some(Cli {
+        program: node,
+        script: Some(script),
+    })
+}
+
+/// The PATH with the bundled Node's folder first (Windows spells the variable `Path`).
+pub fn node_first(env: &mut HashMap<String, String>, dir: &Path) {
+    let key = env
+        .keys()
+        .find(|k| k.eq_ignore_ascii_case("PATH"))
+        .cloned()
+        .unwrap_or_else(|| "PATH".into());
+    let separator = if cfg!(windows) { ";" } else { ":" };
+    let rest = env.get(&key).cloned().unwrap_or_default();
+    let first = dir.to_string_lossy().to_string();
+    let value = if rest.is_empty() {
+        first
+    } else {
+        format!("{first}{separator}{rest}")
+    };
+    env.insert(key, value);
+}
+
 /// Everything needed to start charmd once.
 #[derive(Debug, Clone)]
 pub struct Launch {
-    pub cli: PathBuf,
+    pub cli: Cli,
     pub config: PathBuf,
     pub env: HashMap<String, String>,
 }
@@ -319,21 +395,24 @@ impl CliFeatures {
 
 /// Asked once per `opencharm` (its path and modification time), and never for more than 5 s: a probe
 /// that hangs counts as current, since an old charmd would refuse the new config loudly anyway.
-pub fn cli_features(cli: &Path, env: &HashMap<String, String>) -> CliFeatures {
+pub fn cli_features(cli: &Cli, env: &HashMap<String, String>) -> CliFeatures {
     type Probed = Mutex<HashMap<PathBuf, (Option<std::time::SystemTime>, CliFeatures)>>;
     static PROBED: std::sync::OnceLock<Probed> = std::sync::OnceLock::new();
     let current = CliFeatures {
         voice: true,
         replies: true,
     };
-    let modified = std::fs::metadata(cli).and_then(|m| m.modified()).ok();
+    let modified = std::fs::metadata(cli.file())
+        .and_then(|m| m.modified())
+        .ok();
     let cache = PROBED.get_or_init(Default::default);
-    if let Some((when, answer)) = cache.lock().unwrap().get(cli) {
+    if let Some((when, answer)) = cache.lock().unwrap().get(cli.file()) {
         if *when == modified {
             return *answer;
         }
     }
-    let answer = match quiet(&mut Command::new(cli))
+    let answer = match cli
+        .command()
         .arg("--help")
         .env_clear()
         .envs(env)
@@ -372,7 +451,7 @@ pub fn cli_features(cli: &Path, env: &HashMap<String, String>) -> CliFeatures {
     cache
         .lock()
         .unwrap()
-        .insert(cli.to_path_buf(), (modified, answer));
+        .insert(cli.file().to_path_buf(), (modified, answer));
     answer
 }
 
@@ -702,7 +781,9 @@ impl Charmd {
     }
 
     fn run_once(&self, launch: &Launch, generation: u64, pid_file: &Path) -> Result<(), String> {
-        let mut child = quiet(&mut Command::new(&launch.cli))
+        let mut child = launch
+            .cli
+            .command()
             .arg("serve")
             .arg("--config")
             .arg(&launch.config)
@@ -1222,5 +1303,61 @@ mod tests {
                 replies: true
             }
         );
+    }
+
+    #[test]
+    fn finds_the_charmd_the_app_carries_and_runs_it_with_its_node() {
+        let resources = temp("resources");
+        assert_eq!(bundled_cli(&resources), None);
+        // Built a component at a time, as the app does, so Windows paths compare equal.
+        let node = if cfg!(windows) {
+            resources.join("charmd").join("node").join("node.exe")
+        } else {
+            resources
+                .join("charmd")
+                .join("node")
+                .join("bin")
+                .join("node")
+        };
+        let script = resources
+            .join("charmd")
+            .join("cli")
+            .join("dist")
+            .join("main.mjs");
+        std::fs::create_dir_all(node.parent().unwrap()).unwrap();
+        std::fs::create_dir_all(script.parent().unwrap()).unwrap();
+        std::fs::write(&node, "").unwrap();
+        assert_eq!(bundled_cli(&resources), None, "the CLI is missing");
+        std::fs::write(&script, "").unwrap();
+        let cli = bundled_cli(&resources).unwrap();
+        assert_eq!(cli.program, node);
+        let command = cli.command();
+        assert_eq!(command.get_program(), node.as_os_str());
+        assert_eq!(
+            command.get_args().collect::<Vec<_>>(),
+            vec![script.as_os_str()]
+        );
+        assert_eq!(cli.node_dir(), node.parent());
+        // A path chosen in Settings runs as it is, with no Node of ours on the PATH.
+        assert_eq!(
+            Cli::executable(PathBuf::from("/usr/local/bin/opencharm")).node_dir(),
+            None
+        );
+    }
+
+    #[test]
+    fn puts_the_bundled_node_first_on_the_path() {
+        let separator = if cfg!(windows) { ";" } else { ":" };
+        let mut env = HashMap::from([("PATH".to_string(), "/usr/bin".to_string())]);
+        node_first(&mut env, Path::new("/app/node/bin"));
+        assert_eq!(env["PATH"], format!("/app/node/bin{separator}/usr/bin"));
+        // Windows spells it Path: that one is changed, not a second one added.
+        let mut env = HashMap::from([("Path".to_string(), "C:\\Windows".to_string())]);
+        node_first(&mut env, Path::new("C:\\app\\node"));
+        assert_eq!(env.len(), 1);
+        assert!(env["Path"].starts_with("C:\\app\\node"));
+        let mut empty = HashMap::new();
+        node_first(&mut empty, Path::new("/app/node/bin"));
+        assert_eq!(empty["PATH"], "/app/node/bin");
     }
 }

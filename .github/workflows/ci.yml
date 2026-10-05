@@ -56,7 +56,7 @@ jobs:
           area firmware '^firmware/|^packages/protocol/'
           area emulator '^firmware/|^packages/(cli|charmd|protocol|design)/'
           area website '^apps/web/|^packages/design/'
-          area desktop '^apps/desktop/|^firmware/|^brand/icon/|^packages/design/'
+          area desktop '^apps/desktop/|^firmware/|^brand/icon/|^packages/(design|cli|charmd|protocol)/|^package-lock\.json$'
           # Dependencies changed (any package.json or the lockfile): the audit then gates the change.
           if [ "$CHANGED" = ALL ] || grep -qE '(^|/)package\.json$|^package-lock\.json$' <<<"$CHANGED"; then
             echo "deps=true" >> "$GITHUB_OUTPUT"
@@ -184,6 +184,10 @@ jobs:
         with:
           workspaces: apps/desktop/src-tauri
       - run: npm run web -w apps/desktop
+      # The charmd the app carries (spec 013), staged as a release does: a change that breaks it fails here.
+      - run: |
+          npm run build -w packages/cli
+          npm run stage -w apps/desktop
       - working-directory: apps/desktop/src-tauri
         run: |
           cargo fmt --check
