@@ -54,6 +54,13 @@ describe("SentenceSplitter", () => {
     ).toEqual(["Fatto, ho aggiornato il file di configurazione."]);
   });
 
+  it("keeps whole sentences when asked to (replies shown as text)", () => {
+    const splitter = new SentenceSplitter({ firstClause: false });
+    expect(
+      splitter.push("Done, I restarted the server; it answers now. ")
+    ).toEqual(["Done, I restarted the server; it answers now."]);
+  });
+
   it("returns nothing for whitespace", () => {
     expect(split(["  ", "\n"])).toEqual([]);
   });

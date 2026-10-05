@@ -293,17 +293,39 @@ pub fn build_config(settings: &Settings, folder: &Folder, data: &Path) -> (Value
         "agent": agent,
         "charm": charm_block(&look, serde_json::Map::new()),
         "logTranscripts": false,
+        "speakReplies": settings.speak_replies,
     });
     (config, label)
 }
 
-/// Whether this `opencharm` knows the voice update (spec 003): it has `opencharm voice`. The CLI
-/// updates on its own (npm), so the app may be newer than it; an older one refuses the new config.
+/// What the installed `opencharm` knows, from its help: the CLI updates on its own (npm), so the app
+/// may be newer than it, and an older charmd refuses config keys it doesn't know.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CliFeatures {
+    /// The voice update (spec 003): `listen` and `speak` (`opencharm voice`).
+    pub voice: bool,
+    /// Replies as text on the desktop charm (spec 003): `speakReplies` (`opencharm replies`).
+    pub replies: bool,
+}
+
+impl CliFeatures {
+    pub fn from_help(help: &str) -> CliFeatures {
+        CliFeatures {
+            voice: help.contains("opencharm voice"),
+            replies: help.contains("opencharm replies"),
+        }
+    }
+}
+
 /// Asked once per `opencharm` (its path and modification time), and never for more than 5 s: a probe
 /// that hangs counts as current, since an old charmd would refuse the new config loudly anyway.
-pub fn cli_has_voice_update(cli: &Path, env: &HashMap<String, String>) -> bool {
-    type Probed = Mutex<HashMap<PathBuf, (Option<std::time::SystemTime>, bool)>>;
+pub fn cli_features(cli: &Path, env: &HashMap<String, String>) -> CliFeatures {
+    type Probed = Mutex<HashMap<PathBuf, (Option<std::time::SystemTime>, CliFeatures)>>;
     static PROBED: std::sync::OnceLock<Probed> = std::sync::OnceLock::new();
+    let current = CliFeatures {
+        voice: true,
+        replies: true,
+    };
     let modified = std::fs::metadata(cli).and_then(|m| m.modified()).ok();
     let cache = PROBED.get_or_init(Default::default);
     if let Some((when, answer)) = cache.lock().unwrap().get(cli) {
@@ -312,27 +334,36 @@ pub fn cli_has_voice_update(cli: &Path, env: &HashMap<String, String>) -> bool {
         }
     }
     let answer = match quiet(&mut Command::new(cli))
-        .arg("voice")
+        .arg("--help")
         .env_clear()
         .envs(env)
         .stdin(Stdio::null())
-        .stdout(Stdio::null())
+        .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()
     {
-        Err(_) => false,
+        Err(_) => CliFeatures {
+            voice: false,
+            replies: false,
+        },
         Ok(mut child) => {
             let deadline = Instant::now() + Duration::from_secs(5);
             loop {
                 match child.try_wait() {
-                    Ok(Some(status)) => break status.success(),
+                    Ok(Some(_)) => {
+                        let mut help = String::new();
+                        if let Some(mut out) = child.stdout.take() {
+                            let _ = out.read_to_string(&mut help);
+                        }
+                        break CliFeatures::from_help(&help);
+                    }
                     Ok(None) if Instant::now() < deadline => {
                         std::thread::sleep(Duration::from_millis(50))
                     }
                     _ => {
                         let _ = child.kill();
                         let _ = child.wait();
-                        break true;
+                        break current;
                     }
                 }
             }
@@ -1162,6 +1193,34 @@ mod tests {
         assert_eq!(
             config["voice"]["speak"],
             json!({ "provider": "openai", "apiKeyEnv": "MY_KEY", "baseUrl": "https://example.com/v1", "voice": "nova" })
+        );
+    }
+
+    #[test]
+    fn reads_what_the_cli_knows_from_its_help() {
+        let old = "opencharm init [dir]\n    opencharm serve\n";
+        assert_eq!(
+            CliFeatures::from_help(old),
+            CliFeatures {
+                voice: false,
+                replies: false
+            }
+        );
+        let voice = "opencharm voice                 the local voice's models\n";
+        assert_eq!(
+            CliFeatures::from_help(voice),
+            CliFeatures {
+                voice: true,
+                replies: false
+            }
+        );
+        let both = format!("{voice}    opencharm replies on|off        …\n");
+        assert_eq!(
+            CliFeatures::from_help(&both),
+            CliFeatures {
+                voice: true,
+                replies: true
+            }
         );
     }
 }

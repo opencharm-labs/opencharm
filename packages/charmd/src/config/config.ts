@@ -194,6 +194,9 @@ const schema = z
     agent: agentSchema.default({ adapter: "fake" }),
     turnTimeoutSeconds: z.number().int().min(5).max(600).default(60),
     logTranscripts: z.boolean().default(false),
+    // Off: the desktop charm shows replies as text instead of speaking them (spec 003); a charm
+    // on a board always speaks. Changed while running with the admin command "replies".
+    speakReplies: z.boolean().default(true),
     charm: charmSchema.prefault({}),
   })
   .strict();

@@ -29,6 +29,8 @@ type TurnIo = {
   sendAudio: (packet: Buffer) => void;
   // A question on the charm (decision layout); resolves false on no, silence, cancel or lock.
   ask: (text: string, options?: AskOptions) => Promise<boolean>;
+  // What the charm said it is in its hello ("desktop", "emulator", …; spec 015), if it said.
+  kind: () => string | undefined;
 };
 type PendingAsk = {
   id: string;
@@ -114,6 +116,7 @@ class Session {
             this.#deps.outbound.sendAudio?.(packet);
         },
         ask: (text, options) => this.ask(text, options),
+        kind: () => this.#build?.kind,
       });
     }
     return this.#turn;

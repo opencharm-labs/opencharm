@@ -312,4 +312,29 @@ describe("opencharm look", () => {
     });
     expect(err()).toContain("the colour is one of");
   });
+
+  it("turns spoken replies off and on for the desktop charm", async () => {
+    const { ctx, out } = context();
+    const send = vi.fn().mockResolvedValue({ speak: false });
+    await runAdminCommand(ctx, "replies", ["off"], {
+      socket: SOCKET,
+      send,
+      prompt: vi.fn(),
+    });
+    expect(send).toHaveBeenCalledWith(SOCKET, { cmd: "replies", speak: false });
+    expect(out()).toContain("show as text");
+  });
+
+  it("asks for on or off", async () => {
+    const { ctx, err } = context();
+    const send = vi.fn();
+    await runAdminCommand(ctx, "replies", [], {
+      socket: SOCKET,
+      send,
+      prompt: vi.fn(),
+    });
+    expect(send).not.toHaveBeenCalled();
+    expect(err()).toContain("Usage: opencharm replies on|off");
+    process.exitCode = 0;
+  });
 });

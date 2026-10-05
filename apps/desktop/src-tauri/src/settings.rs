@@ -97,6 +97,8 @@ pub struct Settings {
     /// A server agent (OpenAI-compatible): its base URL and model.
     pub server_url: String,
     pub server_model: String,
+    /// Off: the charm shows replies as text instead of speaking them (spec 003), from the next one.
+    pub speak_replies: bool,
     /// What listens: "local" (Parakeet), "openai" (its key in the keychain) or "fake" (for trying).
     pub listen: String,
     /// What speaks: "microsoft", "local" (Supertonic), "system" (macOS `say`), "openai" or "fake".
@@ -128,6 +130,7 @@ impl Default for Settings {
             agent_command: String::new(),
             server_url: String::new(),
             server_model: String::new(),
+            speak_replies: true,
             listen: DEFAULT_LISTEN.into(),
             speak: DEFAULT_SPEAK.into(),
             language: DEFAULT_LANGUAGE.into(),

@@ -22,6 +22,11 @@ class SentenceSplitter {
   #buffer = "";
   #pending = "";
   #started = false;
+  readonly #firstClause: boolean;
+
+  constructor(options: { firstClause?: boolean } = {}) {
+    this.#firstClause = options.firstClause ?? true;
+  }
 
   #take(piece: string): string[] {
     const text = piece.replace(/\s+/g, " ").trim();
@@ -39,7 +44,7 @@ class SentenceSplitter {
     const out: string[] = [];
     let start = 0;
     for (const match of this.#buffer.matchAll(
-      this.#started ? BOUNDARY : FIRST_BOUNDARY
+      this.#started || !this.#firstClause ? BOUNDARY : FIRST_BOUNDARY
     )) {
       const end = match.index + match[0].length;
       const clause = /^[,;:]/.test(match[0]);

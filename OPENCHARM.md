@@ -215,7 +215,7 @@ The program between the charm and the agent (the _d_ is the Unix habit for backg
 
 ### 7.3 The desktop charm
 
-OpenCharm without the hardware (spec 013): `apps/desktop`, a Tauri 2 app around the same firmware core. On a Mac the eyes sit on either side of the notch, and a panel opens below it for speech, questions and pairing; elsewhere it's a black pill at the top centre. A global talk key (⌥ Space by default) works in any app, and the mic is open only while it's held. It runs its own charmd (spec 013, port 8790) and pairs with it by itself. Releases for macOS and Windows come from CI with checksums, without a developer signature by choice (macOS builds are signed ad hoc). Detail: [apps/desktop/README.md](apps/desktop/README.md).
+OpenCharm without the hardware (spec 013): `apps/desktop`, a Tauri 2 app around the same firmware core. On a Mac the eyes sit on either side of the notch, and a panel opens below it for speech, questions and pairing; elsewhere it's a black pill at the top centre. A global talk key (⌥ Space by default) works in any app, and the mic is open only while it's held; with Speak replies off (menu bar) its replies show as text instead. It runs its own charmd (spec 013, port 8790) and pairs with it by itself. Releases for macOS and Windows come from CI with checksums, without a developer signature by choice (macOS builds are signed ad hoc). Detail: [apps/desktop/README.md](apps/desktop/README.md).
 
 ## 8. Protocol (charm ↔ charmd)
 
