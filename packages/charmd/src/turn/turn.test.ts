@@ -856,3 +856,55 @@ describe("getting the voice ready while you speak", () => {
     expect(primed).toBe(1);
   });
 });
+
+describe("a reply read as text, with a question in the middle", () => {
+  // The order things reach the charm: sentences shown, and the question asked and answered.
+  async function timeline(pauseBeforeAsking: number) {
+    const events: string[] = [];
+    const agent: AgentAdapter = {
+      name: "fake",
+      async *reply(input) {
+        yield "Here is the first part of it. ";
+        await new Promise((resolve) => setTimeout(resolve, pauseBeforeAsking));
+        await input.ask?.("write notes.md");
+        yield "And the end.";
+      },
+    };
+    const turn = new TurnController({
+      voice: createFakeVoice({ transcript: "hi" }),
+      agent,
+      sessionKey: "opencharm-c_1",
+      send: (m) => {
+        if ("type" in m && m.type === "tts" && m.state === "sentence_start")
+          events.push(m.text);
+      },
+      sendAudio: () => undefined,
+      timeoutMs: 5000,
+      // Reading times shortened a hundredfold: 2 s on screen becomes 20 ms.
+      sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms / 100)),
+      // The question stays up longer than a sentence's reading time.
+      ask: () => {
+        events.push("asked");
+        return new Promise((resolve) =>
+          setTimeout(() => {
+            events.push("answered");
+            resolve(true);
+          }, 80)
+        );
+      },
+      speakAloud: () => false,
+    });
+    await speak(turn);
+    return events;
+  }
+
+  it("brings back a sentence the question covered, with the time it had left", async () => {
+    expect(await timeline(8)).toEqual([
+      "Here is the first part of it.",
+      "asked",
+      "answered",
+      "Here is the first part of it.",
+      "And the end.",
+    ]);
+  });
+});
