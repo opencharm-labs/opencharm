@@ -10,6 +10,8 @@ addEventListener("error", (e) =>
 addEventListener("unhandledrejection", (e) => log(`error: ${e.reason}`));
 
 log("starting");
+// A reload (charmd restarted, a new address) may come while the panel is open: start small.
+void invoke("panel", { open: false });
 // Listening first, before anything is awaited, so a new address (or none) is never missed.
 await listen("charm-reload", () => location.reload());
 // The app's own charmd gets a port from the system as it starts: wait until it has said which,
@@ -78,6 +80,7 @@ const panel = (open) => {
 // and the notch shows only the charm's eyes waking up; then it shows whatever the charm has to say.
 // A lock from outside or a blocked charm shows at once, and after 15 s anything still wrong shows.
 let awake = !geometry.autoPair;
+let unlocked = false;
 function wake(why) {
   if (awake) return;
   awake = true;
@@ -90,6 +93,8 @@ if (!awake) setTimeout(() => wake("not unlocked after 15 s"), 15_000);
 window.charmSim.panel = (open, height) => {
   charmOpen = open;
   charmHeight = height;
+  // The charm's first panel after unlocking is the greeting (or none): that's when it wakes.
+  if (unlocked) wake("unlocked");
   if (awake || typing) panel(open || typing);
 };
 
@@ -122,7 +127,7 @@ function closeField(giveBack) {
   typing = false;
   field.hidden = true;
   field.blur();
-  panel(charmOpen);
+  panel(charmOpen && awake);
   if (giveBack) void invoke("typing_done");
 }
 
@@ -175,9 +180,12 @@ if (geometry.autoPair && (!geometry.testPin || geometry.testPin === "auto")) {
 const pairing = window.charmSim.onMessage;
 window.charmSim.onMessage = (m) => {
   pairing?.(m);
-  // A tick later: the charm handles the message after this hook, so its panel is the greeting by then.
-  if (m.type === "charm" && m.op === "unlocked")
-    setTimeout(() => wake("unlocked"), 0);
+  // Unlocked: it wakes with the charm's next panel (the greeting), drawn on its next frame; if no
+  // panel change comes, a moment later anyway.
+  if (m.type === "charm" && m.op === "unlocked") {
+    unlocked = true;
+    setTimeout(() => wake("unlocked"), 500);
+  }
   // Locked from outside (`opencharm lock`) or blocked after wrong PINs: that's for you to see.
   if (
     m.type === "charm" &&
