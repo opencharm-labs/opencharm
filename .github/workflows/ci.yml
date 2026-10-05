@@ -205,8 +205,14 @@ jobs:
     steps:
       - env:
           RESULTS: ${{ join(needs.*.result, ' ') }}
+        # Only success, or skipped (an area the change doesn't touch), passes. Anything else fails it,
+        # including results GitHub may add: "abandoned" (a lost runner) once let a pull request through
+        # with jobs that never ran.
         run: |
           echo "$RESULTS"
-          case " $RESULTS " in
-            *" failure "* | *" cancelled "*) exit 1 ;;
-          esac
+          for result in $RESULTS; do
+            case "$result" in
+              success | skipped) ;;
+              *) echo "::error::a job ended '$result'"; exit 1 ;;
+            esac
+          done
