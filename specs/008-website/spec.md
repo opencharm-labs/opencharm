@@ -25,7 +25,7 @@ opencharm.dev is how people find the project. It describes what exists, says pla
 - **Privacy, plainly:** the microphone is on only while the key is held (charm, emulator and desktop). Speech can stay on your Mac. The charm holds no keys.
 - **Captions:** long answers scroll like captions on the screen.
 - **The hero: a centred headline, the promise and both buttons, then a big, to-scale close-up in a rounded frame.** The top of a 14-inch MacBook Pro (bezel, menu bar, the notch), with the desktop charm dropping from the notch at its real size, and the charm standing in front, both at 1 pt = 0.2 mm (the 46.8 mm charm is 234 pt). two callouts name the bodies, and the charm stands over the frame's corner. On phones the crop narrows to the notch so it stays readable. The day plays like a live demo below it, with a caption, a graduated progress line, a pause button and reduced motion respected. No strap, no eyebrow line, no filler labels.
-- **Make it yours:** pick the charm's colour (the six identity colours: shell and glyphs together), its name and a face, and see it on the charm and by the notch. The example agent on the page is Momo.
+- **Make it yours:** pick the charm's colour (the six identity colours: shell and glyphs together; or a colour of your own, picked or typed as `#RRGGBB`, which lights the glyphs of a white charm, never orange-like or too dark, by the same rule as charmd's, `packages/design/src/own-colour.ts`; added 5 October 2026), its name and a face, and see it on the charm and by the notch. The example agent on the page is Momo.
 - **Responsive:** every section works from 320 px phones to wide screens, with navigation on small screens too.
 - **Found by search and by AI assistants (SEO, GEO, AEO):**
   - full metadata, Open Graph and canonical URL
@@ -63,6 +63,7 @@ Docs pages, a blog, a shop (there is none).
 - [x] The desktop charm, the alive face, captions and the mic rule are on the page, every claim true to the code (specs 005 and 013); the Download button points at GitHub Releases, where the first desktop release will appear (maintainer, 2 October 2026).
 - [x] Screenshots of the updated page reviewed by the maintainer at 1440 and 390 px; branding and content decided with the maintainer, section by section (2 October 2026).
 - [x] The hero shows the charm (no strap) and the desktop charm in sync; the configurator changes colour, name and face on both.
+- [x] A colour of your own: typed `#ff6ec7` recolours the preview and clears the six; the needs-you orange is refused with its reason (site end-to-end test).
 - [x] No sideways scrolling and no clipped text at 320, 390, 768, 1024 and 1440 px; navigation reachable on a phone.
 - [x] Valid JSON-LD (FAQPage, SoftwareApplication, Organization, WebSite), metadata and Open Graph in the built HTML; `llms.txt`, `sitemap.xml` and `robots.txt` served; Lighthouse SEO and accessibility 100.
 - [x] Vercel Analytics loads in production builds only.

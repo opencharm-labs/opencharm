@@ -197,6 +197,25 @@ describe("the site in Chrome", () => {
     await page.context().close();
   });
 
+  it("takes a colour of your own as a hex, and refuses the needs-you orange", async () => {
+    const { page, problems } = await visit(1440);
+    const make = page.locator("#make");
+    const hex = make.getByLabel("A colour of your own, as #RRGGBB");
+    await hex.fill("#ff6ec7");
+    await hex.press("Enter");
+    await expect.poll(() => make.getByText(/· #FF6EC7 ·/).count()).toBe(1);
+    const colours = make.getByRole("radiogroup", { name: /COLOUR/ });
+    expect(await colours.getByRole("radio", { checked: true }).count()).toBe(0);
+    await hex.fill("#FF5A1F");
+    await hex.press("Enter");
+    await expect
+      .poll(() => make.getByText(/TOO CLOSE TO THE ORANGE/).count())
+      .toBe(1);
+    await expect.poll(() => make.getByText(/· #FF6EC7 ·/).count()).toBe(1);
+    expect(problems).toEqual([]);
+    await page.context().close();
+  });
+
   it("opens and closes the phone menu, with Escape too", async () => {
     const { page, problems } = await visit(390);
     const menu = page.getByRole("button", { name: "MENU" });
