@@ -25,9 +25,9 @@ function MakeItYours() {
             Set the same in the desktop charm’s Settings, or in your workspace’s
             opencharm.json: the board, the emulator and the notch all follow it,
             with its greeting, voice and how calm it moves. On the board you
-            print the shell in this colour too. On a real charm, your agent’s
-            state picks the face, and your agent can try on a new look when you
-            ask.
+            print the shell in one of the six, or in any colour you like. On a
+            real charm, your agent’s state picks the face, and your agent can
+            try on a new look when you ask.
           </p>
         </div>
       </div>

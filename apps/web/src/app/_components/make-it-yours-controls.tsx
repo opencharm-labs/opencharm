@@ -1,7 +1,11 @@
 "use client";
 
 import { facesData } from "@opencharm-labs/design/faces";
-import { useEffect } from "react";
+import {
+  OWN_COLOUR,
+  ownColourProblem,
+} from "@opencharm-labs/design/own-colour";
+import { useEffect, useState } from "react";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,10 +19,76 @@ import { NotchPreview } from "./notch-preview";
 import { Kicker, Note } from "./text";
 
 const FALLBACK_EYES = { L: "o", R: "o" };
+const WHITE = facesData.colours[0];
 
 // A picker is a radio group of cards under a label; one is always chosen.
 const PICKER = cn("flex min-w-0 flex-col gap-2.5");
 const CHOICES = cn("grid w-full items-stretch gap-2");
+
+// A colour of your own (spec 014) lights the glyphs of a white charm; the six colour the shell too.
+function ownColour(hex: string) {
+  const g = hex.toUpperCase();
+  return {
+    ...(WHITE ?? { c: "#FFFFFF", key: "#1E1F22" }),
+    id: "own",
+    name: g,
+    g,
+  };
+}
+
+// Picking a preset gives this a new key (ColourPicker), so a draft or a refusal never outlives it.
+function OwnColour() {
+  const { colour, setColour } = useLanding();
+  const [draft, setDraft] = useState<string | null>(null);
+  const [problem, setProblem] = useState("");
+  const own = colour.id === "own";
+  const pick = (value: string) => {
+    const hex = value.trim().startsWith("#")
+      ? value.trim()
+      : `#${value.trim()}`;
+    if (!OWN_COLOUR.test(hex)) return setProblem("TYPE IT AS #RRGGBB");
+    const why = ownColourProblem(hex);
+    if (why) return setProblem(why.toUpperCase());
+    setProblem("");
+    setDraft(null);
+    setColour(ownColour(hex));
+  };
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex w-full items-center gap-2">
+        {/* Uncontrolled: dragging through a refused colour mustn't snap the system picker back. */}
+        <input
+          type="color"
+          aria-label="A colour of your own"
+          className={cn(
+            "size-10 shrink-0 cursor-pointer rounded-[30%] border-[1.5px] border-black/20 bg-transparent p-0",
+            own && "outline-[1.5px] outline-offset-3 outline-ink"
+          )}
+          defaultValue={colour.g.toLowerCase()}
+          onChange={(e) => pick(e.target.value)}
+        />
+        <Input
+          aria-label="A colour of your own, as #RRGGBB"
+          aria-describedby="mk-own-note"
+          className="flex-1 font-mono uppercase sm:max-w-[160px]"
+          placeholder="#RRGGBB"
+          maxLength={7}
+          spellCheck={false}
+          value={draft ?? (own ? colour.g : "")}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={() => draft && pick(draft)}
+          onKeyDown={(e) => e.key === "Enter" && draft && pick(draft)}
+        />
+      </div>
+      <Note asChild>
+        <span id="mk-own-note" aria-live="polite">
+          {problem ||
+            "OR YOUR OWN: IT LIGHTS THE GLYPHS · NOT ORANGE, NOT TOO DARK"}
+        </span>
+      </Note>
+    </div>
+  );
+}
 
 function ColourPicker() {
   const { colour, setColour } = useLanding();
@@ -26,7 +96,7 @@ function ColourPicker() {
     <div className={PICKER}>
       <Kicker id="mk-colour">COLOUR · SHELL AND GLYPHS</Kicker>
       <RadioGroup
-        value={colour.id}
+        value={colour.id === "own" ? "" : colour.id}
         onValueChange={(id) => {
           const picked = facesData.colours.find((c) => c.id === id);
           if (picked) setColour(picked);
@@ -44,6 +114,7 @@ function ColourPicker() {
           </RadioGroupItem>
         ))}
       </RadioGroup>
+      <OwnColour key={colour.id === "own" ? "own" : colour.id} />
     </div>
   );
 }

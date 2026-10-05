@@ -2,6 +2,10 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { facesData } from "@opencharm-labs/design/faces";
+import {
+  OWN_COLOUR,
+  ownColourProblem,
+} from "@opencharm-labs/design/own-colour";
 import type { ServerMessage } from "@opencharm-labs/protocol/messages";
 import { SERVER_SCHEMAS } from "@opencharm-labs/protocol/messages";
 import { utf8Length } from "@opencharm-labs/protocol/text";
@@ -35,7 +39,6 @@ const COLOUR_IDS = facesData.colours.map((colour) => colour.id) as [
   string,
   ...string[],
 ];
-const OWN_COLOUR = /^#[0-9A-Fa-f]{6}$/;
 
 // The limits match what the charm can show (packages/protocol, charm:look).
 const lookName = z
@@ -46,26 +49,6 @@ const lookName = z
       [...name].length <= MAX_NAME_CHARS && utf8Length(name) <= MAX_NAME_BYTES,
     { message: `at most ${MAX_NAME_CHARS} characters` }
   );
-// A colour of your own lights the glyphs as it is, so it has to read on true black, and it can't
-// pass for the orange that on the screen only means "it needs you" (a bright, saturated red-orange).
-function ownColourProblem(hex: string): string | undefined {
-  const [r, g, b] = [1, 3, 5].map(
-    (at) => Number.parseInt(hex.slice(at, at + 2), 16) / 255
-  ) as [number, number, number];
-  const linear = (v: number) =>
-    v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
-  const luminance =
-    0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b);
-  if (luminance < 0.05) return "too dark to see on black";
-  const max = Math.max(r, g, b);
-  const spread = max - Math.min(r, g, b);
-  if (max !== r || max < 0.5 || spread / max < 0.5) return undefined;
-  const hue = (60 * (g - b)) / spread;
-  return hue >= 6 && hue <= 40
-    ? "too close to the orange that means 'it needs you'"
-    : undefined;
-}
-
 const colour = z
   .string()
   .superRefine((value, context) => {
