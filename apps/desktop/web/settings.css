@@ -320,3 +320,12 @@ summary {
   text-align: left;
   cursor: pointer;
 }
+/* The Microsoft voice for a language: laid out like the other choices above it. */
+#ms-voice-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+#ms-voice-row[hidden] {
+  display: none;
+}

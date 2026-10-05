@@ -92,6 +92,24 @@
           </select>
           <p class="note" id="speak-note"></p>
 
+          <div id="ms-voice-row" hidden>
+            <span class="mono" id="ms-voice-label">ITS VOICE IN</span>
+            <div class="row">
+              <select id="ms-voice-lang" aria-labelledby="ms-voice-label">
+                <option value="en">English</option>
+                <option value="it">Italiano</option>
+                <option value="es">Español</option>
+                <option value="fr">Français</option>
+                <option value="de">Deutsch</option>
+                <option value="pt">Português</option>
+              </select>
+              <select id="ms-voice" aria-label="The voice"></select>
+            </div>
+            <p class="note">
+              It answers in the language you speak, each with its own voice.
+            </p>
+          </div>
+
           <label class="mono" for="language">LANGUAGE</label>
           <select id="language">
             <option value="en">English</option>

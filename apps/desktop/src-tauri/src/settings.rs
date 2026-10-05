@@ -3,6 +3,7 @@
 //! settings window and applied at once. Keys never live here: they go to the system keychain.
 
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::path::Path;
 
 pub const DEFAULT_URL: &str = "ws://127.0.0.1:8787/charm";
@@ -32,6 +33,23 @@ const LANGUAGES: [&str; 6] = ["en", "it", "es", "fr", "de", "pt"];
 /// your own is `#RRGGBB`.
 pub const COLOURS: [&str; 6] = ["white", "cobalt", "lime", "lilac", "sun", "coal"];
 const MOTIONS: [&str; 2] = ["full", "calm"];
+
+/// A Microsoft voice for a language Settings offers, named exactly as charmd's config takes it
+/// (packages/charmd/src/config/config.ts, /^[A-Za-z]{2,3}-[A-Za-z]{2,4}-\w+$/), or charmd won't start.
+fn microsoft_voice_ok(language: &str, voice: &str) -> bool {
+    let parts: Vec<&str> = voice.splitn(3, '-').collect();
+    let letters = |p: &str, min: usize, max: usize| {
+        (min..=max).contains(&p.len()) && p.chars().all(|c| c.is_ascii_alphabetic())
+    };
+    LANGUAGES.contains(&language)
+        && parts.len() == 3
+        && letters(parts[0], 2, 3)
+        && letters(parts[1], 2, 4)
+        && !parts[2].is_empty()
+        && parts[2]
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
 
 /// A colour of your own (`#RRGGBB`) lights the glyphs as it is, so it has to read on true black and
 /// can't pass for the orange that only means "it needs you". The same rule as charmd's (look.ts).
@@ -157,6 +175,8 @@ pub struct Settings {
     pub look: Look,
     /// The macOS voice for the local voice ("" = the system's) when the workspace can't hold it.
     pub say_voice: String,
+    /// The Microsoft voice for each language ("it" → "it-IT-DiegoNeural"), over the workspace's.
+    pub microsoft_voices: BTreeMap<String, String>,
     /// The guided setup's progress: the highest step finished (0 = not started, 6 = done).
     pub setup_step: u32,
     /// Where the setup last created a workspace, offered first next time.
@@ -185,6 +205,7 @@ impl Default for Settings {
             cli_path: None,
             look: Look::default(),
             say_voice: String::new(),
+            microsoft_voices: BTreeMap::new(),
             setup_step: 0,
             setup_location: None,
         }
@@ -230,6 +251,9 @@ impl Settings {
         if !LANGUAGES.contains(&self.language.as_str()) {
             self.language = DEFAULT_LANGUAGE.into();
         }
+        // A hand-edited voice charmd would refuse is dropped: charmd keeps starting, saves work.
+        self.microsoft_voices
+            .retain(|language, voice| microsoft_voice_ok(language, voice));
     }
 
     /// The old single voice keeps what it meant: "local" stays on this computer (the macOS voice
@@ -272,6 +296,13 @@ impl Settings {
         }
         if !LANGUAGES.contains(&self.language.as_str()) {
             return Err("choose a language".into());
+        }
+        if !self
+            .microsoft_voices
+            .iter()
+            .all(|(language, voice)| microsoft_voice_ok(language, voice))
+        {
+            return Err("choose a Microsoft voice from the list".into());
         }
         match self.agent.as_str() {
             "" => {}
@@ -432,6 +463,44 @@ mod tests {
         ] {
             assert!(with(bad).valid().is_err(), "{bad}");
         }
+    }
+
+    #[test]
+    fn a_microsoft_voice_is_picked_for_a_language_it_knows() {
+        let with = |lang: &str, voice: &str| Settings {
+            microsoft_voices: [(lang.to_string(), voice.to_string())].into(),
+            ..Settings::default()
+        };
+        assert!(with("it", "it-IT-DiegoNeural").valid().is_ok());
+        assert!(with("xx", "it-IT-DiegoNeural").valid().is_err());
+        assert!(with("it", "Diego").valid().is_err());
+        assert!(with("it", "it-IT-Diego Neural").valid().is_err());
+        // Exactly what charmd's config takes (/^[A-Za-z]{2,3}-[A-Za-z]{2,4}-\w+$/), or it won't start.
+        assert!(with("en", "en-US-Ava-Neural").valid().is_err());
+        assert!(with("en", "engl-US-AvaNeural").valid().is_err());
+        assert!(with("en", "en-US-Ava_Neural2").valid().is_ok());
+        assert!(with("pt", "pt-BR-ThalitaMultilingualNeural")
+            .valid()
+            .is_ok());
+        let old: Settings = serde_json::from_str(r#"{"speak":"microsoft"}"#).unwrap();
+        assert!(old.microsoft_voices.is_empty());
+    }
+
+    #[test]
+    fn drops_a_hand_edited_voice_charmd_would_refuse_when_it_loads() {
+        let path = std::env::temp_dir().join(format!("oc-ms-{}.json", std::process::id()));
+        std::fs::write(
+            &path,
+            r#"{"microsoftVoices":{"it":"it-IT-DiegoNeural","EN":"en-US-AvaNeural","de":"Katja"}}"#,
+        )
+        .unwrap();
+        let settings = Settings::load(&path);
+        assert_eq!(
+            settings.microsoft_voices,
+            [("it".to_string(), "it-IT-DiegoNeural".to_string())].into()
+        );
+        assert!(settings.valid().is_ok());
+        let _ = std::fs::remove_file(&path);
     }
 
     #[test]

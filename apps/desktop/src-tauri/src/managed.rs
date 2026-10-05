@@ -417,6 +417,14 @@ pub fn build_config(settings: &Settings, folder: &Folder, data: &Path) -> (Value
     };
     let listen = side("listen", &settings.listen);
     let mut speak = side("speak", &settings.speak);
+    // Microsoft voices picked in Settings, per language, over the workspace's own for that language.
+    if settings.speak == "microsoft" && !settings.microsoft_voices.is_empty() {
+        let mut voices = speak["voices"].as_object().cloned().unwrap_or_default();
+        for (language, voice) in &settings.microsoft_voices {
+            voices.insert(language.clone(), json!(voice));
+        }
+        speak["voices"] = Value::Object(voices);
+    }
     let (look, say_voice) = look_of(settings, Some(folder));
     if settings.speak == "system" && !say_voice.is_empty() {
         speak["voice"] = json!(say_voice);
@@ -1115,6 +1123,36 @@ mod tests {
             config["voice"],
             json!({ "listen": { "provider": "local" }, "speak": { "provider": "microsoft" }, "language": "en" })
         );
+    }
+
+    #[test]
+    fn the_microsoft_voice_picked_for_a_language_wins_over_the_workspaces() {
+        let dir = momo("momo-ms-voices");
+        std::fs::write(
+            dir.join("opencharm.json"),
+            r#"{ "voice": { "speak": { "provider": "microsoft",
+                                       "voices": { "it": "it-IT-ElsaNeural", "de": "de-DE-KatjaNeural" } } },
+                 "agent": { "adapter": "acp", "agent": "claude", "cwd": "charm" } }"#,
+        )
+        .unwrap();
+        let folder = inspect_folder(&dir.to_string_lossy());
+        let picked = Settings {
+            microsoft_voices: [("it".to_string(), "it-IT-DiegoNeural".to_string())].into(),
+            ..Settings::default()
+        };
+        let (config, _) = build_config(&picked, &folder, Path::new("/d"));
+        assert_eq!(
+            config["voice"]["speak"],
+            json!({ "provider": "microsoft",
+                    "voices": { "it": "it-IT-DiegoNeural", "de": "de-DE-KatjaNeural" } })
+        );
+        // Another voice in the app: the Microsoft picks don't follow it.
+        let local = Settings {
+            speak: "local".into(),
+            ..picked
+        };
+        let (config, _) = build_config(&local, &folder, Path::new("/d"));
+        assert_eq!(config["voice"]["speak"], json!({ "provider": "local" }));
     }
 
     #[test]
