@@ -11,7 +11,7 @@ A companion should feel like yours. Today every charm looks the same on screen (
 
 - **The charm's identity**, stored once in the workspace's `opencharm.json`, in a new `charm` block (validated with zod in charmd). It holds:
   - `name`: up to 12 characters; default: the first heading of the agent's `AGENTS.md` (Momo in the starter)
-  - `colour`: one of the six identity colours (White, Cobalt, Lime, Lilac, Sun, Coal; `packages/design`), whose glyph colour the glyphs light up in; or a colour of your own as `#RRGGBB`, used as it is for the glyphs. An own colour is refused when it's too dark to read on true black (relative luminance under 0.05) or could pass for the signal orange (a bright, saturated red-orange, hue 6–32°); charmd and the app check the same rule
+  - `colour`: one of the six identity colours (White, Cobalt, Lime, Lilac, Sun, Coal; `packages/design`), whose glyph colour the glyphs light up in; or a colour of your own as `#RRGGBB`, used as it is for the glyphs. An own colour is refused when it's too dark to read on true black (relative luminance under 0.05) or could pass for the signal orange (a bright, saturated red-orange to orange, hue 6–40°, so every named orange); charmd and the app check the same rule
   - `greeting`: the line after unlock; default "Hi! I'm {name}."
   - `sleepAfterMinutes`: how long alone before it dozes; default 4, 0 = never
   - `motion`: `full` (default) or `calm`, which keeps breathing and blinks but no glances or squash, for people who prefer less movement

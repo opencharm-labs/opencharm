@@ -14,7 +14,7 @@ function runHelp(ctx: CliContext): void {
     opencharm hardware        what to buy and print
 
   charmd, the charm daemon (runs next to your agent)
-    opencharm init [dir]            clone the starter workspace for your agent [--agent claude|codex|gemini|goose|hermes|openclaw] [--from <git url>] [--name <name>] [--colour <colour>]
+    opencharm init [dir]            clone the starter workspace for your agent [--agent claude|codex|gemini|goose|hermes|openclaw] [--from <git url>] [--name <name>] [--colour <colour|#RRGGBB>]
     opencharm setup --domain <d>    install charmd as a service (Linux, sudo)   [--dry-run]
     opencharm serve                 start charmd   [--config <file>]
     opencharm sim                   the charm on screen, in your browser   [--url <ws>] [--port <n>]
@@ -25,7 +25,7 @@ function runHelp(ctx: CliContext): void {
     opencharm unlock <charm>        clear a block and unlock
     opencharm revoke <charm>        forget a charm (it must pair again)
     opencharm replies on|off        the desktop charm speaks its replies, or shows them as text
-    opencharm look                  show or change the charm's look until charmd restarts   [--colour <c>] [--greeting <text>] [--motion full|calm]
+    opencharm look                  show or change the charm's look until charmd restarts   [--colour <c|#RRGGBB>] [--greeting <text>] [--motion full|calm]
     opencharm dev face <charm> <state> [text]   show a face (testing)
     opencharm dev say <charm> <text>            speak through it (testing)
     opencharm dev ask <charm> <question>        ask it; hold = yes, press = no (testing)

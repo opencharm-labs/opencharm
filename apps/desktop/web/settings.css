@@ -340,12 +340,16 @@ summary {
 .swatch.own::-webkit-color-swatch-wrapper {
   padding: 0;
 }
+.swatch.own[data-on="true"] {
+  outline: 1.5px solid var(--ink);
+  outline-offset: 3px;
+}
 .swatch.own::-webkit-color-swatch {
   border: none;
   border-radius: 30%;
   opacity: 0;
 }
-.swatch.own[aria-checked="true"]::-webkit-color-swatch {
+.swatch.own[data-on="true"]::-webkit-color-swatch {
   opacity: 1;
 }
 #own-hex {

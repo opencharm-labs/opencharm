@@ -61,7 +61,7 @@ function ownColourProblem(hex: string): string | undefined {
   const spread = max - Math.min(r, g, b);
   if (max !== r || max < 0.5 || spread / max < 0.5) return undefined;
   const hue = (60 * (g - b)) / spread;
-  return hue >= 6 && hue <= 32
+  return hue >= 6 && hue <= 40
     ? "too close to the orange that means 'it needs you'"
     : undefined;
 }

@@ -58,7 +58,7 @@ fn own_colour_problem(colour: &str) -> Result<(), String> {
     let spread = max - r.min(g).min(b);
     if max == r && max >= 0.5 && spread / max >= 0.5 {
         let hue = 60.0 * (g - b) / spread;
-        if (6.0..=32.0).contains(&hue) {
+        if (6.0..=40.0).contains(&hue) {
             return Err(
                 "that colour is too close to the orange that means \"it needs you\"".into(),
             );
@@ -403,12 +403,13 @@ mod tests {
             ..Look::default()
         };
         for good in [
-            "#FF6EC7", "#ff6ec7", "#FF0000", "#FFD400", "#3F7BFF", "#8A8A8A", "#F7C59F",
+            "#FF6EC7", "#ff6ec7", "#FF0000", "#FFD400", "#FFB800", "#3F7BFF", "#8A8A8A", "#F7C59F",
         ] {
             assert!(with(good).valid().is_ok(), "{good}");
         }
         for bad in [
-            "#FF5A1F", "#F26B2A", "#E0480F", "#202020", "#000000", "#FFF", "pink", "#GGGGGG",
+            "#FF5A1F", "#F26B2A", "#E0480F", "#FFA500", "#FF8C00", "#202020", "#000000", "#FFF",
+            "pink", "#GGGGGG",
         ] {
             assert!(with(bad).valid().is_err(), "{bad}");
         }

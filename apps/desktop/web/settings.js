@@ -189,7 +189,7 @@ async function poll() {
 
 // "Your charm": its look and voice, kept in the workspace (else in the app) and applied at once.
 const COLORS = window.CharmFace.COLORS;
-const OWN_COLOUR = /^#[0-9A-F]{6}$/;
+const OWN_COLOUR = /^#[0-9A-F]{6}$/i;
 const SLEEPS = ["2", "4", "10", "30", "0"];
 let charmLook = null;
 let voices = [];
@@ -211,9 +211,10 @@ function fillLook() {
     swatch.tabIndex =
       on || (own && swatch === $("swatches").firstChild) ? 0 : -1;
   }
-  $("own-colour").setAttribute("aria-checked", String(own));
-  if (own) $("own-colour").value = look.colour.toLowerCase();
-  $("own-hex").value = own ? look.colour : "";
+  // The picker opens at the colour the charm wears now, never at one that was refused.
+  $("own-colour").dataset.on = String(own);
+  $("own-colour").value = colourOf(look.colour).g.toLowerCase();
+  $("own-hex").value = own ? look.colour.toUpperCase() : "";
   const minutes = String(look.sleepAfterMinutes);
   if (
     !SLEEPS.includes(minutes) &&
@@ -230,7 +231,7 @@ function fillLook() {
 
 // A colour of your own lights the glyphs of a white charm.
 function colourOf(id) {
-  if (OWN_COLOUR.test(id)) return { ...COLORS[0], id, g: id };
+  if (OWN_COLOUR.test(id)) return { ...COLORS[0], id, g: id.toUpperCase() };
   return COLORS.find((c) => c.id === id) ?? COLORS[0];
 }
 
@@ -279,7 +280,11 @@ $("swatches").addEventListener("keydown", (e) => {
   if (!step) return;
   e.preventDefault();
   const at = COLORS.findIndex((c) => c.id === charmLook.look.colour);
-  const next = COLORS[(at + step + COLORS.length) % COLORS.length];
+  // From a colour of your own, the arrows start at either end of the six.
+  const next =
+    at < 0
+      ? COLORS.at(step > 0 ? 0 : -1)
+      : COLORS[(at + step + COLORS.length) % COLORS.length];
   void saveLook({ colour: next.id }).then(() =>
     $("swatches").querySelector(`[data-id="${next.id}"]`)?.focus()
   );
@@ -290,10 +295,13 @@ $("swatches").addEventListener("keydown", (e) => {
 $("own-colour").addEventListener("input", (e) =>
   charm.setColour(colourOf(e.target.value.toUpperCase()))
 );
-$("own-colour").addEventListener(
-  "change",
-  (e) => void saveLook({ colour: e.target.value.toUpperCase() })
-);
+// macOS's colour panel may report every move as a change: save once it rests.
+let ownColourSave;
+$("own-colour").addEventListener("change", (e) => {
+  clearTimeout(ownColourSave);
+  const colour = e.target.value.toUpperCase();
+  ownColourSave = setTimeout(() => void saveLook({ colour }), 400);
+});
 $("own-hex").addEventListener("change", (e) => {
   const typed = e.target.value.trim().toUpperCase();
   if (!typed) return;
