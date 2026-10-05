@@ -876,7 +876,7 @@ describe("a reply read as text, with a question in the middle", () => {
       sessionKey: "opencharm-c_1",
       send: (m) => {
         if ("type" in m && m.type === "tts" && m.state === "sentence_start")
-          events.push(m.text);
+          events.push(m.text ?? "");
       },
       sendAudio: () => undefined,
       timeoutMs: 5000,
