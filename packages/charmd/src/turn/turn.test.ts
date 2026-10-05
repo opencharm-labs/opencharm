@@ -856,3 +856,69 @@ describe("getting the voice ready while you speak", () => {
     expect(primed).toBe(1);
   });
 });
+
+describe("a reply read as text, with questions in the middle", () => {
+  it("holds a sentence's reading time until the last question is answered, then reads on", async () => {
+    const events: string[] = [];
+    const agent: AgentAdapter = {
+      name: "fake",
+      async *reply(input) {
+        yield "Here is the first part of it. ";
+        // 8 real ms in: about 800 ms of the sentence's 2 s reading time has gone.
+        await new Promise((resolve) => setTimeout(resolve, 8));
+        // Two questions at once (parallel tools): the charm shows them one after the other.
+        await Promise.all([
+          input.ask?.("write a.md"),
+          input.ask?.("write b.md"),
+        ]);
+        yield "And the end.";
+      },
+    };
+    let line = Promise.resolve(true);
+    const turn = new TurnController({
+      voice: createFakeVoice({ transcript: "hi" }),
+      agent,
+      sessionKey: "opencharm-c_1",
+      send: (m) => {
+        if ("type" in m && m.type === "tts" && m.state === "sentence_start")
+          events.push(`show ${m.text ?? ""}`);
+      },
+      sendAudio: () => undefined,
+      timeoutMs: 5000,
+      // Time a hundred times faster, the same for the clock and for sleeping.
+      now: () => performance.now() * 100,
+      sleep: (ms) => {
+        events.push(`read ${Math.round(ms / 100) * 100}`);
+        return new Promise((resolve) => setTimeout(resolve, ms / 100));
+      },
+      ask: () =>
+        (line = line.then(() => {
+          events.push("asked");
+          return new Promise((resolve) =>
+            setTimeout(() => {
+              events.push("answered");
+              resolve(true);
+            }, 40)
+          );
+        })),
+      speakAloud: () => false,
+    });
+    await speak(turn);
+    const resumed = Number(events[6]?.replace("read ", ""));
+    expect(events).toEqual([
+      "show Here is the first part of it.",
+      // Seven words at three a second.
+      "read 2300",
+      "asked",
+      "answered",
+      "asked",
+      "answered",
+      events[6],
+      "show And the end.",
+      "read 2000",
+    ]);
+    // What it had left, not the full time again and not what the questions took.
+    expect(resumed).toBeGreaterThan(800);
+    expect(resumed).toBeLessThan(2000);
+  });
+});

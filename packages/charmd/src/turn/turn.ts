@@ -83,6 +83,12 @@ class TurnController {
   #generation = 0;
   #controller: AbortController | undefined;
   #speaking = false;
+  // A question on the charm hides what's being read: a sentence's reading time waits for it (the
+  // charm keeps the sentence and shows it again when the question ends). Questions can queue.
+  #questions = 0;
+  #questionsEnd: Promise<void> | undefined;
+  #endQuestions = () => {};
+  readonly #questionStarts = new Set<() => void>();
   // When the charm's player will have played all the audio of this reply (#sendPaced).
   #playedBy = 0;
   // While a turn runs: how a question pauses its clock; and a face a tool asked to keep after it.
@@ -267,10 +273,20 @@ class TurnController {
         this.#asking = async (text, options) => {
           asking = true;
           clearTimeout(timer);
+          if (this.#questions++ === 0) {
+            this.#questionsEnd = new Promise<void>((resolve) => {
+              this.#endQuestions = resolve;
+            });
+            for (const notify of this.#questionStarts) notify();
+          }
           try {
             return await ask(text, { ...options, signal });
           } finally {
             asking = false;
+            if (--this.#questions === 0) {
+              this.#questionsEnd = undefined;
+              this.#endQuestions();
+            }
             if (!signal.aborted) timer = startClock();
           }
         };
@@ -552,15 +568,38 @@ class TurnController {
       clock.started();
       this.#deps.send({ type: "tts", state: "start" });
     }
-    this.#deps.send({ type: "tts", state: "sentence_start", text });
     const sleep = this.#deps.sleep ?? sleepMs;
+    const now = this.#deps.now ?? Date.now;
+    const aborted = new Promise<"aborted">((resolve) =>
+      signal.addEventListener("abort", () => resolve("aborted"), {
+        once: true,
+      })
+    );
+    this.#deps.send({ type: "tts", state: "sentence_start", text });
     clock.pause();
-    await Promise.race([
-      sleep(readingMs(text)),
-      new Promise<void>((resolve) =>
-        signal.addEventListener("abort", () => resolve(), { once: true })
-      ),
-    ]);
+    // While a question is up the charm shows it, not this sentence (it keeps the sentence and puts
+    // it back after): the reading time waits, and goes on with what it had left.
+    let remaining = readingMs(text);
+    while (going()) {
+      if (this.#questionsEnd) {
+        await Promise.race([this.#questionsEnd, aborted]);
+        continue;
+      }
+      const from = now();
+      let notify = () => {};
+      const question = new Promise<"question">((resolve) => {
+        notify = () => resolve("question");
+      });
+      this.#questionStarts.add(notify);
+      const outcome = await Promise.race([
+        sleep(remaining).then(() => "read" as const),
+        aborted,
+        question,
+      ]);
+      this.#questionStarts.delete(notify);
+      if (outcome !== "question") break;
+      remaining = Math.max(0, remaining - (now() - from));
+    }
     clock.resume();
   }
 
