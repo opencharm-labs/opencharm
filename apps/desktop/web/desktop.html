@@ -21,6 +21,10 @@
         -webkit-user-select: none;
         cursor: default;
       }
+      /* Never the emulator's device frame: the charm shows only once it's shaped for the notch. */
+      .charm:not(.notch) {
+        visibility: hidden !important;
+      }
       /* The emulator page's pieces the desktop charm doesn't show. */
       header,
       aside,
