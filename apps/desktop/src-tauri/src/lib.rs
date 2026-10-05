@@ -170,8 +170,14 @@ struct Managed {
 }
 
 impl Managed {
+    /// The admin channel of the charmd running now (Windows: its own pipe for this start).
     fn socket(&self) -> PathBuf {
-        managed::admin_path(&self.data)
+        let admin = self.charmd.status().admin;
+        if admin.is_empty() {
+            self.data.join("charmd").join("charmd.sock")
+        } else {
+            PathBuf::from(admin)
+        }
     }
 
     fn env(&self) -> HashMap<String, String> {
@@ -181,6 +187,15 @@ impl Managed {
             .get_or_insert_with(managed::shell_env)
             .clone()
     }
+}
+
+/// The page is talking to the charmd this app runs, at the address it announced: only then does the
+/// app pair, type its PIN or drop the pairing.
+fn own_charmd(saved: &Saved, managed: &Managed, url: &str) -> Result<(), String> {
+    if !is_managed(saved) || !managed::is_announced(&managed.charmd.status().url, url) {
+        return Err("not the app's own charmd".into());
+    }
+    Ok(())
 }
 
 fn is_managed(saved: &Saved) -> bool {
@@ -214,28 +229,27 @@ fn charm_geometry(screen: State<Screen>, saved: State<Saved>, managed: State<Man
 
 /// The managed charmd shows a pairing code: pair with the app's PIN, no one types anything.
 #[tauri::command]
-fn auto_pair(saved: State<Saved>, managed: State<Managed>, code: String) -> Result<(), String> {
-    if !is_managed(&saved) {
-        return Err("not the app's own charmd".into());
-    }
+fn auto_pair(
+    saved: State<Saved>,
+    managed: State<Managed>,
+    code: String,
+    url: String,
+) -> Result<(), String> {
+    own_charmd(&saved, &managed, &url)?;
     pairing::pair(&managed.socket(), &code, &pairing::pin(&managed.data)?)
 }
 
 /// The PIN the charm types when it starts locked (the app's own charmd only).
 #[tauri::command]
-fn auto_pin(saved: State<Saved>, managed: State<Managed>) -> Result<String, String> {
-    if !is_managed(&saved) {
-        return Err("not the app's own charmd".into());
-    }
+fn auto_pin(saved: State<Saved>, managed: State<Managed>, url: String) -> Result<String, String> {
+    own_charmd(&saved, &managed, &url)?;
     pairing::pin(&managed.data)
 }
 
 /// The PIN was refused (a new or reset PIN file): drop the old pairing so the charm pairs again.
 #[tauri::command]
-fn auto_reset(saved: State<Saved>, managed: State<Managed>) -> Result<(), String> {
-    if !is_managed(&saved) {
-        return Err("not the app's own charmd".into());
-    }
+fn auto_reset(saved: State<Saved>, managed: State<Managed>, url: String) -> Result<(), String> {
+    own_charmd(&saved, &managed, &url)?;
     pairing::admin(
         &managed.socket(),
         &serde_json::json!({ "cmd": "revoke", "charm": pairing::NAME }),

@@ -127,6 +127,8 @@ EMSCRIPTEN_KEEPALIVE uint8_t* sim_frame() { return sim.rgba.data(); }
 // A PIN key typed on the keyboard ("0"…"9", "<", "OK"): the notch has no room for a pad.
 EMSCRIPTEN_KEEPALIVE void sim_pin_key(const char* key) { sim.view->press_pad_key(key); }
 
+EMSCRIPTEN_KEEPALIVE int sim_pin_ready() { return sim.view->pin_ready() ? 1 : 0; }
+
 EMSCRIPTEN_KEEPALIVE int32_t* sim_frame_box() { return sim.box; }
 
 EMSCRIPTEN_KEEPALIVE int sim_frame_dirty() {

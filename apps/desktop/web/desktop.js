@@ -10,6 +10,8 @@ addEventListener("error", (e) =>
 addEventListener("unhandledrejection", (e) => log(`error: ${e.reason}`));
 
 log("starting");
+// Listening first, before anything is awaited, so a new address (or none) is never missed.
+await listen("charm-reload", () => location.reload());
 // The app's own charmd gets a port from the system as it starts: wait until it has said which,
 // rather than knocking on a port someone else may hold.
 let geometry = await invoke("charm_geometry");
@@ -29,6 +31,15 @@ if (geometry.url) query.set("url", geometry.url);
 // The charm says what it runs in hello (spec 015): this app's release identity.
 query.set("version", (await invoke("app_identity")).version);
 window.charmParams = query.toString();
+// Before every reconnect: the app's own charmd may have stopped or moved; never knock on a port it
+// no longer holds (someone else may have it by now). Its new address comes with a reload.
+if (geometry.autoPair)
+  window.charmMayConnect = async (url) => {
+    const now = (await invoke("charm_geometry")).url;
+    if (now === url) return true;
+    location.reload();
+    return false;
+  };
 
 try {
   await import("./sim.js");
@@ -126,15 +137,19 @@ if (geometry.autoPair && (!geometry.testPin || geometry.testPin === "auto")) {
   window.charmSim.onMessage = async (m) => {
     if (m.type !== "charm") return;
     try {
-      if (m.op === "pair_code") await invoke("auto_pair", { code: m.code });
+      if (m.op === "pair_code")
+        await invoke("auto_pair", { code: m.code, url: geometry.url });
       if (m.op === "locked" && m.reason === "boot") {
-        const pin = await invoke("auto_pin");
-        setTimeout(() => {
-          for (const key of [...pin, "OK"]) window.charmSim.pinKey(key);
-        }, 800);
+        const pin = await invoke("auto_pin", { url: geometry.url });
+        // Typed once the PIN screen is up (the charm may still be waking), all at once.
+        for (let waited = 0; !window.charmSim.pinReady(); waited += 100) {
+          if (waited > 10_000) throw new Error("the PIN screen didn't come up");
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+        for (const key of [...pin, "OK"]) window.charmSim.pinKey(key);
       }
       if (m.op === "locked" && m.reason === "wrong_pin")
-        await invoke("auto_reset");
+        await invoke("auto_reset", { url: geometry.url });
     } catch (error) {
       log(`automatic pairing: ${error}`);
     }
@@ -182,8 +197,7 @@ setInterval(checkForUpdate, 24 * 60 * 60 * 1000);
 // The global push-to-talk key: held anywhere on the computer, like the charm's key.
 await listen("charm-key", (event) => window.charmKey(event.payload === true));
 await listen("charm-type", () => openField());
-// From the settings window: a new charmd address (start again), or forget this charm's pairing.
-await listen("charm-reload", () => location.reload());
+// From the settings window: forget this charm's pairing (a new address reloads, above).
 await listen("charm-forget", () => window.charmSim.forget());
 // Right-click the charm for its settings.
 addEventListener("contextmenu", (e) => {

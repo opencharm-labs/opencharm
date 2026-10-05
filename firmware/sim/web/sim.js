@@ -117,6 +117,8 @@ window.charmSim = {
     wake();
     return ["busy", "sent", "unsupported"][result] ?? "busy";
   },
+  // The PIN screen is up (the desktop app waits for it before typing its PIN).
+  pinReady: () => M._sim_pin_ready() === 1,
   // A PIN key from a keyboard or the desktop app ("0"…"9", "<", "OK").
   pinKey: (key) => {
     withString(key, (ptr) => M._sim_pin_key(ptr));
@@ -171,8 +173,11 @@ function withBytes(bytes, fn) {
 // Back from sleep or a network change: the old socket may be dead without knowing it. Start again.
 addEventListener("online", () => ws?.close());
 
-function connect() {
+async function connect() {
   if (!wifiOn) return;
+  // A host page may hold a connection back: the desktop app checks its own charmd's address first.
+  if (window.charmMayConnect && !(await window.charmMayConnect(baseUrl)))
+    return;
   const token = M.UTF8ToString(M._sim_token());
   // The token rides as a WebSocket subprotocol: browsers can't set Authorization, and a token must
   // never go in a URL (proxies and logs keep URLs).

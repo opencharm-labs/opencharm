@@ -40,7 +40,7 @@ There's no code or PIN to type: the app pairs with its own charmd through charmd
 
 The app's charmd listens on 127.0.0.1, on a free port the system gives it as it starts, with its own config, state and log, so a charmd you run in a terminal (8787) is never touched. The charm connects only to the address that charmd announces on its own output, never to a port someone else could hold first (another user on the same computer); on Windows its admin pipe has a random name for each run, for the same reason. It restarts if it stops (on a new port) and quits with the app.
 
-**Another charmd** (Settings → Advanced): connect to a charmd you run yourself. Run `opencharm serve`, open OpenCharm, then `opencharm pair <code>` with the code under the notch and choose a PIN. Click the panel, type the PIN and press Enter.
+**Another charmd** (Settings → Advanced): connect to a charmd you run yourself, at the address you give (so on a computer shared with other people, run it only while the app uses it: whoever holds that port gets the charm's connection). Run `opencharm serve`, open OpenCharm, then `opencharm pair <code>` with the code under the notch and choose a PIN. Click the panel, type the PIN and press Enter.
 
 **Settings:** from the menu-bar icon (the charm's head as a template image) or a right-click on the charm. Its footer shows what the app is, `desktop@<version> (<commit>)` (spec 015), for bug reports; the app's charm sends the same in its hello.
 

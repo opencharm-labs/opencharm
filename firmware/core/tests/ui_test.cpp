@@ -392,6 +392,23 @@ struct Notch {
 };
 }  // namespace
 
+TEST_CASE("the PIN screen says when it's ready for a PIN, so the desktop app types it only then") {
+  Headless screen{Notch::kW, Notch::kH};
+  QuietHal hal;
+  charm::LvglView view{screen.display(),
+                       charm::ViewOptions{false, 0xF4F3EE, true, Notch::kNotch, Notch::kStrip}};
+  charm::App app{hal, view};
+  app.start(0);
+  CHECK_FALSE(view.pin_ready());  // booting
+  app.on_connected(10);
+  app.on_text(R"({"type":"charm","op":"locked","reason":"boot","tries_left":5})", 20);
+  for (uint32_t t = 36; t < 2000; t += 16) app.tick(t);
+  CHECK(view.pin_ready());
+  app.on_text(R"({"type":"charm","op":"unlocked"})", 2000);
+  app.tick(2016);
+  CHECK_FALSE(view.pin_ready());
+}
+
 TEST_CASE("on a notch, the compact face is two eyes on the ears, and the panel is closed") {
   Notch n;
   n.screen.save_png("notch-compact");
