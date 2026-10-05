@@ -15,7 +15,7 @@ EM_JS(void, js_play_pcm, (const float* pcm, int samples),
 EM_JS(void, js_stop_audio, (), { charmSim.stopAudio(); });
 EM_JS(void, js_brightness, (int percent), { charmSim.brightness(percent); });
 EM_JS(char*, js_store_get, (const char* key), {
-  var value = localStorage.getItem("opencharm." + UTF8ToString(key));
+  var value = localStorage.getItem((globalThis.charmStore || "opencharm.") + UTF8ToString(key));
   if (value === null) return 0;
   var size = lengthBytesUTF8(value) + 1;
   var ptr = _malloc(size);
@@ -23,9 +23,9 @@ EM_JS(char*, js_store_get, (const char* key), {
   return ptr;
 });
 EM_JS(void, js_store_set, (const char* key, const char* value),
-      { localStorage.setItem("opencharm." + UTF8ToString(key), UTF8ToString(value)); });
+      { localStorage.setItem((globalThis.charmStore || "opencharm.") + UTF8ToString(key), UTF8ToString(value)); });
 EM_JS(void, js_store_erase, (const char* key),
-      { localStorage.removeItem("opencharm." + UTF8ToString(key)); });
+      { localStorage.removeItem((globalThis.charmStore || "opencharm.") + UTF8ToString(key)); });
 EM_JS(void, js_reconnect, (), { charmSim.reconnect(); });
 
 namespace {

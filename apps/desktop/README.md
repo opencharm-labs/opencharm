@@ -100,7 +100,7 @@ These are environment variables for tests, never for normal use:
 - `OPENCHARM_FAKE_MIC=1`: a soft tone instead of the microphone, so no real mic is ever opened.
 - `OPENCHARM_TEST_PIN=<pin>`: with the fake mic, types the PIN when asked, holds the key for one turn, and logs what the charm receives.
 - `OPENCHARM_TEST_PIN=auto`: the same, with the app's own charmd pairing and unlocking by itself.
-- `OPENCHARM_DATA=<folder>`: settings and the app's own charmd in this folder, its own PIN file, and a separate keychain entry for an OpenAI key (`dev.opencharm.desktop.test`), so a test never touches your own.
+- `OPENCHARM_DATA=<folder>`: settings and the app's own charmd in this folder, the charm's token under its own key in the page's storage (every copy of the app shares that storage, so a test never replaces the real charm's), its own PIN file, and a separate keychain entry for an OpenAI key (`dev.opencharm.desktop.test`), so a test never touches your own.
 - `OPENCHARM_URL`: another charmd.
 - `OPENCHARM_KEY`: another talk key.
 

@@ -1,5 +1,7 @@
 //! Where the desktop charm sits and how big it is, in points. Pure, so it's tested without a screen.
 
+use std::path::Path;
+
 use serde::Serialize;
 
 /// Each side of the notch keeps an "ear" this wide for an eye.
@@ -32,6 +34,9 @@ pub struct Geometry {
     pub test_pin: Option<String>,
     /// The app runs this charmd (spec 013): pair and unlock without a code or a PIN.
     pub auto_pair: bool,
+    /// Automated tests (OPENCHARM_DATA): where the charm keeps its token in the page's storage, so
+    /// a test never replaces the real charm's (every copy of the app shares that storage).
+    pub store: Option<String>,
 }
 
 /// How tall the open panel is: what the charm asks for (words take only what they need), within the
@@ -41,6 +46,11 @@ pub fn panel_height(geometry: &Geometry, asked: Option<f64>) -> f64 {
         Some(height) if height.is_finite() => height.clamp(geometry.strip, geometry.height),
         _ => geometry.height,
     }
+}
+
+/// The storage prefix for a test run's data folder (None: the real one, "opencharm.").
+pub fn store_prefix(test_dir: Option<&Path>) -> Option<String> {
+    test_dir.map(|dir| format!("opencharm.test.{}.", dir.display()))
 }
 
 /// `notch`: the real notch's width and the menu bar's height beside it, when the screen has one.
@@ -57,6 +67,7 @@ pub fn layout(screen_width: f64, notch: Option<(f64, f64)>) -> Geometry {
         url: None,
         test_pin: None,
         auto_pair: false,
+        store: None,
     }
 }
 
@@ -89,6 +100,16 @@ mod tests {
         assert_eq!(panel_height(&g, Some(900.0)), OPEN_HEIGHT);
         assert_eq!(panel_height(&g, Some(f64::NAN)), OPEN_HEIGHT);
         assert_eq!(panel_height(&g, None), OPEN_HEIGHT);
+    }
+
+    #[test]
+    fn a_test_run_keeps_its_charm_token_apart_from_the_real_one() {
+        assert_eq!(store_prefix(None), None);
+        let a = store_prefix(Some(Path::new("/tmp/a"))).unwrap();
+        let b = store_prefix(Some(Path::new("/tmp/b"))).unwrap();
+        assert_ne!(a, b);
+        assert!(a.starts_with("opencharm.test.") && a.ends_with('.'));
+        assert_ne!(a, "opencharm.");
     }
 
     #[test]
