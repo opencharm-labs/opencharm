@@ -225,12 +225,12 @@ function showFolder() {
         (location ? `Creates ${shown(joined(location, name.trim()))}` : ""),
       problem ? "bad" : ""
     );
-    $("next").disabled = Boolean(problem) || !location;
+    $("next").disabled = busy || Boolean(problem) || !location;
   } else {
     $("existing-path").textContent = existing
       ? shown(existing.path)
       : "No folder chosen yet.";
-    $("next").disabled = !existing;
+    $("next").disabled = busy || !existing;
   }
 }
 for (const input of document.querySelectorAll('input[name="folder-mode"]'))
@@ -516,7 +516,7 @@ async function show(n) {
 }
 
 $("back").addEventListener("click", () => {
-  if (!busy) void show(Math.max(1, step - 1));
+  if (!busy) show(Math.max(1, step - 1)).catch(() => react("oops", 2200));
 });
 $("next").addEventListener("click", async () => {
   if (busy || $("next").disabled) return;

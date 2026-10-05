@@ -126,8 +126,12 @@ pub fn create_then(
     target: &Path,
     work: impl FnOnce(&Path) -> Result<(), String>,
 ) -> Result<(), String> {
-    let made = !target.exists();
-    std::fs::create_dir_all(target).map_err(|e| e.to_string())?;
+    // One step, so "made here" can't be wrong if something else makes it at the same moment.
+    let made = match std::fs::create_dir(target) {
+        Ok(()) => true,
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => false,
+        Err(e) => return Err(e.to_string()),
+    };
     let result = work(target);
     if result.is_err() && made {
         let _ = std::fs::remove_dir_all(target);
