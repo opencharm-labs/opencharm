@@ -31,8 +31,9 @@ type AskOptions = { yes?: string; no?: string; signal?: AbortSignal };
 
 // A minute of speech at 60 ms per packet; longer holds are cut, not buffered forever.
 const MAX_FRAMES = 1000;
-// Send a few packets ahead of real time so the charm's player never runs dry.
-const LEAD_FRAMES = 3;
+// How far ahead of real time the charm's player is kept, so a late timer or a busy moment doesn't run
+// it dry (each gap is a click).
+const LEAD_MS = 250;
 // Text-only replies: each sentence stays for about its reading time (3 words a second, at least 2 s).
 const READING_WORDS_PER_SECOND = 3;
 const MIN_READING_MS = 2000;
@@ -576,13 +577,17 @@ class TurnController {
     onPacket: () => void
   ): Promise<void> {
     const sleep = this.#deps.sleep ?? sleepMs;
-    let index = 0;
+    const now = this.#deps.now ?? Date.now;
+    // When the player will have played everything sent, on the clock: adding up each packet's sleep
+    // instead let every late timer eat into the lead, and 20 ms packets ran dry within seconds.
+    let playedBy = now();
     for await (const packet of packets) {
       if (!live()) return;
       this.#deps.sendAudio(packet);
       onPacket();
-      if (index++ >= LEAD_FRAMES - 1)
-        await sleep(opusPacketSamples48k(packet) / 48);
+      playedBy = Math.max(playedBy, now()) + opusPacketSamples48k(packet) / 48;
+      const wait = playedBy - LEAD_MS - now();
+      if (wait > 0) await sleep(wait);
     }
   }
 
