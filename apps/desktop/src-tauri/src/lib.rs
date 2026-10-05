@@ -267,6 +267,24 @@ fn charmd_status(managed: State<Managed>) -> Status {
     managed.charmd.status()
 }
 
+/// What the app's own charmd says about its voice models: any still downloading (or failed), so a
+/// first start of 600 MB isn't silent. Empty when charmd isn't running or doesn't say.
+#[tauri::command]
+async fn voice_progress(app: AppHandle) -> Vec<String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let managed = app.state::<Managed>();
+        if managed.charmd.status().state != "running" {
+            return Vec::new();
+        }
+        pairing::admin(&managed.socket(), &serde_json::json!({ "cmd": "status" }))
+            .ok()
+            .and_then(|status| status["voice"].as_str().map(managed::voice_progress))
+            .unwrap_or_default()
+    })
+    .await
+    .unwrap_or_default()
+}
+
 #[tauri::command]
 fn restart_charmd(app: AppHandle) {
     apply_managed(&app);
@@ -903,6 +921,7 @@ pub fn run() {
             inspect_folder,
             charmd_status,
             restart_charmd,
+            voice_progress,
             has_openai_key,
             set_openai_key,
             create_workspace,

@@ -2,6 +2,7 @@
 // continue, so quitting halfway leaves a valid state and the next start resumes where it stopped.
 // The charm at the top is the real face engine, wearing the name and colour as they're chosen.
 import { colourOf, mountColourPicker } from "./colour-picker.js";
+import { describeModels } from "./voice-progress.js";
 
 const { invoke } = window.__TAURI__.core;
 const { listen } = window.__TAURI__.event;
@@ -428,14 +429,32 @@ let answered = false;
 function mark(id, on) {
   $(id).querySelector(".dot").className = on ? "dot running" : "dot";
 }
+let polled = false;
+let turnFailed = false;
+let showingModels = false;
 async function pollStatus() {
-  const s = await invoke("charmd_status");
-  mark("check-awake", s.state === "running");
-  const stuck = s.state !== "running" && s.state !== "starting";
-  $("retry").hidden = !stuck;
-  if (stuck && s.detail) note("try-note", s.detail, "bad");
-  else if (!answered && s.state === "starting")
-    note("try-note", "Waking it up…");
+  // One at a time, and never over what a turn just said (failed, or answered).
+  if (polled) return;
+  polled = true;
+  try {
+    const s = await invoke("charmd_status");
+    mark("check-awake", s.state === "running");
+    const stuck = s.state !== "running" && s.state !== "starting";
+    $("retry").hidden = !stuck && !turnFailed;
+    if (stuck && s.detail) note("try-note", s.detail, "bad");
+    else if (answered || turnFailed) return;
+    else if (s.state === "starting") note("try-note", "Waking it up…");
+    else if (s.state === "running") {
+      // The first start downloads the voice models (about 600 MB); listening waits for them.
+      const words = describeModels(await invoke("voice_progress"));
+      if (answered || turnFailed) return;
+      if (words) note("try-note", words);
+      else if (showingModels) note("try-note", "");
+      showingModels = Boolean(words);
+    }
+  } finally {
+    polled = false;
+  }
 }
 function enterTry() {
   $("next").textContent = "Done";
@@ -454,7 +473,9 @@ await listen("charm-turn", ({ payload }) => {
     $("finish").hidden = true;
     if (step === 6) $("next").disabled = false;
   }
+  if (payload.kind === "heard") turnFailed = false;
   if (payload.kind === "failed") {
+    turnFailed = true;
     note("try-note", payload.text || "Your agent didn't answer.", "bad");
     $("retry").hidden = false;
     react("sad", 2400);
