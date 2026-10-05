@@ -20,6 +20,17 @@ describe("the desktop app", () => {
     expect(charm?.url).toBe("desktop.html");
     expect(existsSync(join(APP, "web", "desktop.html"))).toBe(true);
     expect(existsSync(join(APP, "web", "settings.html"))).toBe(true);
+    expect(existsSync(join(APP, "web", "setup.html"))).toBe(true);
+  });
+
+  it("lets the setup window use the app's commands and the folder picker", () => {
+    const caps = ["default.json", "settings.json"].map(
+      (file) =>
+        JSON.parse(read(APP, "src-tauri", "capabilities", file)) as {
+          windows: string[];
+        }
+    );
+    for (const cap of caps) expect(cap.windows).toContain("setup");
   });
 
   it("takes its version from package.json, which CI stamps from the release tag", () => {

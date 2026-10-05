@@ -277,34 +277,182 @@ fn set_openai_key(app: AppHandle, key: String) -> Result<(), String> {
 #[tauri::command]
 async fn create_workspace(app: AppHandle, folder: String, agent: String) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let saved = app.state::<Saved>();
-        let managed = app.state::<Managed>();
-        let env = managed.env();
-        let mut env = env;
-        let cli = cli_path(&app, &saved.settings.lock().unwrap(), &env)?;
-        if let Some(dir) = cli.node_dir() {
-            managed::node_first(&mut env, dir);
-        }
-        let mut init = cli.command();
-        init.arg("init").arg(&folder).env_clear().envs(&env);
-        if settings::PRESETS.contains(&agent.as_str()) {
-            init.args(["--agent", &agent]);
-        }
-        let output = init.output().map_err(|e| e.to_string())?;
-        if output.status.success() {
-            Ok(())
-        } else {
-            let text = String::from_utf8_lossy(&output.stderr);
-            Err(text
-                .trim()
-                .lines()
-                .last()
-                .unwrap_or("opencharm init failed")
-                .to_string())
-        }
+        run_init(&app, std::path::Path::new(&folder), &agent)
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+/// `opencharm init <folder>` with the app's charmd environment (its Node first), for an agent preset.
+fn run_init(app: &AppHandle, folder: &std::path::Path, agent: &str) -> Result<(), String> {
+    let saved = app.state::<Saved>();
+    let managed = app.state::<Managed>();
+    let mut env = managed.env();
+    let cli = cli_path(app, &saved.settings.lock().unwrap(), &env)?;
+    if let Some(dir) = cli.node_dir() {
+        managed::node_first(&mut env, dir);
+    }
+    let mut init = cli.command();
+    init.arg("init").arg(folder).env_clear().envs(&env);
+    if settings::PRESETS.contains(&agent) {
+        init.args(["--agent", agent]);
+    }
+    let output = init.output().map_err(|e| e.to_string())?;
+    if output.status.success() {
+        Ok(())
+    } else {
+        let text = String::from_utf8_lossy(&output.stderr);
+        Err(text
+            .trim()
+            .lines()
+            .last()
+            .unwrap_or("opencharm init failed")
+            .to_string())
+    }
+}
+
+/// Where the setup is (spec 013): the step to resume at, the location to offer for a new
+/// workspace, and the platform (keys and hints differ).
+#[derive(serde::Serialize)]
+struct SetupState {
+    step: u32,
+    location: String,
+    platform: &'static str,
+}
+
+fn folder_ok(settings: &Settings) -> bool {
+    settings
+        .folder
+        .as_deref()
+        .is_some_and(|f| managed::inspect_folder(f).exists)
+}
+
+#[tauri::command]
+fn setup_state(app: AppHandle, saved: State<Saved>) -> SetupState {
+    let settings = saved.settings.lock().unwrap().clone();
+    let location = settings
+        .setup_location
+        .clone()
+        .filter(|l| std::path::Path::new(l).is_dir())
+        .or_else(|| {
+            setup::default_location(app.path().document_dir().ok(), app.path().home_dir().ok())
+                .map(|p| p.to_string_lossy().to_string())
+        })
+        .unwrap_or_default();
+    SetupState {
+        step: setup::resume_step(&settings, folder_ok(&settings)),
+        location,
+        platform: if cfg!(target_os = "macos") {
+            "macos"
+        } else if cfg!(windows) {
+            "windows"
+        } else {
+            "linux"
+        },
+    }
+}
+
+/// A step finished: progress only moves forward; the last one closes the window.
+#[tauri::command]
+fn setup_step_done(app: AppHandle, saved: State<Saved>, step: u32) -> Result<(), String> {
+    {
+        let mut settings = saved.settings.lock().unwrap();
+        settings.setup_step = settings.setup_step.max(step.min(setup::DONE));
+        settings.save(&saved.path).map_err(|e| e.to_string())?;
+    }
+    if step >= setup::DONE {
+        if let Some(window) = app.get_webview_window("setup") {
+            let _ = window.close();
+        }
+    }
+    Ok(())
+}
+
+#[derive(serde::Serialize)]
+struct AgentFound {
+    id: &'static str,
+    found: bool,
+}
+
+/// Which agents are installed: each preset's command on the PATH charmd gets (the login shell's;
+/// on Windows with PATHEXT and npm's global folder, where `npm i -g` puts them).
+#[tauri::command]
+async fn detect_agents(app: AppHandle) -> Vec<AgentFound> {
+    let env = app.state::<Managed>().env();
+    tauri::async_runtime::spawn_blocking(move || {
+        let value = |name: &str| {
+            env.iter()
+                .find(|(k, _)| k.eq_ignore_ascii_case(name))
+                .map(|(_, v)| v.clone())
+        };
+        let mut dirs: Vec<PathBuf> = value("PATH")
+            .map(|p| std::env::split_paths(&p).collect())
+            .unwrap_or_default();
+        let mut extensions = Vec::new();
+        if cfg!(windows) {
+            if let Some(appdata) = value("APPDATA") {
+                dirs.push(PathBuf::from(appdata).join("npm"));
+            }
+            extensions = value("PATHEXT")
+                .unwrap_or_else(|| ".COM;.EXE;.BAT;.CMD".into())
+                .split(';')
+                .filter(|e| !e.is_empty())
+                .map(String::from)
+                .collect();
+        }
+        let path = std::env::join_paths(dirs).unwrap_or_default();
+        settings::PRESETS
+            .iter()
+            .map(|&id| AgentFound {
+                id,
+                found: setup::find_command(&path, &extensions, id).is_some(),
+            })
+            .collect()
+    })
+    .await
+    .unwrap_or_default()
+}
+
+/// A new workspace as an IDE's New Project: `<location>/<name>`, made if needed, then
+/// `opencharm init` there. Remembers the location for next time; returns the folder.
+#[tauri::command]
+async fn create_new_workspace(
+    app: AppHandle,
+    location: String,
+    name: String,
+    agent: String,
+) -> Result<String, String> {
+    let target = setup::new_workspace_target(std::path::Path::new(&location), name.trim())?;
+    std::fs::create_dir_all(&target).map_err(|e| e.to_string())?;
+    let folder = target.clone();
+    let handle = app.clone();
+    tauri::async_runtime::spawn_blocking(move || run_init(&handle, &folder, &agent))
+        .await
+        .map_err(|e| e.to_string())??;
+    let saved = app.state::<Saved>();
+    let mut settings = saved.settings.lock().unwrap();
+    settings.setup_location = Some(location);
+    settings.save(&saved.path).map_err(|e| e.to_string())?;
+    Ok(target.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+fn open_setup(app: AppHandle) -> Result<(), String> {
+    show_setup(&app).map_err(|e| e.to_string())
+}
+
+fn show_setup(app: &AppHandle) -> tauri::Result<()> {
+    if let Some(window) = app.get_webview_window("setup") {
+        window.show()?;
+        return window.set_focus();
+    }
+    let window = WebviewWindowBuilder::new(app, "setup", WebviewUrl::App("setup.html".into()))
+        .title("Set up OpenCharm")
+        .inner_size(480.0, 600.0)
+        .resizable(false)
+        .center()
+        .build()?;
+    window.set_focus()
 }
 
 /// The `opencharm` charmd runs from: a path chosen in Settings → Advanced, else the one the app
@@ -730,6 +878,11 @@ pub fn run() {
             has_openai_key,
             set_openai_key,
             create_workspace,
+            setup_state,
+            setup_step_done,
+            detect_agents,
+            create_new_workspace,
+            open_setup,
             offer_update,
             update_offered,
             open_release,
@@ -751,7 +904,7 @@ pub fn run() {
             let path = config_dir.join("settings.json");
             let settings = Settings::load(&path);
             let key = std::env::var("OPENCHARM_KEY").unwrap_or_else(|_| settings.key.clone());
-            let first_run = settings.managed && settings.folder.is_none();
+            let needs_setup = setup::needs_setup(&settings, folder_ok(&settings));
             app.manage(Saved {
                 path,
                 settings: Mutex::new(settings),
@@ -762,8 +915,8 @@ pub fn run() {
                 env: Mutex::new(None),
             });
             apply_managed(app.handle());
-            if first_run && std::env::var("OPENCHARM_URL").is_err() {
-                show_settings(app.handle())?;
+            if needs_setup && std::env::var("OPENCHARM_URL").is_err() {
+                show_setup(app.handle())?;
             }
 
             let geometry = measure();
@@ -789,6 +942,7 @@ pub fn run() {
             let settings_item =
                 MenuItem::with_id(app, "settings", "Settings…", true, Some("CmdOrCtrl+,"))?;
             let quit = MenuItem::with_id(app, "quit", "Quit OpenCharm", true, Some("CmdOrCtrl+Q"))?;
+            let setup_item = MenuItem::with_id(app, "setup", "Set up again…", true, None::<&str>)?;
             let speak_on = app.state::<Saved>().settings.lock().unwrap().speak_replies;
             let type_item = MenuItem::with_id(app, "type", "Type to your charm…", true, None::<&str>)?;
             let speak_item = CheckMenuItem::with_id(
@@ -803,7 +957,15 @@ pub fn run() {
             let separator_2 = PredefinedMenuItem::separator(app)?;
             let menu = Menu::with_items(
                 app,
-                &[&type_item, &speak_item, &separator, &settings_item, &separator_2, &quit],
+                &[
+                    &type_item,
+                    &speak_item,
+                    &separator,
+                    &settings_item,
+                    &setup_item,
+                    &separator_2,
+                    &quit,
+                ],
             )?;
             TrayIconBuilder::new()
                 .icon(Image::from_bytes(TRAY_ICON)?)
@@ -813,6 +975,9 @@ pub fn run() {
                 .on_menu_event(|app, event| match event.id().as_ref() {
                     "settings" => {
                         let _ = show_settings(app);
+                    }
+                    "setup" => {
+                        let _ = show_setup(app);
                     }
                     "update" => {
                         let offered = app.state::<Tray>().offered.lock().unwrap().clone();
