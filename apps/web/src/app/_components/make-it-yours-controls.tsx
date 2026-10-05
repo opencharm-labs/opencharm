@@ -36,9 +36,10 @@ function ownColour(hex: string) {
   };
 }
 
+// Picking a preset gives this a new key (ColourPicker), so a draft or a refusal never outlives it.
 function OwnColour() {
   const { colour, setColour } = useLanding();
-  const [typed, setTyped] = useState("");
+  const [draft, setDraft] = useState<string | null>(null);
   const [problem, setProblem] = useState("");
   const own = colour.id === "own";
   const pick = (value: string) => {
@@ -49,11 +50,13 @@ function OwnColour() {
     const why = ownColourProblem(hex);
     if (why) return setProblem(why.toUpperCase());
     setProblem("");
+    setDraft(null);
     setColour(ownColour(hex));
   };
   return (
     <div className="flex flex-col gap-2">
       <div className="flex w-full items-center gap-2">
+        {/* Uncontrolled: dragging through a refused colour mustn't snap the system picker back. */}
         <input
           type="color"
           aria-label="A colour of your own"
@@ -61,7 +64,7 @@ function OwnColour() {
             "size-10 shrink-0 cursor-pointer rounded-[30%] border-[1.5px] border-black/20 bg-transparent p-0",
             own && "outline-[1.5px] outline-offset-3 outline-ink"
           )}
-          value={own ? colour.g.toLowerCase() : "#ff6ec7"}
+          defaultValue={colour.g.toLowerCase()}
           onChange={(e) => pick(e.target.value)}
         />
         <Input
@@ -71,10 +74,10 @@ function OwnColour() {
           placeholder="#RRGGBB"
           maxLength={7}
           spellCheck={false}
-          value={own && !typed ? colour.g : typed}
-          onChange={(e) => setTyped(e.target.value)}
-          onBlur={() => typed && pick(typed)}
-          onKeyDown={(e) => e.key === "Enter" && typed && pick(typed)}
+          value={draft ?? (own ? colour.g : "")}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={() => draft && pick(draft)}
+          onKeyDown={(e) => e.key === "Enter" && draft && pick(draft)}
         />
       </div>
       <Note asChild>
@@ -111,7 +114,7 @@ function ColourPicker() {
           </RadioGroupItem>
         ))}
       </RadioGroup>
-      <OwnColour />
+      <OwnColour key={colour.id === "own" ? "own" : colour.id} />
     </div>
   );
 }
