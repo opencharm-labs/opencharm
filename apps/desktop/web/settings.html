@@ -5,6 +5,7 @@
     <title>OpenCharm</title>
     <link rel="icon" href="data:," />
     <link rel="stylesheet" href="settings.css" />
+    <link rel="stylesheet" href="colour-picker.css" />
     <script src="charm-face.js"></script>
   </head>
   <body>
@@ -124,34 +125,7 @@
         <input id="charm-name" maxlength="12" spellcheck="false" />
 
         <span class="mono" id="colour-label">COLOUR</span>
-        <div class="colour-row">
-          <div
-            class="swatches"
-            id="swatches"
-            role="radiogroup"
-            aria-labelledby="colour-label"
-          ></div>
-          <input
-            type="color"
-            class="swatch own"
-            id="own-colour"
-            title="A colour of your own"
-            aria-label="A colour of your own"
-          />
-        </div>
-        <div class="row">
-          <input
-            id="own-hex"
-            maxlength="7"
-            spellcheck="false"
-            placeholder="#RRGGBB"
-            aria-label="A colour of your own, as #RRGGBB"
-          />
-        </div>
-        <p class="note">
-          Or your own colour, picked or typed: anything but orange, which only
-          means "it needs you", and bright enough to see on black.
-        </p>
+        <div id="colours"></div>
 
         <label class="mono" for="greeting">GREETING</label>
         <input id="greeting" maxlength="40" />

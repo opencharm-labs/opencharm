@@ -306,67 +306,6 @@ summary {
   margin-top: 6px;
 }
 /* The six identity colours as soft squircles; the chosen one gets an ink ring. */
-.swatches {
-  display: flex;
-  gap: 10px;
-}
-.swatch {
-  width: 38px;
-  height: 38px;
-  padding: 0;
-  border: none;
-  border-radius: 30%;
-  background: var(--c);
-  cursor: pointer;
-}
-/* A colour of your own: the system picker, a rainbow until one is chosen. */
-.colour-row {
-  display: flex;
-  gap: 10px;
-}
-.swatch.own {
-  -webkit-appearance: none;
-  appearance: none;
-  background: conic-gradient(
-    #ff4d6d,
-    #ffd400,
-    #7cf27c,
-    #3fd0ff,
-    #6b5bff,
-    #ff4dd8,
-    #ff4d6d
-  );
-}
-.swatch.own::-webkit-color-swatch-wrapper {
-  padding: 0;
-}
-.swatch.own[data-on="true"] {
-  outline: 1.5px solid var(--ink);
-  outline-offset: 3px;
-}
-.swatch.own::-webkit-color-swatch {
-  border: none;
-  border-radius: 30%;
-  opacity: 0;
-}
-.swatch.own[data-on="true"]::-webkit-color-swatch {
-  opacity: 1;
-}
-#own-hex {
-  max-width: 130px;
-  text-transform: uppercase;
-}
-.swatch.light {
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12);
-}
-.swatch[aria-checked="true"] {
-  outline: 1.5px solid var(--ink);
-  outline-offset: 3px;
-}
-.swatch:focus-visible {
-  outline: 2px solid var(--ink);
-  outline-offset: 3px;
-}
 .update {
   border: none;
   border-radius: 14px;
