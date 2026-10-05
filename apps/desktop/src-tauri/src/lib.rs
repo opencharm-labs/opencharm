@@ -391,8 +391,9 @@ struct AgentFound {
 /// on Windows with PATHEXT and npm's global folder, where `npm i -g` puts them).
 #[tauri::command]
 async fn detect_agents(app: AppHandle) -> Vec<AgentFound> {
-    let env = app.state::<Managed>().env();
     tauri::async_runtime::spawn_blocking(move || {
+        // The login shell's environment, asked once (can take seconds): off the async runtime.
+        let env = app.state::<Managed>().env();
         let value = |name: &str| {
             env.iter()
                 .find(|(k, _)| k.eq_ignore_ascii_case(name))
@@ -436,12 +437,13 @@ async fn create_new_workspace(
     agent: String,
 ) -> Result<String, String> {
     let target = setup::new_workspace_target(std::path::Path::new(&location), name.trim())?;
-    std::fs::create_dir_all(&target).map_err(|e| e.to_string())?;
     let folder = target.clone();
     let handle = app.clone();
-    tauri::async_runtime::spawn_blocking(move || run_init(&handle, &folder, &agent))
-        .await
-        .map_err(|e| e.to_string())??;
+    tauri::async_runtime::spawn_blocking(move || {
+        setup::create_then(&folder, |folder| run_init(&handle, folder, &agent))
+    })
+    .await
+    .map_err(|e| e.to_string())??;
     let saved = app.state::<Saved>();
     let mut settings = saved.settings.lock().unwrap();
     settings.setup_location = Some(location);

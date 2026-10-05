@@ -225,12 +225,12 @@ function showFolder() {
         (location ? `Creates ${shown(joined(location, name.trim()))}` : ""),
       problem ? "bad" : ""
     );
-    $("next").disabled = Boolean(problem) || !location;
+    $("next").disabled = busy || Boolean(problem) || !location;
   } else {
     $("existing-path").textContent = existing
       ? shown(existing.path)
       : "No folder chosen yet.";
-    $("next").disabled = !existing;
+    $("next").disabled = busy || !existing;
   }
 }
 for (const input of document.querySelectorAll('input[name="folder-mode"]'))
@@ -484,6 +484,18 @@ const SAVE = {
   5: saveVoice,
 };
 
+// While a step saves or the next one loads, Back and Continue wait: the step saved is the one
+// you pressed Continue on, and nothing is chosen before the list is there.
+function hold(on) {
+  busy = on;
+  $("back").disabled = on;
+  if (on) $("next").disabled = true;
+  else {
+    $("next").disabled = step === 6 && !answered;
+    if (step === 3) showFolder();
+  }
+}
+
 async function show(n) {
   step = n;
   document.body.classList.toggle("welcome", n === 1);
@@ -493,27 +505,35 @@ async function show(n) {
   );
   $("back").style.visibility = n === 1 ? "hidden" : "visible";
   $("next").textContent = "Continue";
-  $("next").disabled = false;
   if (n !== 6) clearInterval(polling);
   react("happy", 10);
-  await ENTER[n]?.();
+  hold(true);
+  try {
+    await ENTER[n]?.();
+  } finally {
+    hold(false);
+  }
 }
 
-$("back").addEventListener("click", () => void show(Math.max(1, step - 1)));
+$("back").addEventListener("click", () => {
+  if (!busy) show(Math.max(1, step - 1)).catch(() => react("oops", 2200));
+});
 $("next").addEventListener("click", async () => {
   if (busy || $("next").disabled) return;
-  busy = true;
-  $("next").disabled = true;
+  const current = step;
+  hold(true);
+  let moved = false;
   try {
-    const ok = (await SAVE[step]?.()) ?? true;
+    const ok = (await SAVE[current]?.()) ?? true;
     if (!ok) return;
-    if (step === 6) localStorage.removeItem(PENDING);
-    await invoke("setup_step_done", { step });
-    if (step < 6) await show(step + 1);
+    if (current === 6) localStorage.removeItem(PENDING);
+    await invoke("setup_step_done", { step: current });
+    if (current < 6) {
+      moved = true;
+      await show(current + 1);
+    }
   } finally {
-    busy = false;
-    if (step !== 6 || answered) $("next").disabled = false;
-    if (step === 3) showFolder();
+    if (!moved) hold(false);
   }
 });
 // Enter continues, except where Enter means something else (a list, a typed colour, a button).
