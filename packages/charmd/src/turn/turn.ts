@@ -83,6 +83,8 @@ class TurnController {
   #generation = 0;
   #controller: AbortController | undefined;
   #speaking = false;
+  // When the charm's player will have played all the audio of this reply (#sendPaced).
+  #playedBy = 0;
   // While a turn runs: how a question pauses its clock; and a face a tool asked to keep after it.
   #asking:
     ((text: string, options: AskOptions) => Promise<boolean>) | undefined;
@@ -432,6 +434,7 @@ class TurnController {
         if (!this.#speaking) {
           this.#speaking = true;
           this.#state = "speaking";
+          this.#playedBy = 0;
           timings.firstAudioMs = now() - started;
           clock.started();
           this.#deps.send({ type: "tts", state: "start" });
@@ -578,15 +581,16 @@ class TurnController {
   ): Promise<void> {
     const sleep = this.#deps.sleep ?? sleepMs;
     const now = this.#deps.now ?? Date.now;
-    // When the player will have played everything sent, on the clock: adding up each packet's sleep
-    // instead let every late timer eat into the lead, and 20 ms packets ran dry within seconds.
-    let playedBy = now();
+    // Paced on the clock, across the reply's sentences: adding up each packet's sleep let every late
+    // timer eat into the lead (20 ms packets ran dry within seconds), and starting each sentence
+    // afresh forgot what the player still had, so the lead grew by a sentence's burst each time.
     for await (const packet of packets) {
       if (!live()) return;
       this.#deps.sendAudio(packet);
       onPacket();
-      playedBy = Math.max(playedBy, now()) + opusPacketSamples48k(packet) / 48;
-      const wait = playedBy - LEAD_MS - now();
+      this.#playedBy =
+        Math.max(this.#playedBy, now()) + opusPacketSamples48k(packet) / 48;
+      const wait = this.#playedBy - LEAD_MS - now();
       if (wait > 0) await sleep(wait);
     }
   }

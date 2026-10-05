@@ -123,7 +123,7 @@ Listening and speaking are chosen separately (spec 003); evidence for the defaul
 
 ## A turn (spec 003)
 
-Key held → `listening` face; released → `thinking` face → Ogg → speech-to-text → `stt` (text shown briefly) → the agent streams → split into sentences (the first one may be a clause of 20 characters or more, so it starts sooner) → text-to-speech per sentence, each with `tts sentence_start` (every sentence starts synthesizing as soon as it's written and plays from its first packet; Opus frames paced against the clock, about 250 ms ahead, so late timers never run the player dry) → `tts stop` → `idle`. The first sentence plays while the agent is still writing.
+Key held → `listening` face; released → `thinking` face → Ogg → speech-to-text → `stt` (text shown briefly) → the agent streams → split into sentences (the first one may be a clause of 20 characters or more, so it starts sooner) → text-to-speech per sentence, each with `tts sentence_start` (every sentence starts synthesizing as soon as it's written and plays from its first packet; Opus frames paced against the clock across the reply, about 250 ms ahead, so late timers never run the player dry and the captions keep up with the voice) → `tts stop` → `idle`. The first sentence plays while the agent is still writing.
 
 - Abort or a new key hold cancels everything in flight. Nothing heard → `idle` without asking the agent.
 - Failures: agent unreachable or an error → `failed` face + one line ("Can't reach Hermes"); no answer starting within `turnTimeoutSeconds` (60 s) → `failed`; once it speaks, a long answer plays to the end (a press stops it). "I'll tell you when it's done" arrives with notifications (post-MVP).

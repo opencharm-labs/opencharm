@@ -797,4 +797,35 @@ describe("pacing the reply's audio", () => {
     expect(sentMs).toBeGreaterThan(10_000);
     expect(leastAhead).toBeGreaterThan(0);
   });
+
+  it("stays about the same distance ahead from one sentence to the next, so the captions keep up with the voice", async () => {
+    let t = 0;
+    let firstAt: number | undefined;
+    let sentMs = 0;
+    let mostAhead = 0;
+    let lastPacketMs = 0;
+    const turn = new TurnController({
+      voice: createFakeVoice({ transcript: "tell me" }),
+      agent: createFakeAgent({
+        reply: () =>
+          "Here is the first sentence of the answer. Then a second one follows it. A third sentence comes next. And a fourth one here. The fifth sentence ends it all.",
+      }),
+      sessionKey: "opencharm-c_1",
+      send: () => undefined,
+      sendAudio: (packet) => {
+        firstAt ??= t;
+        lastPacketMs = opusPacketSamples48k(packet) / 48;
+        sentMs += lastPacketMs;
+        mostAhead = Math.max(mostAhead, sentMs - (t - firstAt));
+      },
+      timeoutMs: 5000,
+      now: () => t,
+      sleep: (ms) => {
+        t += ms + 3;
+        return Promise.resolve();
+      },
+    });
+    await speak(turn);
+    expect(mostAhead).toBeLessThanOrEqual(250 + lastPacketMs);
+  });
 });
