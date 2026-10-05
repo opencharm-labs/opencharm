@@ -340,6 +340,12 @@ fn agent_config(settings: &Settings, folder: &Folder) -> (Value, String) {
     }
 }
 
+/// The voice models still downloading (or failed), from charmd's status line for its voice (spec 003,
+/// "local+microsoft · Parakeet (listening) downloading 42%"): the voice's name comes first.
+pub fn voice_progress(voice: &str) -> Vec<String> {
+    voice.split(" · ").skip(1).map(String::from).collect()
+}
+
 /// The pipe's name from 16 random bytes.
 pub fn pipe_name(bytes: &[u8; 16]) -> String {
     let hex: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
@@ -1001,6 +1007,20 @@ mod tests {
         )
         .unwrap();
         dir
+    }
+
+    #[test]
+    fn reads_which_voice_models_are_still_downloading() {
+        assert_eq!(
+            voice_progress("local+microsoft · Parakeet (listening) downloading 42% · Supertonic (speaking) downloading 3%"),
+            vec!["Parakeet (listening) downloading 42%", "Supertonic (speaking) downloading 3%"]
+        );
+        assert_eq!(
+            voice_progress("local+microsoft · Parakeet (listening) failed"),
+            vec!["Parakeet (listening) failed"]
+        );
+        assert!(voice_progress("local+microsoft").is_empty());
+        assert!(voice_progress("").is_empty());
     }
 
     #[test]
