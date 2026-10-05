@@ -170,11 +170,13 @@ struct Managed {
 }
 
 impl Managed {
+    /// The admin channel of the charmd running now (Windows: its own pipe for this start).
     fn socket(&self) -> PathBuf {
-        if cfg!(windows) {
-            PathBuf::from(managed::PIPE)
-        } else {
+        let admin = self.charmd.status().admin;
+        if admin.is_empty() {
             self.data.join("charmd").join("charmd.sock")
+        } else {
+            PathBuf::from(admin)
         }
     }
 
@@ -185,6 +187,15 @@ impl Managed {
             .get_or_insert_with(managed::shell_env)
             .clone()
     }
+}
+
+/// The page is talking to the charmd this app runs, at the address it announced: only then does the
+/// app pair, type its PIN or drop the pairing.
+fn own_charmd(saved: &Saved, managed: &Managed, url: &str) -> Result<(), String> {
+    if !is_managed(saved) || !managed::is_announced(&managed.charmd.status().url, url) {
+        return Err("not the app's own charmd".into());
+    }
+    Ok(())
 }
 
 fn is_managed(saved: &Saved) -> bool {
@@ -200,44 +211,45 @@ fn app_identity(app: AppHandle) -> identity::Identity {
     )
 }
 
+/// The app's own charmd: only the address it announced while running (none yet: the page waits),
+/// so the charm never talks to whatever else holds a port. Another charmd: its address in Settings.
 #[tauri::command]
-fn charm_geometry(screen: State<Screen>, saved: State<Saved>) -> Geometry {
+fn charm_geometry(screen: State<Screen>, saved: State<Saved>, managed: State<Managed>) -> Geometry {
     let mut g = screen.0.lock().unwrap().clone();
     if g.url.is_none() {
         g.auto_pair = is_managed(&saved);
-        g.url = Some(if g.auto_pair {
-            managed::URL.into()
+        g.url = if g.auto_pair {
+            Some(managed.charmd.status().url).filter(|url| !url.is_empty())
         } else {
-            saved.settings.lock().unwrap().url.clone()
-        });
+            Some(saved.settings.lock().unwrap().url.clone())
+        };
     }
     g
 }
 
 /// The managed charmd shows a pairing code: pair with the app's PIN, no one types anything.
 #[tauri::command]
-fn auto_pair(saved: State<Saved>, managed: State<Managed>, code: String) -> Result<(), String> {
-    if !is_managed(&saved) {
-        return Err("not the app's own charmd".into());
-    }
+fn auto_pair(
+    saved: State<Saved>,
+    managed: State<Managed>,
+    code: String,
+    url: String,
+) -> Result<(), String> {
+    own_charmd(&saved, &managed, &url)?;
     pairing::pair(&managed.socket(), &code, &pairing::pin(&managed.data)?)
 }
 
 /// The PIN the charm types when it starts locked (the app's own charmd only).
 #[tauri::command]
-fn auto_pin(saved: State<Saved>, managed: State<Managed>) -> Result<String, String> {
-    if !is_managed(&saved) {
-        return Err("not the app's own charmd".into());
-    }
+fn auto_pin(saved: State<Saved>, managed: State<Managed>, url: String) -> Result<String, String> {
+    own_charmd(&saved, &managed, &url)?;
     pairing::pin(&managed.data)
 }
 
 /// The PIN was refused (a new or reset PIN file): drop the old pairing so the charm pairs again.
 #[tauri::command]
-fn auto_reset(saved: State<Saved>, managed: State<Managed>) -> Result<(), String> {
-    if !is_managed(&saved) {
-        return Err("not the app's own charmd".into());
-    }
+fn auto_reset(saved: State<Saved>, managed: State<Managed>, url: String) -> Result<(), String> {
+    own_charmd(&saved, &managed, &url)?;
     pairing::admin(
         &managed.socket(),
         &serde_json::json!({ "cmd": "revoke", "charm": pairing::NAME }),
@@ -928,6 +940,11 @@ pub fn run() {
                 charmd: Charmd::default(),
                 data: data_dir,
                 env: Mutex::new(None),
+            });
+            // A new address (or none, once it stops): the charm starts again on what was announced.
+            let handle = app.handle().clone();
+            app.state::<Managed>().charmd.on_url(move || {
+                let _ = handle.emit_to("charm", "charm-reload", ());
             });
             apply_managed(app.handle());
             if needs_setup && std::env::var("OPENCHARM_URL").is_err() {

@@ -1,7 +1,8 @@
 //! The charmd the app runs itself (spec 013): its config, built from the settings and the chosen
 //! folder, and the process, started with the installed `opencharm` CLI, restarted if it stops and
-//! stopped when the app quits. It listens on its own port with its own state, so a charmd started
-//! in a terminal is never disturbed.
+//! stopped when the app quits. It listens on a port the system gives it as it starts, with its own
+//! state, so a charmd started in a terminal is never disturbed and nobody else can hold its port
+//! first: the charm connects only to the address this charmd announces on its own output.
 
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Read};
@@ -15,11 +16,13 @@ use serde_json::{json, Value};
 
 use crate::settings::{Look, Settings, PRESETS};
 
-/// Not charmd's usual 8787, so a charmd you run in a terminal keeps its port.
-pub const PORT: u16 = 8790;
-pub const URL: &str = "ws://127.0.0.1:8790/charm";
-/// Windows has no Unix sockets for the admin channel; a named pipe of its own, not charmd's default.
-pub const PIPE: &str = r"\\.\pipe\opencharm-desktop";
+/// Windows has no Unix sockets for the admin channel: a named pipe, with a fresh random name for
+/// each start of charmd, so another user on the computer can't create it first (pipe names are
+/// visible to everyone) and receive our requests while charmd restarts.
+const PIPE_PREFIX: &str = r"\\.\pipe\opencharm-desktop-";
+/// How charmd announces its WebSocket (packages/charmd/src/daemon.ts): "charmd … listening on <url>".
+const LISTENING: &str = " listening on ";
+const LOOPBACK: &str = "ws://127.0.0.1:";
 const MARK: &str = "__OPENCHARM_ENV__";
 const LABELS: [(&str, &str); 6] = [
     ("claude", "Claude Code"),
@@ -58,6 +61,11 @@ pub struct Status {
     pub folder: String,
     /// Something to do that doesn't stop it, e.g. an `opencharm` older than the app.
     pub note: String,
+    /// Where this charmd listens, as it announced it ("" until then, and once it stops).
+    pub url: String,
+    /// Windows: this start's admin pipe ("" elsewhere: the socket in the data folder).
+    #[serde(skip)]
+    pub admin: String,
 }
 
 /// The `opencharm` to run: the one the app carries (its Node running the CLI's `main.mjs`, spec 013),
@@ -204,6 +212,8 @@ pub fn quiet(command: &mut Command) -> &mut Command {
 
 #[derive(Default)]
 struct Inner {
+    /// Told when the address changes (the charm reconnects only to the one announced).
+    on_url: Option<Arc<dyn Fn() + Send + Sync>>,
     child: Option<Child>,
     #[cfg(windows)]
     job: Option<job::Job>,
@@ -330,6 +340,57 @@ fn agent_config(settings: &Settings, folder: &Folder) -> (Value, String) {
     }
 }
 
+/// The pipe's name from 16 random bytes.
+pub fn pipe_name(bytes: &[u8; 16]) -> String {
+    let hex: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
+    format!("{PIPE_PREFIX}{hex}")
+}
+
+/// A new pipe name, never used before.
+pub fn fresh_pipe() -> String {
+    let mut bytes = [0u8; 16];
+    getrandom::fill(&mut bytes).expect("a random source");
+    pipe_name(&bytes)
+}
+
+/// The admin channel: a socket in the app's owner-only data folder, or (Windows) a fresh pipe,
+/// replaced again as charmd starts (`with_admin`).
+pub fn admin_path(data: &Path) -> PathBuf {
+    if cfg!(windows) {
+        PathBuf::from(fresh_pipe())
+    } else {
+        data.join("charmd").join("charmd.sock")
+    }
+}
+
+/// charmd's config with another admin channel.
+pub fn with_admin(config: &str, admin: &str) -> Result<String, String> {
+    let mut value: Value =
+        serde_json::from_str(config).map_err(|e| format!("charmd's config: {e}"))?;
+    value["adminSocket"] = json!(admin);
+    serde_json::to_string_pretty(&value).map_err(|e| e.to_string())
+}
+
+/// The page's address is the one this charmd announced (and it announced one).
+pub fn is_announced(announced: &str, page: &str) -> bool {
+    !announced.is_empty() && announced == page
+}
+
+/// The WebSocket address in charmd's own "listening on" line, only on this computer
+/// (`ws://127.0.0.1:<port>/charm`); anything else is ignored.
+pub fn listening_url(line: &str) -> Option<String> {
+    if !line.starts_with("charmd ") {
+        return None;
+    }
+    let url = line.split(LISTENING).nth(1)?.trim();
+    let port = url.strip_prefix(LOOPBACK)?.strip_suffix("/charm")?;
+    let valid = !port.is_empty()
+        && port.len() <= 5
+        && port.chars().all(|c| c.is_ascii_digit())
+        && port.parse::<u32>().is_ok_and(|p| (1..=65535).contains(&p));
+    valid.then(|| url.to_string())
+}
+
 /// charmd's config for these settings and this folder; `data` is the app's data folder.
 pub fn build_config(settings: &Settings, folder: &Folder, data: &Path) -> (Value, String) {
     let state = data.join("charmd");
@@ -356,13 +417,10 @@ pub fn build_config(settings: &Settings, folder: &Folder, data: &Path) -> (Value
     }
     let voice = json!({ "listen": listen, "speak": speak, "language": settings.language });
     let (agent, label) = agent_config(settings, folder);
-    let admin = if cfg!(windows) {
-        PIPE.to_string()
-    } else {
-        state.join("charmd.sock").to_string_lossy().to_string()
-    };
+    let admin = admin_path(data).to_string_lossy().to_string();
     let config = json!({
-        "listen": { "host": "127.0.0.1", "port": PORT },
+        // 0: the system picks a free port as charmd starts; charmd says which (listening_url).
+        "listen": { "host": "127.0.0.1", "port": 0 },
         "statePath": state.join("state.json").to_string_lossy(),
         "adminSocket": admin,
         "voice": voice,
@@ -725,6 +783,18 @@ pub fn stop_stale(pid_file: &Path, config: &Path) {
 pub fn stop_stale(_pid_file: &Path, _config: &Path) {}
 
 impl Charmd {
+    /// Called whenever the announced address changes or goes away.
+    pub fn on_url(&self, notify: impl Fn() + Send + Sync + 'static) {
+        self.0.lock().unwrap().on_url = Some(Arc::new(notify));
+    }
+
+    fn url_changed(&self) {
+        let notify = self.0.lock().unwrap().on_url.clone();
+        if let Some(notify) = notify {
+            notify();
+        }
+    }
+
     pub fn status(&self) -> Status {
         self.0.lock().unwrap().status.clone()
     }
@@ -732,12 +802,21 @@ impl Charmd {
     pub fn set_status(&self, status: Status) {
         let mut inner = self.0.lock().unwrap();
         inner.generation += 1;
-        if let Some(mut child) = inner.child.take() {
+        // The charm lets go of the address before charmd does: its port is anyone's once it's free.
+        let gone = !inner.status.url.is_empty();
+        inner.status = status;
+        let child = inner.child.take();
+        #[cfg(windows)]
+        let job = inner.job.take();
+        drop(inner);
+        if gone {
+            self.url_changed();
+        }
+        if let Some(mut child) = child {
             terminate(&mut child);
         }
         #[cfg(windows)]
-        drop(inner.job.take());
-        inner.status = status;
+        drop(job);
     }
 
     fn update(&self, generation: u64, change: impl FnOnce(&mut Status)) -> bool {
@@ -767,8 +846,15 @@ impl Charmd {
                 if started.elapsed() > Duration::from_secs(30) {
                     pause = 1;
                 }
-                if !me.update(generation, |s| s.state = "restarting".into()) {
+                let mut had_url = false;
+                if !me.update(generation, |s| {
+                    s.state = "restarting".into();
+                    had_url = !std::mem::take(&mut s.url).is_empty();
+                }) {
                     return;
+                }
+                if had_url {
+                    me.url_changed();
                 }
                 eprintln!("[charmd] stopped; starting again in {pause} s");
                 std::thread::sleep(Duration::from_secs(pause));
@@ -781,6 +867,14 @@ impl Charmd {
     }
 
     fn run_once(&self, launch: &Launch, generation: u64, pid_file: &Path) -> Result<(), String> {
+        // Windows: a pipe name nobody has seen yet for this start (see PIPE_PREFIX).
+        if cfg!(windows) {
+            let pipe = fresh_pipe();
+            let config = std::fs::read_to_string(&launch.config).map_err(|e| e.to_string())?;
+            std::fs::write(&launch.config, with_admin(&config, &pipe)?)
+                .map_err(|e| e.to_string())?;
+            self.update(generation, |s| s.admin = pipe);
+        }
         let mut child = launch
             .cli
             .command()
@@ -821,7 +915,12 @@ impl Charmd {
             std::thread::spawn(move || {
                 for line in BufReader::new(stream).lines().map_while(Result::ok) {
                     eprintln!("[charmd] {line}");
+                    let url = (!is_err).then(|| listening_url(&line)).flatten();
+                    let announced = url.is_some();
                     me.update(generation, |s| {
+                        if let Some(url) = url {
+                            s.url = url;
+                        }
                         if line.starts_with("Admin socket:") {
                             s.state = "running".into();
                             s.detail = String::new();
@@ -829,6 +928,13 @@ impl Charmd {
                             s.detail = line.clone();
                         }
                     });
+                    if announced {
+                        me.url_changed();
+                    }
+                }
+                // Its output closed: it's stopping, and its port may soon be anyone's.
+                if !is_err && me.update(generation, |s| s.url.clear()) {
+                    me.url_changed();
                 }
                 let _ = ended.send(());
             });
@@ -898,6 +1004,65 @@ mod tests {
     }
 
     #[test]
+    fn learns_its_address_only_from_charmds_own_line_on_this_computer() {
+        let line = "charmd (the charm daemon) cli@0.0.0 (abc1234) is listening on ws://127.0.0.1:53917/charm";
+        assert_eq!(
+            listening_url(line).as_deref(),
+            Some("ws://127.0.0.1:53917/charm")
+        );
+        assert_eq!(
+            listening_url("charmd listening on ws://127.0.0.1:8790/charm").as_deref(),
+            Some("ws://127.0.0.1:8790/charm")
+        );
+        for other in [
+            "charmd listening on ws://10.0.0.2:8790/charm",
+            "charmd listening on ws://127.0.0.1:0/charm",
+            "charmd listening on ws://127.0.0.1:99999/charm",
+            "charmd listening on ws://127.0.0.1:8790/charm?x",
+            "Admin socket: /tmp/a.sock",
+            "agent said: listening on ws://127.0.0.1:1234/charm",
+        ] {
+            assert_eq!(listening_url(other), None, "{other}");
+        }
+    }
+
+    #[test]
+    fn each_start_gets_its_own_admin_pipe_in_the_config() {
+        let config = r#"{"listen":{"host":"127.0.0.1","port":0},"adminSocket":"old"}"#;
+        let next: Value =
+            serde_json::from_str(&with_admin(config, r"\\.\pipe\x").unwrap()).unwrap();
+        assert_eq!(next["adminSocket"], r"\\.\pipe\x");
+        assert_eq!(next["listen"]["port"], 0);
+        assert!(with_admin("not json", "p").is_err());
+    }
+
+    #[test]
+    fn the_pin_goes_only_to_the_address_this_charmd_announced() {
+        assert!(is_announced(
+            "ws://127.0.0.1:5000/charm",
+            "ws://127.0.0.1:5000/charm"
+        ));
+        assert!(!is_announced(
+            "ws://127.0.0.1:5000/charm",
+            "ws://127.0.0.1:5001/charm"
+        ));
+        assert!(!is_announced("", ""));
+    }
+
+    #[test]
+    fn a_windows_pipe_name_nobody_can_guess() {
+        let a = pipe_name(&[7u8; 16]);
+        assert_eq!(
+            a,
+            r"\\.\pipe\opencharm-desktop-07070707070707070707070707070707"
+        );
+        assert_ne!(pipe_name(&[8u8; 16]), a);
+        assert!(!admin_path(Path::new("/d"))
+            .to_string_lossy()
+            .ends_with("opencharm-desktop"));
+    }
+
+    #[test]
     fn a_workspace_is_used_as_configured() {
         let dir = momo("momo-a");
         let folder = inspect_folder(&dir.to_string_lossy());
@@ -906,7 +1071,9 @@ mod tests {
         let data = Path::new("/data");
         let (config, label) = build_config(&Settings::default(), &folder, data);
         assert_eq!(label, "Claude Code");
-        assert_eq!(config["listen"]["port"], 8790);
+        // Port 0: the system gives this charmd a free port as it starts, so nobody can hold it first.
+        assert_eq!(config["listen"]["port"], 0);
+        assert_eq!(config["listen"]["host"], "127.0.0.1");
         assert_eq!(
             config["statePath"],
             data.join("charmd")

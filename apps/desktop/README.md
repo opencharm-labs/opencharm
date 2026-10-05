@@ -38,9 +38,9 @@ Each step is saved when you continue, so if you quit halfway it opens at the ste
 
 There's no code or PIN to type: the app pairs with its own charmd through charmd's owner-only admin socket. It keeps a random 12-digit PIN in a file only you can read, in the app's data folder (`pin`, owner-only), and types it when the charm starts locked. Not the keychain: an unsigned app's identity changes with each build, so macOS asked for the keychain item at every start, and anything running as you can already use charmd's owner-only admin socket. An install from before this pairs again by itself, once; its old keychain item stays there unused (Keychain Access can delete `dev.opencharm.desktop`, account `pin`). The keychain is read only for an OpenAI key, if you choose OpenAI.
 
-The app's charmd listens on port 8790, with its own config, state and log, so a charmd you run in a terminal (8787) is never touched. It restarts if it stops and quits with the app.
+The app's charmd listens on 127.0.0.1, on a free port the system gives it as it starts, with its own config, state and log, so a charmd you run in a terminal (8787) is never touched. The charm connects only to the address that charmd announces on its own output, never to a port someone else could hold first (another user on the same computer); on Windows its admin pipe has a random name for each run, for the same reason. It restarts if it stops (on a new port) and quits with the app.
 
-**Another charmd** (Settings → Advanced): connect to a charmd you run yourself. Run `opencharm serve`, open OpenCharm, then `opencharm pair <code>` with the code under the notch and choose a PIN. Click the panel, type the PIN and press Enter.
+**Another charmd** (Settings → Advanced): connect to a charmd you run yourself, at the address you give (so on a computer shared with other people, run it only while the app uses it: whoever holds that port gets the charm's connection). Run `opencharm serve`, open OpenCharm, then `opencharm pair <code>` with the code under the notch and choose a PIN. Click the panel, type the PIN and press Enter.
 
 **Settings:** from the menu-bar icon (the charm's head as a template image) or a right-click on the charm. Its footer shows what the app is, `desktop@<version> (<commit>)` (spec 015), for bug reports; the app's charm sends the same in its hello.
 
