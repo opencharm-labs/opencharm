@@ -157,6 +157,10 @@ pub struct Settings {
     pub look: Look,
     /// The macOS voice for the local voice ("" = the system's) when the workspace can't hold it.
     pub say_voice: String,
+    /// The guided setup's progress: the highest step finished (0 = not started, 6 = done).
+    pub setup_step: u32,
+    /// Where the setup last created a workspace, offered first next time.
+    pub setup_location: Option<String>,
 }
 
 impl Default for Settings {
@@ -181,6 +185,8 @@ impl Default for Settings {
             cli_path: None,
             look: Look::default(),
             say_voice: String::new(),
+            setup_step: 0,
+            setup_location: None,
         }
     }
 }

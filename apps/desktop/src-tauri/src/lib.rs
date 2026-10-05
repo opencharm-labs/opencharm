@@ -10,6 +10,7 @@ mod macos;
 mod managed;
 mod pairing;
 mod settings;
+mod setup;
 mod updates;
 mod voices;
 
