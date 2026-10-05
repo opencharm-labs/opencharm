@@ -3,6 +3,198 @@
   <head>
     <meta charset="utf-8" />
     <title>Set up OpenCharm</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="settings.css" />
+    <link rel="stylesheet" href="colour-picker.css" />
+    <link rel="stylesheet" href="setup.css" />
+    <script src="charm-face.js"></script>
   </head>
-  <body></body>
+  <body class="setup">
+    <header>
+      <div class="charm" id="face" aria-hidden="true"></div>
+      <p class="mono dim" id="charm-name"></p>
+    </header>
+
+    <main>
+      <section data-step="1" aria-labelledby="t1">
+        <p class="mono dim">STEP 1 OF 6</p>
+        <h1 id="t1">Hi! Let's set up your charm.</h1>
+        <p class="lede">
+          It lives at the top of your screen and talks with the agent you
+          already use. Hold <kbd data-key></kbd> in any app to talk to it; press
+          it to stop it.
+        </p>
+        <p class="note">
+          Six short steps: your agent, its folder, a name and a colour, its
+          voice, and a first hello.
+        </p>
+      </section>
+
+      <section data-step="2" aria-labelledby="t2" hidden>
+        <p class="mono dim">STEP 2 OF 6</p>
+        <h1 id="t2">Which agent should it talk to?</h1>
+        <div
+          class="choices compact"
+          id="agents"
+          role="radiogroup"
+          aria-labelledby="t2"
+        ></div>
+        <div class="extra" id="other-row" hidden>
+          <select id="other-kind" aria-label="What kind of agent">
+            <option value="command">An ACP agent, by its command</option>
+            <option value="server">A server (OpenAI-compatible)</option>
+          </select>
+          <input
+            id="command"
+            spellcheck="false"
+            placeholder="my-agent --acp"
+            aria-label="The agent's command"
+          />
+          <input
+            id="server-url"
+            spellcheck="false"
+            placeholder="http://127.0.0.1:8642/v1"
+            aria-label="The server's address"
+          />
+          <input
+            id="server-model"
+            spellcheck="false"
+            placeholder="model"
+            aria-label="The model"
+          />
+        </div>
+        <p class="note" id="agent-note"></p>
+      </section>
+
+      <section data-step="3" aria-labelledby="t3" hidden>
+        <p class="mono dim">STEP 3 OF 6</p>
+        <h1 id="t3">Its folder</h1>
+        <p class="lede">Where your agent keeps its notes and does its work.</p>
+        <div class="choices" role="radiogroup" aria-labelledby="t3">
+          <label class="choice">
+            <input type="radio" name="folder-mode" value="create" checked />
+            <span class="grow"
+              ><strong>Create a new workspace</strong
+              ><span class="note"
+                >A copy of the starter, ready for your charm. Recommended.</span
+              ></span
+            >
+          </label>
+          <label class="choice">
+            <input type="radio" name="folder-mode" value="existing" />
+            <span class="grow"
+              ><strong>Use a folder I have</strong
+              ><span class="note"
+                >A workspace, or any folder your agent should work in.</span
+              ></span
+            >
+          </label>
+        </div>
+        <div class="extra" id="create-form">
+          <label class="mono" for="ws-name">NAME</label>
+          <input
+            id="ws-name"
+            spellcheck="false"
+            maxlength="64"
+            value="my-charm"
+          />
+          <span class="mono">LOCATION</span>
+          <div class="row">
+            <span class="path grow" id="ws-location"></span>
+            <button type="button" class="pill ghost small" id="browse">
+              Browse…
+            </button>
+          </div>
+          <p class="note" id="ws-target"></p>
+        </div>
+        <div class="extra" id="existing-form" hidden>
+          <div class="row">
+            <span class="path grow" id="existing-path"
+              >No folder chosen yet.</span
+            >
+            <button type="button" class="pill ghost small" id="choose">
+              Choose…
+            </button>
+          </div>
+        </div>
+        <p class="note" id="folder-note"></p>
+      </section>
+
+      <section data-step="4" aria-labelledby="t4" hidden>
+        <p class="mono dim">STEP 4 OF 6</p>
+        <h1 id="t4">Your charm</h1>
+        <p class="lede">
+          Give it a name and a colour. You can change both later.
+        </p>
+        <label class="mono" for="look-name">NAME</label>
+        <input id="look-name" maxlength="12" spellcheck="false" />
+        <span class="mono" id="colour-label">COLOUR</span>
+        <div id="colours"></div>
+        <p class="note" id="look-note"></p>
+      </section>
+
+      <section data-step="5" aria-labelledby="t5" hidden>
+        <p class="mono dim">STEP 5 OF 6</p>
+        <h1 id="t5">Its voice</h1>
+        <label class="mono" for="speak">SPEAKING</label>
+        <select id="speak">
+          <option value="microsoft">Microsoft's voices (free, online)</option>
+          <option value="local">On this computer (private)</option>
+          <option value="system">A macOS voice</option>
+        </select>
+        <p class="note" id="speak-note"></p>
+        <label class="mono" for="language">LANGUAGE</label>
+        <select id="language">
+          <option value="en">English</option>
+          <option value="it">Italiano</option>
+          <option value="es">Español</option>
+          <option value="fr">Français</option>
+          <option value="de">Deutsch</option>
+          <option value="pt">Português</option>
+        </select>
+        <p class="note">
+          It answers in the language you speak; this one is for when it can't
+          tell. It hears you on this computer: the first time, it downloads
+          about 490 MB.
+        </p>
+        <div class="row mic-row">
+          <button type="button" class="pill ghost small" id="mic">
+            Allow the microphone
+          </button>
+          <p class="note grow" id="mic-note">
+            It listens only while you hold the key.
+          </p>
+        </div>
+      </section>
+
+      <section data-step="6" aria-labelledby="t6" hidden>
+        <p class="mono dim">STEP 6 OF 6</p>
+        <h1 id="t6">Say hi</h1>
+        <p class="lede">Hold <kbd data-key></kbd>, say hi, and let go.</p>
+        <ul class="checks">
+          <li id="check-awake"><span class="dot"></span>Your charm is awake</li>
+          <li id="check-heard"><span class="dot"></span>It heard you</li>
+          <li id="check-answered">
+            <span class="dot"></span>Your agent answered
+          </li>
+        </ul>
+        <p class="note" id="try-note"></p>
+        <div class="row">
+          <button type="button" class="pill ghost small" id="retry" hidden>
+            Start it again
+          </button>
+          <button type="button" class="pill ghost small" id="finish">
+            Finish anyway
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <button type="button" class="pill ghost" id="back">Back</button>
+      <div class="dots" id="dots" aria-hidden="true"></div>
+      <button type="button" class="pill" id="next">Continue</button>
+    </footer>
+    <script type="module" src="setup.js"></script>
+  </body>
 </html>

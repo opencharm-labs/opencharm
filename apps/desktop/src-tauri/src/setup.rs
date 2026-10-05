@@ -100,6 +100,20 @@ pub fn find_command(path: &OsStr, extensions: &[String], name: &str) -> Option<P
         .find(|candidate| candidate.is_file())
 }
 
+/// Where to get each agent the setup offers (checked 5 October 2026). Kept here, not in the page,
+/// so the window can open only these.
+pub fn install_page(agent: &str) -> Option<&'static str> {
+    match agent {
+        "claude" => Some("https://code.claude.com/docs/en/setup"),
+        "codex" => Some("https://github.com/openai/codex"),
+        "gemini" => Some("https://github.com/google-gemini/gemini-cli"),
+        "goose" => Some("https://github.com/aaif-goose/goose"),
+        "hermes" => Some("https://github.com/NousResearch/hermes-agent"),
+        "openclaw" => Some("https://github.com/openclaw/openclaw"),
+        _ => None,
+    }
+}
+
 /// Where a new workspace is offered: the Documents folder, else home.
 pub fn default_location(documents: Option<PathBuf>, home: Option<PathBuf>) -> Option<PathBuf> {
     documents.or(home)
@@ -221,6 +235,17 @@ mod tests {
         );
         assert_eq!(find_command(&path, &exts, "gemini"), None);
         fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn knows_where_to_get_every_agent_it_offers_and_nothing_else() {
+        for agent in crate::settings::PRESETS {
+            assert!(
+                install_page(agent).is_some_and(|u| u.starts_with("https://")),
+                "{agent}"
+            );
+        }
+        assert_eq!(install_page("https://evil.example"), None);
     }
 
     #[test]

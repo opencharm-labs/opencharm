@@ -436,6 +436,15 @@ async fn create_new_workspace(
     Ok(target.to_string_lossy().to_string())
 }
 
+/// An agent's install page, from the setup's agent step: only the ones setup.rs knows.
+#[tauri::command]
+fn open_install_page(app: AppHandle, agent: String) -> Result<(), String> {
+    let page = setup::install_page(&agent).ok_or("not an agent the setup offers")?;
+    app.opener()
+        .open_url(page, None::<&str>)
+        .map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 fn open_setup(app: AppHandle) -> Result<(), String> {
     show_setup(&app).map_err(|e| e.to_string())
@@ -883,6 +892,7 @@ pub fn run() {
             detect_agents,
             create_new_workspace,
             open_setup,
+            open_install_page,
             offer_update,
             update_offered,
             open_release,
