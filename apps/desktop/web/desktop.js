@@ -12,15 +12,9 @@ addEventListener("unhandledrejection", (e) => log(`error: ${e.reason}`));
 log("starting");
 // A reload (charmd restarted, a new address) may come while the panel is open: start small.
 void invoke("panel", { open: false });
-// Listening first, before anything is awaited, so a new address (or none) is never missed.
+// A new charmd address in Settings, or another screen: the page starts again.
 await listen("charm-reload", () => location.reload());
-// The app's own charmd gets a port from the system as it starts: wait until it has said which,
-// rather than knocking on a port someone else may hold.
-let geometry = await invoke("charm_geometry");
-while (geometry.autoPair && !geometry.url) {
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  geometry = await invoke("charm_geometry");
-}
+const geometry = await invoke("charm_geometry");
 log(`geometry ${JSON.stringify(geometry)}`);
 const query = new URLSearchParams(location.search);
 query.set("shape", "notch");
@@ -35,14 +29,14 @@ query.set("version", (await invoke("app_identity")).version);
 window.charmParams = query.toString();
 // Automated tests keep the charm's token apart from the real one (OPENCHARM_DATA).
 if (geometry.store) window.charmStore = geometry.store;
-// Before every reconnect: the app's own charmd may have stopped or moved; never knock on a port it
-// no longer holds (someone else may have it by now). Its new address comes with a reload.
+// The app's own charmd gets its port from the system as it starts, and a new one when it restarts:
+// the charm asks before every connection, waits while there's none, and never knocks on a port it
+// no longer holds (someone else may have it by now). Meanwhile its eyes wake in the notch.
+let connectedUrl = geometry.url ?? null;
 if (geometry.autoPair)
-  window.charmMayConnect = async (url) => {
-    const now = (await invoke("charm_geometry")).url;
-    if (now === url) return true;
-    location.reload();
-    return false;
+  window.charmConnectTo = async () => {
+    connectedUrl = (await invoke("charm_geometry")).url ?? null;
+    return connectedUrl;
   };
 
 try {
@@ -87,7 +81,26 @@ function wake(why) {
   log(`awake (${why})`);
   if (charmOpen) panel(true);
 }
-if (!awake) setTimeout(() => wake("not unlocked after 15 s"), 15_000);
+let wakeTimer;
+let unlockTimer;
+if (!awake)
+  wakeTimer = setTimeout(() => wake("not unlocked after 15 s"), 15_000);
+// charmd stopped or moved (a restart, a new port): the panel shuts while the charm finds it again,
+// exactly as at the start, and the charm reconnects without the page starting over.
+await listen("charm-moved", async () => {
+  // The first announcement may come after the charm already found it: nothing moved then.
+  const now = (await invoke("charm_geometry")).url ?? null;
+  if (now && now === connectedUrl) return;
+  if (geometry.autoPair) {
+    awake = false;
+    unlocked = false;
+    clearTimeout(wakeTimer);
+    clearTimeout(unlockTimer);
+    wakeTimer = setTimeout(() => wake("not unlocked after 15 s"), 15_000);
+    if (!typing) panel(false);
+  }
+  window.charmSim.reconnect();
+});
 
 // While the field is shown the panel stays open, and it re-fits whenever either side changes.
 window.charmSim.panel = (open, height) => {
@@ -158,9 +171,9 @@ if (geometry.autoPair && (!geometry.testPin || geometry.testPin === "auto")) {
     if (m.type !== "charm") return;
     try {
       if (m.op === "pair_code")
-        await invoke("auto_pair", { code: m.code, url: geometry.url });
+        await invoke("auto_pair", { code: m.code, url: connectedUrl });
       if (m.op === "locked" && m.reason === "boot") {
-        const pin = await invoke("auto_pin", { url: geometry.url });
+        const pin = await invoke("auto_pin", { url: connectedUrl });
         // Typed once the PIN screen is up (the charm may still be waking), all at once.
         for (let waited = 0; !window.charmSim.pinReady(); waited += 100) {
           if (waited > 10_000) throw new Error("the PIN screen didn't come up");
@@ -169,7 +182,7 @@ if (geometry.autoPair && (!geometry.testPin || geometry.testPin === "auto")) {
         for (const key of [...pin, "OK"]) window.charmSim.pinKey(key);
       }
       if (m.op === "locked" && m.reason === "wrong_pin")
-        await invoke("auto_reset", { url: geometry.url });
+        await invoke("auto_reset", { url: connectedUrl });
     } catch (error) {
       log(`automatic pairing: ${error}`);
     }
@@ -184,7 +197,7 @@ window.charmSim.onMessage = (m) => {
   // panel change comes, a moment later anyway.
   if (m.type === "charm" && m.op === "unlocked") {
     unlocked = true;
-    setTimeout(() => wake("unlocked"), 500);
+    unlockTimer = setTimeout(() => wake("unlocked"), 500);
   }
   // Locked from outside (`opencharm lock`) or blocked after wrong PINs: that's for you to see.
   if (

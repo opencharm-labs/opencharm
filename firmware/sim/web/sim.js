@@ -175,9 +175,13 @@ addEventListener("online", () => ws?.close());
 
 async function connect() {
   if (!wifiOn) return;
-  // A host page may hold a connection back: the desktop app checks its own charmd's address first.
-  if (window.charmMayConnect && !(await window.charmMayConnect(baseUrl)))
+  // A host page may say where to connect, or "not yet" (null: asked again shortly): the desktop app's
+  // own charmd gets its port only as it starts, and may move when it restarts.
+  const url = window.charmConnectTo ? await window.charmConnectTo() : baseUrl;
+  if (!url) {
+    setTimeout(connect, 500);
     return;
+  }
   const token = M.UTF8ToString(M._sim_token());
   // The token rides as a WebSocket subprotocol: browsers can't set Authorization, and a token must
   // never go in a URL (proxies and logs keep URLs).
@@ -185,7 +189,7 @@ async function connect() {
     ? ["opencharm", `opencharm.token.${token}`]
     : ["opencharm"];
   statusEl.textContent = "CONNECTING";
-  ws = new WebSocket(baseUrl, protocols);
+  ws = new WebSocket(url, protocols);
   ws.binaryType = "arraybuffer";
   ws.onopen = () => {
     trace.connected = true;
