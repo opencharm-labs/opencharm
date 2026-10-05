@@ -9,7 +9,8 @@
     "./build-faces-header": "./src/build-faces-header.ts",
     "./faces.json": "./faces.json",
     "./tokens.json": "./tokens.json",
-    "./charm-face.js": "./src/charm-face.js"
+    "./charm-face.js": "./src/charm-face.js",
+    "./own-colour": "./src/own-colour.ts"
   },
   "scripts": {
     "export": "tsx scripts/export-faces.ts",
