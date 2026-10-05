@@ -33,6 +33,8 @@ class LvglView : public View {
   void on_panel(void (*callback)(void* ctx, bool open, int height), void* ctx);
   // One key of the PIN pad ("0"…"9", "<", "OK"): the touch pad and a keyboard both end up here.
   void press_pad_key(const char* key);
+  // The PIN screen is up and takes keys (the desktop app types its PIN only then).
+  bool pin_ready() const { return mode_ == Mode::Pin; }
 
   // For tests: where a PIN key is, and what the PIN title says.
   bool pin_key_area(const char* label, lv_area_t& out) const;
