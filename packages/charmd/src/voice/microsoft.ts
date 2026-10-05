@@ -16,6 +16,8 @@ type MicrosoftOptions = {
   // Tests point at a local server.
   url?: string;
   timeoutMs?: number;
+  // How long a connection opened ahead (prime) waits for its sentence before it's let go.
+  spareMs?: number;
 };
 
 const TRUSTED_CLIENT_TOKEN = "6A5AA1D4EAFF4E9FB37E23D68491D6F4";
@@ -96,26 +98,33 @@ function voiceFor(language: string, voices: Record<string, string>): string {
   return voices[language] ?? voices.en ?? DEFAULT_VOICES.en!;
 }
 
+function openSocket(options: MicrosoftOptions): WebSocket {
+  const connection = randomUUID().replace(/-/g, "");
+  const url =
+    `${options.url ?? SERVICE_URL}?TrustedClientToken=${TRUSTED_CLIENT_TOKEN}` +
+    `&Sec-MS-GEC=${secMsGec()}&Sec-MS-GEC-Version=${GEC_VERSION}&ConnectionId=${connection}`;
+  return new WebSocket(url, {
+    headers: { "User-Agent": USER_AGENT, Origin: ORIGIN },
+    handshakeTimeout: options.timeoutMs ?? 15_000,
+  });
+}
+
+// One sentence on a connection: `ready` is one opened ahead (prime), else a new one.
 function connect(
   text: string,
   language: string,
   voices: Record<string, string>,
   signal: AbortSignal,
-  options: MicrosoftOptions
+  options: MicrosoftOptions,
+  ready?: WebSocket
 ): AsyncIterable<Buffer> {
   const timeoutMs = options.timeoutMs ?? 15_000;
   const connection = randomUUID().replace(/-/g, "");
-  const url =
-    `${options.url ?? SERVICE_URL}?TrustedClientToken=${TRUSTED_CLIENT_TOKEN}` +
-    `&Sec-MS-GEC=${secMsGec()}&Sec-MS-GEC-Version=${GEC_VERSION}&ConnectionId=${connection}`;
   const packets = createChannel<Buffer>();
   const reader = new WebmOpusReader();
   let sent = 0;
   let settled = false;
-  const socket = new WebSocket(url, {
-    headers: { "User-Agent": USER_AGENT, Origin: ORIGIN },
-    handshakeTimeout: timeoutMs,
-  });
+  const socket = ready ?? openSocket(options);
   const finish = (error?: Error) => {
     if (settled) return;
     settled = true;
@@ -137,7 +146,7 @@ function connect(
   );
   if (signal.aborted) onAbort();
   else signal.addEventListener("abort", onAbort, { once: true });
-  socket.on("open", () => {
+  const request = () => {
     socket.send(
       message(
         "speech.config",
@@ -165,7 +174,9 @@ function connect(
         connection
       )
     );
-  });
+  };
+  if (socket.readyState === WebSocket.OPEN) request();
+  else socket.once("open", request);
   socket.on("message", (data, isBinary) => {
     const frame = Buffer.isBuffer(data)
       ? data
@@ -201,10 +212,39 @@ function connect(
 
 function createMicrosoftSpeaker(options: MicrosoftOptions = {}) {
   const voices = { ...DEFAULT_VOICES, ...options.voices };
+  const spareMs = options.spareMs ?? 30_000;
+  // Opening a connection takes about 400 ms (measured, 5 October 2026), most of the wait for the
+  // first word of a short reply: one is opened while the key is held and used by the next sentence.
+  // Used once, so nothing depends on the service taking several requests on one connection.
+  let spare: { socket: WebSocket; until: number } | undefined;
+  const takeSpare = (): WebSocket | undefined => {
+    const taken = spare;
+    spare = undefined;
+    if (!taken) return undefined;
+    const open =
+      taken.socket.readyState === WebSocket.OPEN ||
+      taken.socket.readyState === WebSocket.CONNECTING;
+    if (open && Date.now() < taken.until) return taken.socket;
+    taken.socket.terminate();
+    return undefined;
+  };
+  const prime = () => {
+    if (spare) return;
+    const socket = openSocket(options);
+    // Idle until a sentence takes it: a failure here only means the sentence opens its own.
+    socket.on("error", () => undefined);
+    spare = { socket, until: Date.now() + spareMs };
+    setTimeout(() => {
+      if (spare?.socket !== socket) return;
+      spare = undefined;
+      socket.terminate();
+    }, spareMs).unref();
+  };
   const stream = (text: string, signal: AbortSignal, language = "en") =>
-    connect(text, language, voices, signal, options);
+    connect(text, language, voices, signal, options, takeSpare());
   return {
     name: "microsoft",
+    prime,
     stream,
     async synthesize(
       text: string,
