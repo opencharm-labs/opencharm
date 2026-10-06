@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties } from "react";
 import { MONO, SANS } from "../fonts";
 
 // Brand resources share the site's section head: an ink number tag, a mono label, a Geist title.
@@ -84,36 +84,6 @@ export function Address({ dark = false }: { dark?: boolean }) {
       }}
     >
       OPENCHARM.DEV
-    </div>
-  );
-}
-
-// A box that draws a 1920 × 1080 scene at another size and place.
-export function Fit({
-  x,
-  y,
-  scale,
-  children,
-}: {
-  x: number;
-  y: number;
-  scale: number;
-  children: ReactNode;
-}) {
-  return (
-    <div
-      style={{
-        position: "absolute",
-        left: x,
-        top: y,
-        width: 1920,
-        height: 1080,
-        transform: `scale(${scale})`,
-        transformOrigin: "0 0",
-        overflow: "hidden",
-      }}
-    >
-      {children}
     </div>
   );
 }

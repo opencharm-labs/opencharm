@@ -5,7 +5,7 @@ import { NotchCharm, type NotchState } from "../charm/notch";
 import { MONO } from "../fonts";
 import { MacStage } from "../mac/mac-stage";
 import { SCREEN } from "../mac/mac-screen";
-import { type Camera } from "../scenes/notch-timeline";
+import { type Camera, notchEyes, toOutput } from "../scenes/notch-timeline";
 import { TalkKeys } from "../ui/keycaps";
 import { Leader, Paper, PAPER, Sheet } from "../ui/sheet";
 import { Address, Head } from "./layout";
@@ -22,6 +22,19 @@ const AGENTS: [string, ColourId, string][] = [
   ["OpenClaw", "coal", "happy"],
 ];
 
+const MOODS: [string, ColourId, string, string][] = [
+  ["Reading the codebase…", "white", "thinking", "THINKING"],
+  ["Running migrations…", "cobalt", "focused", "WORKING"],
+  ["Done. 48 passing.", "lime", "joy", "DONE"],
+  ["New skill: deploys.", "lilac", "learned", "LEARNED"],
+  ["Noted: dark mode.", "sun", "wink", "NOTED"],
+  ["", "coal", "sleepy", "ASLEEP"],
+];
+
+// Function declarations are hoisted, so the list can sit with the constants.
+const STILLS = [Hero, Moods, Talk, NeedsYou, Agents, Body];
+export const STILL_COUNT = STILLS.length;
+
 type CharmSpec = Omit<Partial<NotchState>, "face" | "colour"> & {
   face: string;
   colour?: ColourId;
@@ -36,15 +49,10 @@ const charm = ({ face: f, colour: c, ...rest }: CharmSpec): NotchState => ({
   colour: colour(c ?? "white"),
 });
 
-// A point on the Mac screen, in this frame's pixels.
-function at(cam: Camera, x: number, y: number, w: number, h: number) {
-  return { x: w / 2 + (x - cam.cx) * cam.z, y: h / 2 + (y - cam.cy) * cam.z };
-}
-
 function Hero() {
   const { width: w, height: h } = useVideoConfig();
   const cam: Camera = { cx: SCREEN.w / 2, cy: 171, z: 2.6, roll: 0 };
-  const eye = at(cam, SCREEN.w / 2 + 196 / 2 + 37 * 0.85, 18.5, w, h);
+  const eye = notchEyes(cam, w, h).right;
   return (
     <>
       <MacStage
@@ -58,7 +66,7 @@ function Hero() {
       <Leader
         p={1}
         from={{ x: 1330, y: 680 }}
-        to={{ x: eye.x, y: at(cam, 0, 118, w, h).y + 8 }}
+        to={{ x: eye.x, y: toOutput(cam, 0, 118, w, h).y + 8 }}
         title="THE DESKTOP CHARM"
         note="MACOS · WINDOWS"
         align="left"
@@ -74,15 +82,6 @@ function Hero() {
     </>
   );
 }
-
-const MOODS: [string, ColourId, string, string][] = [
-  ["Reading the codebase…", "white", "thinking", "THINKING"],
-  ["Running migrations…", "cobalt", "focused", "WORKING"],
-  ["Done. 48 passing.", "lime", "joy", "DONE"],
-  ["New skill: deploys.", "lilac", "learned", "LEARNED"],
-  ["Noted: dark mode.", "sun", "wink", "NOTED"],
-  ["", "coal", "sleepy", "ASLEEP"],
-];
 
 // Six charms by their notch, in a spec table: the panel's line, and a mono label under it.
 function Tiles({ items }: { items: [string, ColourId, string, string][] }) {
@@ -162,7 +161,7 @@ function Moods() {
 function Talk() {
   const { width: w, height: h } = useVideoConfig();
   const cam: Camera = { cx: SCREEN.w / 2, cy: 120, z: 3.7, roll: 0 };
-  const eye = at(cam, SCREEN.w / 2 + 196 / 2 + 37 * 0.85, 37, w, h);
+  const eye = notchEyes(cam, w, h).right;
   return (
     <>
       <MacStage
@@ -172,7 +171,7 @@ function Talk() {
       <Leader
         p={1}
         from={{ x: 1300, y: 470 }}
-        to={{ x: eye.x, y: eye.y + 14 }}
+        to={{ x: eye.x, y: eye.y + 30 }}
         title="LISTENING"
         note="THE EYES SWELL WITH YOUR VOICE"
         align="left"
@@ -279,8 +278,6 @@ function Body() {
   );
 }
 
-const STILLS = [Hero, Moods, Talk, NeedsYou, Agents, Body];
-
 export function Still({ index }: { index: number }) {
   const Scene = STILLS[index] ?? Hero;
   return (
@@ -291,5 +288,3 @@ export function Still({ index }: { index: number }) {
     </div>
   );
 }
-
-export const STILL_COUNT = STILLS.length;

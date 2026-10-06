@@ -21,9 +21,9 @@ scripts/sheets.sh out/opencharm.mp4       # contact sheets (one frame per beat) 
 | ----------------------------------- | ------------------------------------------------------------------------------------------------------------ |
 | `still-wide-1…6.png`                | 2540 × 1520 stills (1270 × 760 at 2x): the charm, the moods, the key, the question, the agents, the hardware |
 | `icon-animated-240.gif`, `-480.gif` | the app icon, alive: a blink, a glance, a wink; it loops                                                     |
-| `clip-square-1…6.mp4`               | 1080 × 1080 cuts of the film, one idea each, silent                                                          |
+| `clip-square-1…7.mp4`               | 1080 × 1080 cuts of the film, one idea each, silent                                                          |
 
-The square clips play the rendered film (copied to `public/film.mp4`, ignored by git), so they always match it. The compositions are in `src/kit/`.
+The kit renders the film first and the square clips play it (copied to `public/film.mp4`, ignored by git), so they always match it; their cuts follow the film's scenes (`CUTS` in `src/track.ts`). The compositions are in `src/kit/`.
 
 ## The music
 

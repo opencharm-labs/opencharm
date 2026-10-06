@@ -10,6 +10,7 @@ Config.setJpegQuality(95);
 // three.js needs a real GPU path in headless Chrome.
 Config.setChromiumOpenGlRenderer("angle");
 Config.setCodec("h264");
+Config.setCrf(16);
 Config.overrideWebpackConfig((config) => ({
   ...config,
   resolve: {

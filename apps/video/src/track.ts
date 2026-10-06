@@ -9,6 +9,8 @@ export const TRACK = {
   firstBeat: 0,
 };
 export const BEATS = 84;
+// Where each scene of the film starts, in beats: the film and its square cuts both read these.
+export const CUTS = { agents: 60, body: 68, finale: 75 };
 
 export const beat = (n: number): number =>
   Math.round((TRACK.firstBeat + (n * 60) / TRACK.bpm) * FPS);
