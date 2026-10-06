@@ -7,6 +7,7 @@
   --dim: #6e6e6e;
   --line: rgba(10, 10, 10, 0.22);
   --signal: #ff5a1f;
+  --grid-minor: 20px;
   font-family:
     "Geist",
     ui-sans-serif,
@@ -36,7 +37,7 @@
 body {
   margin: 0;
   /* A resized window centres a column of at most 560px rather than stretch the fields across it. */
-  padding: 20px max(20px, calc(50% - 280px));
+  padding: var(--grid-minor) max(var(--grid-minor), calc(50% - 280px));
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -100,7 +101,7 @@ form {
 section {
   background: #fff;
   border: 1.5px solid var(--ink);
-  padding: 20px;
+  padding: var(--grid-minor);
   display: flex;
   flex-direction: column;
   gap: 8px;
