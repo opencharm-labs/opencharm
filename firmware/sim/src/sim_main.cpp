@@ -86,6 +86,10 @@ EMSCRIPTEN_KEEPALIVE void sim_set_build(const char* kind, const char* version) {
 
 EMSCRIPTEN_KEEPALIVE const char* sim_commit() { return charm::kBuildCommit; }
 
+// The notch panel's bottom corner radius in pixels: the page clips the open panel to it, so the
+// orange outline, drawn with the same radius, is never cut.
+EMSCRIPTEN_KEEPALIVE int sim_panel_radius() { return charm::kNotchPanelRadius; }
+
 // notch_width > 0: the notch shape (desktop charm); strip_height is the menu-bar strip in pixels.
 EMSCRIPTEN_KEEPALIVE uint8_t* sim_init(int width, int height, int round, uint32_t glyph,
                                        int notch_width, int strip_height) {

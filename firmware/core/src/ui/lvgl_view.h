@@ -9,6 +9,11 @@
 
 namespace charm {
 
+// The open notch panel's bottom corner radius, in pixels (30 pt at 2x). The emulator's page reads
+// it (sim_panel_radius) and clips the open panel to it, so the orange outline, drawn with it, is
+// never cut.
+constexpr int kNotchPanelRadius = 60;
+
 struct ViewOptions {
   bool round = false;         // round screens keep content inside the circle
   uint32_t glyph = 0xF4F3EE;  // the charm's identity glyph colour (white charm by default)
@@ -64,6 +69,9 @@ class LvglView : public View {
   void set_line(std::string_view text, bool typed);
   void set_mode(Mode mode);
   void place_line();
+  void reset_hint();
+  void set_hint(std::string_view yes, std::string_view no, const char* gap, int letter_space);
+  int hint_width(int letter_space) const;
   void apply_notch(const design::Face& f, float breath, float sx, float sy, float swell,
                    float spin);
   void update_panel();
