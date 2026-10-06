@@ -282,12 +282,15 @@ class TurnController {
           try {
             return await ask(text, { ...options, signal });
           } finally {
-            asking = false;
+            // Questions can be open at once (parallel tools): the turn's clock waits until the last
+            // is answered, then restarts once, never leaving a second timer behind to cut the reply.
             if (--this.#questions === 0) {
+              asking = false;
               this.#questionsEnd = undefined;
               this.#endQuestions();
+              clearTimeout(timer);
+              if (!signal.aborted) timer = startClock();
             }
-            if (!signal.aborted) timer = startClock();
           }
         };
       const reply = this.#deps.agent.reply({
