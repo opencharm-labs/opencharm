@@ -15,6 +15,8 @@ type Beat = {
   hint?: string;
   ring?: number;
   speak?: boolean;
+  // the mood's name and what it means, for the note on the drawing
+  note?: [string, string];
 };
 
 export type Camera = { cx: number; cy: number; z: number; roll: number };
@@ -28,15 +30,33 @@ const HINT = "HOLD · YES     PRESS · NO";
 const SCRIPT: Beat[] = [
   { b: 0, face: "neutral", colour: "white", open: 0, panel: LINE_PANEL },
   { b: 15, face: "happy" },
-  { b: 16, face: "focused", open: 1, text: "Running the tests…" },
-  { b: 18, face: "strain", text: "3 failing. Trying again." },
-  { b: 20, face: "joy", colour: "cobalt", text: "All 48 pass. Pushed." },
+  {
+    b: 16,
+    face: "focused",
+    open: 1,
+    text: "Running the tests…",
+    note: ["WORKING", "A TOOL OR A LONG TASK IS RUNNING"],
+  },
+  {
+    b: 18,
+    face: "strain",
+    text: "3 failing. Trying again.",
+    note: ["STUCK", "RETRIES ARE PILING UP"],
+  },
+  {
+    b: 20,
+    face: "joy",
+    colour: "cobalt",
+    text: "All 48 pass. Pushed.",
+    note: ["DONE", "ONE LINE, THEN BACK TO THE FACE"],
+  },
   {
     b: 26,
     face: "learned",
     colour: "lime",
     panel: TWO_LINES,
     text: "Learned how you deploy.",
+    note: ["LEARNED", "IT MADE OR IMPROVED A SKILL"],
   },
   {
     b: 28,
@@ -44,10 +64,24 @@ const SCRIPT: Beat[] = [
     colour: "lilac",
     panel: LINE_PANEL,
     text: "Noted: you like pnpm.",
+    note: ["NOTED", "IT SAVED SOMETHING ABOUT YOU"],
   },
-  { b: 30, face: "money", colour: "sun", text: "$20 spent today." },
-  { b: 32, face: "sleepy", colour: "coal", open: 0, text: "" },
-  { b: 35, face: "neutral", colour: "white" },
+  {
+    b: 30,
+    face: "money",
+    colour: "sun",
+    text: "$20 spent today.",
+    note: ["COST", "SPEND PASSED A LIMIT YOU SET"],
+  },
+  {
+    b: 32,
+    face: "sleepy",
+    colour: "coal",
+    open: 0,
+    text: "",
+    note: ["ASLEEP", "THE AGENT KEEPS RUNNING"],
+  },
+  { b: 35, face: "neutral", colour: "white", note: ["", ""] },
   { b: 37, face: "listening" },
   { b: 41, face: "thinking" },
   {
@@ -125,6 +159,12 @@ export function voiceLevel(frame: number): number {
   return Math.min(1, syllables * (0.7 + 0.3 * rand(Math.floor(frame / 4))));
 }
 
+// The mood on screen named on the drawing, and when it changed (to draw its leader again).
+export function noteAt(frame: number): { note?: [string, string]; at: number } {
+  const n = latest(frame, "note");
+  return { note: n.value?.[0] ? n.value : undefined, at: n.at };
+}
+
 export function charmAt(frame: number): NotchState {
   const ms = (frame / FPS) * 1000;
   const faceId = latest(frame, "face");
@@ -172,12 +212,7 @@ export function lookAt(frame: number): { x: number; y: number } {
   return { x: (rand(i) * 2 - 1) * 0.6, y: (rand(i + 99) * 2 - 1) * 0.4 };
 }
 
-export const WIDE: Camera = {
-  cx: SCREEN.w / 2,
-  cy: 1080 / 2 / (1920 / SCREEN.w),
-  z: 1920 / SCREEN.w,
-  roll: 0,
-};
+export const WIDE: Camera = { cx: SCREEN.w / 2, cy: 354, z: 1.1, roll: 0 };
 const CLOSE: Camera = { cx: SCREEN.w / 2, cy: 96, z: 4.2, roll: 0 };
 const EAR = NOTCH.width / 2 + NOTCH.strip * 0.85;
 const TALK: Camera = { cx: SCREEN.w / 2, cy: 92, z: 2.9, roll: 0 };
@@ -192,7 +227,7 @@ const SHOTS: [number, Camera, number][] = [
   [26, { ...CLOSE, z: 4.4 }, 0],
   [28, { ...CLOSE, z: 4.0, cx: CLOSE.cx - 14, roll: -1 }, 0.4],
   [30, { ...CLOSE, z: 4.6, cx: CLOSE.cx + 10, roll: 1 }, 0.4],
-  [32, { ...CLOSE, z: 5.2, cy: 40, roll: 0 }, 2],
+  [32, { ...CLOSE, z: 4.0, roll: 0 }, 0.4],
   [35.5, TALK, 1.5],
   [41, { ...TALK, z: 3.2, cy: 80 }, 4],
   [45, { ...TALK, z: 3.5, cy: 100 }, 1.5],

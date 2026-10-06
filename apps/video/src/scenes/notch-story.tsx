@@ -6,6 +6,7 @@ import { Terminal } from "../mac/terminal";
 import { out, rand, snap, span, step } from "../motion";
 import { beat } from "../track";
 import { Kinetic, wordsFrom } from "../ui/kinetic";
+import { Leader, Paper, Sheet } from "../ui/sheet";
 import { TalkKeys } from "../ui/keycaps";
 import { BIG_EYES, type Eyes, FULL_FRAME, Morph, type Rect } from "../ui/morph";
 import { MoodGrid } from "./mood-grid";
@@ -16,6 +17,7 @@ import {
   WIDE,
   cameraAt,
   charmAt,
+  noteAt,
   notchEyes,
   toOutput,
 } from "./notch-timeline";
@@ -120,6 +122,56 @@ function keyDown(frame: number): number {
   return 0;
 }
 
+const TITLES: [number, string][] = [
+  [0, "01 · YOUR AGENT"],
+  [B(16), "02 · ITS FACE"],
+  [B(35), "03 · HOLD TO TALK"],
+  [B(52), "04 · IT NEEDS YOU"],
+];
+
+// The notes on the drawing: what the charm is, what each mood means, where the talk key is.
+function Notes({ frame, cam }: { frame: number; cam: Camera }) {
+  const eye = notchEyes(cam).left;
+  const panelBottom = toOutput(cam, 0, notchPanelHeight(charmAt(frame))).y;
+  const intro = span(frame, B(9), B(9) + 24, out) - span(frame, B(13), B(13.5));
+  const { note, at } = noteAt(frame);
+  const mood =
+    note && frame < B(35) && !(frame >= B(22) && frame < B(26))
+      ? span(frame, at, at + 16, out)
+      : 0;
+  const key =
+    span(frame, B(36.5), B(36.5) + 20, out) - span(frame, B(40.5), B(41));
+  return (
+    <>
+      <Leader
+        p={intro}
+        from={{ x: 640, y: 250 }}
+        to={{ x: eye.x, y: eye.y + 26 }}
+        title="THE DESKTOP CHARM"
+        note="MACOS · WINDOWS"
+      />
+      {note && (
+        <Leader
+          key={at}
+          p={mood}
+          from={{ x: 560, y: 900 }}
+          to={{ x: eye.x, y: panelBottom + 10 }}
+          title={note[0]}
+          note={note[1]}
+        />
+      )}
+      <Leader
+        p={key}
+        from={{ x: 1330, y: 905 }}
+        to={{ x: 1272, y: 930 }}
+        title="THE TALK KEY"
+        note="⌥ SPACE · IN ANY APP"
+        align="left"
+      />
+    </>
+  );
+}
+
 // Everything that happens on the Mac, from the cold open to the moment the panel fills the frame.
 export function NotchStory() {
   const frame = useCurrentFrame();
@@ -143,10 +195,10 @@ export function NotchStory() {
       style={{
         position: "absolute",
         inset: 0,
-        background: "#ECECEA",
         overflow: "hidden",
       }}
     >
+      <Paper />
       <div
         style={{
           position: "absolute",
@@ -175,20 +227,22 @@ export function NotchStory() {
         </MacScreen>
       </div>
 
+      <Notes frame={frame} cam={cam} />
+
       {/* The hook */}
       <Kinetic
         frame={frame}
         words={wordsFrom("Your agent works all day.", B(8.5), 10)}
         leave={B(11.75)}
         size={96}
-        style={{ left: 110, top: 380, width: 820 }}
+        style={{ left: 200, top: 380, width: 820 }}
       />
       <Kinetic
         frame={frame}
         words={wordsFrom("You never see it.", B(12), 8)}
         leave={B(14)}
         size={96}
-        style={{ left: 110, top: 430, width: 820 }}
+        style={{ left: 200, top: 430, width: 820 }}
       />
       <Kinetic
         frame={frame}
@@ -243,6 +297,12 @@ export function NotchStory() {
       {frame >= B(22) && frame < B(26) && (
         <MoodGrid frame={frame} from={B(22)} />
       )}
+      <Sheet
+        frame={frame}
+        from={B(8)}
+        title={step(frame, TITLES)}
+        shift={cam.cy * cam.z}
+      />
       <ColdOpen frame={frame} />
       <ToBlack frame={frame} />
     </div>

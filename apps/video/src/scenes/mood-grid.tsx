@@ -3,6 +3,7 @@ import { NotchCharm } from "../charm/notch";
 import { MONO } from "../fonts";
 import { back, rand, span } from "../motion";
 import { FPS, beat } from "../track";
+import { PAPER } from "../ui/sheet";
 
 const TILES: {
   face: string;
@@ -57,7 +58,7 @@ export function MoodGrid({ frame, from }: { frame: number; from: number }) {
               width: W - 2,
               height: H - 2,
               overflow: "hidden",
-              background: "#ECECEA",
+              ...PAPER,
               opacity: p > 0 ? 1 : 0,
               transform: `scale(${0.9 + 0.1 * p})`,
             }}
@@ -95,7 +96,7 @@ export function MoodGrid({ frame, from }: { frame: number; from: number }) {
                 color: "#6E6E6E",
               }}
             >
-              {String(i + 1).padStart(2, "0")} · {t.label}
+              S.{String(i + 1).padStart(2, "0")} · {t.label}
             </div>
           </div>
         );

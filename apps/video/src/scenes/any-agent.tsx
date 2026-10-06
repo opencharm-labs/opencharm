@@ -4,6 +4,7 @@ import { Glyph } from "../charm/glyph";
 import { SANS } from "../fonts";
 import { out, span, step } from "../motion";
 import { beat } from "../track";
+import { Sheet } from "../ui/sheet";
 import { AGENT_EYES } from "./notch-story";
 
 const AGENTS = [
@@ -95,6 +96,12 @@ export function AnyAgent() {
           Your agent. Its face.
         </div>
       )}
+      <Sheet
+        frame={frame + beat(60)}
+        from={beat(8)}
+        title="05 · ANY AGENT"
+        night
+      />
     </div>
   );
 }

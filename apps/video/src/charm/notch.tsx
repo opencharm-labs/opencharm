@@ -76,7 +76,7 @@ export function NotchCharm({ s }: { s: NotchState }) {
               height: height - strip,
               boxSizing: "border-box",
               border: `4.4px solid ${SIGNAL}`,
-              borderRadius: 18,
+              borderRadius: 30, // the panel's own corners (firmware kNotchPanelRadius)
               opacity: ring,
             }}
           />

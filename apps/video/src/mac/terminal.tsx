@@ -34,7 +34,8 @@ export function Terminal({
         height: h,
         background: "#0c0c0c",
         borderRadius: 14,
-        boxShadow: "0 40px 80px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.5)",
+        border: "2px solid #0A0A0A",
+        boxSizing: "border-box",
         overflow: "hidden",
       }}
     >

@@ -6,6 +6,7 @@ import { keys, out, rand, snap, span, step } from "../motion";
 import { FPS, beat } from "../track";
 import { Kinetic, wordsFrom } from "../ui/kinetic";
 import { Morph, FULL_FRAME } from "../ui/morph";
+import { Paper, Sheet } from "../ui/sheet";
 import { AGENT_EYES } from "./notch-story";
 
 // The window (41.7 mm) and the screen's active area (38.99 mm) seen straight on, in pixels.
@@ -14,23 +15,6 @@ const ACTIVE = 38.99 * PX_PER_MM;
 const SHELL = 46.8 * PX_PER_MM;
 const INK = "#0A0A0A";
 const LINE = "#A3A3A3";
-
-function Paper() {
-  return (
-    <div
-      style={{
-        position: "absolute",
-        inset: 0,
-        background: "#F6F6F4",
-        backgroundImage:
-          "linear-gradient(rgba(10,10,10,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(10,10,10,0.05) 1px, transparent 1px)," +
-          "linear-gradient(rgba(10,10,10,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(10,10,10,0.08) 1px, transparent 1px)",
-        backgroundSize: "20px 20px, 20px 20px, 160px 160px, 160px 160px",
-        backgroundPosition: "0 0, 0 0, 0 0, 0 0",
-      }}
-    />
-  );
-}
 
 // A dimension line drawn on like ink: ticks at both ends, the label in the middle.
 function Dimension({
@@ -120,7 +104,7 @@ function Dimension({
           top: vertical ? my - 12 : my - 44,
           width: vertical ? 300 : 400,
           textAlign: vertical ? "left" : "center",
-          font: `500 20px/1 ${MONO}`,
+          font: `500 24px/1 ${MONO}`,
           letterSpacing: "0.14em",
           color: "#6E6E6E",
           opacity: span(p, 0.5, 1),
@@ -273,11 +257,11 @@ export function Body() {
       <div
         style={{
           position: "absolute",
-          left: 960 - half - 56 - 330,
+          left: 960 - half - 56 - 410,
           top: 528,
-          width: 300,
+          width: 380,
           textAlign: "right",
-          font: `500 20px/1 ${MONO}`,
+          font: `500 24px/1 ${MONO}`,
           letterSpacing: "0.14em",
           color: "#6E6E6E",
           opacity: Math.max(0, dims),
@@ -301,7 +285,7 @@ export function Body() {
           right: 0,
           top: 960,
           textAlign: "center",
-          font: `500 20px/1 ${MONO}`,
+          font: `500 24px/1 ${MONO}`,
           letterSpacing: "0.14em",
           color: "#6E6E6E",
           opacity: span(frame, B(72), B(72.5)) - span(frame, B(76), B(76.25)),
@@ -327,6 +311,12 @@ export function Body() {
         opencharm.dev
       </div>
 
+      <Sheet
+        frame={frame + beat(68)}
+        from={beat(8)}
+        title="06 · THE CHARM"
+        labels={frame < B(76)}
+      />
       {frame < B(70) && (
         <Morph
           p={handoff}
