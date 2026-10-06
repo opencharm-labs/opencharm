@@ -1,5 +1,5 @@
 import { FAQ } from "./faq";
-import { RELEASES, REPO } from "./links";
+import { DOWNLOAD, REPO } from "./links";
 
 const SITE = "https://opencharm.dev";
 const ORG = `${SITE}/#organization`;
@@ -34,7 +34,7 @@ export function structuredData() {
           "The charm without the hardware: OpenCharm OS at the top of your screen (by the notch on a Mac, a black pill on Windows), with a talk key that works in any app and a panel for answers and questions. Built by the repository’s CI, with checksums, on GitHub Releases.",
         applicationCategory: "UtilitiesApplication",
         operatingSystem: "macOS, Windows",
-        downloadUrl: RELEASES,
+        downloadUrl: DOWNLOAD,
         isAccessibleForFree: true,
         offers: FREE,
         publisher: { "@id": ORG },

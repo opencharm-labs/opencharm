@@ -16,5 +16,5 @@ Status: the emulator, charmd and the desktop charm (macOS and Windows) work toda
 
 ## Downloads
 
-- [GitHub Releases](https://github.com/opencharm-labs/opencharm/releases): desktop builds for macOS and Windows, built by the repository's CI, with checksums
+- [The latest desktop release](https://github.com/opencharm-labs/opencharm/releases/latest): the desktop app for macOS and Windows, built by the repository's CI, with checksums
 - [Source code](https://github.com/opencharm-labs/opencharm)
