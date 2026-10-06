@@ -24,6 +24,7 @@
     "@react-three/fiber": "^9.8.1",
     "@remotion/cli": "4.0.532",
     "@remotion/fonts": "4.0.532",
+    "@remotion/motion-blur": "4.0.532",
     "@remotion/three": "4.0.532",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

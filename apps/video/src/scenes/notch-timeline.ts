@@ -137,7 +137,7 @@ function latest<K extends keyof Beat>(
   return { value, at, prev };
 }
 
-function animated(frame: number, key: "open" | "panel" | "ring"): number {
+function animated(frame: number, key: "open" | "panel"): number {
   const { value, at, prev } = latest(frame, key);
   const t = Math.min(1, (frame - at) / PANEL_FRAMES);
   const from = (prev as number | undefined) ?? (value as number) ?? 0;
@@ -158,6 +158,12 @@ export function voiceLevel(frame: number): number {
   const t = frame / FPS;
   const syllables = Math.abs(Math.sin(t * 13.1) * Math.sin(t * 5.3 + 1));
   return Math.min(1, syllables * (0.7 + 0.3 * rand(Math.floor(frame / 4))));
+}
+
+// The outline comes on quickly and goes at once, as the firmware hides it: no fade through brown.
+function ringAt(frame: number): number {
+  const { value, at } = latest(frame, "ring");
+  return value ? Math.min(1, (frame - at) / 6) : 0;
 }
 
 // The mood on screen named on the drawing, and when it changed (to draw its leader again).
@@ -186,7 +192,7 @@ export function charmAt(frame: number): NotchState {
     colour: colour(latest(frame, "colour").value ?? "white"),
     open: animated(frame, "open"),
     panel: animated(frame, "panel"),
-    ring: animated(frame, "ring"),
+    ring: ringAt(frame),
     text: text.value || undefined,
     shown,
     hint: latest(frame, "hint").value || undefined,
