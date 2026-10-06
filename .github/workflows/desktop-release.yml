@@ -179,11 +179,16 @@ jobs:
           VERSION: ${{ needs.plan.outputs.version }}
           ARCH: ${{ matrix.arch }}
         run: |
+          # The build job's upload keeps the tar under its folder relative to the other path it
+          # uploads (Windows' installer), so it's found by name: exactly one.
+          tarball=$(find "$RUNNER_TEMP/app" -type f -name OpenCharm.app.tar.gz)
+          [ "$(printf '%s\n' "$tarball" | grep -c .)" = 1 ] || { echo "::error::expected one OpenCharm.app.tar.gz, found: $tarball"; exit 1; }
           # One app and nothing else in it, unpacked as this runner's user.
-          [ "$(tar -tzf "$RUNNER_TEMP/app/OpenCharm.app.tar.gz" | cut -d/ -f1 | sort -u)" = "OpenCharm.app" ]
-          tar -xzf "$RUNNER_TEMP/app/OpenCharm.app.tar.gz" --no-same-owner -C "$RUNNER_TEMP/app"
-          mkdir -p "$RUNNER_TEMP/out"
-          sh apps/desktop/scripts/sign-macos.sh "$RUNNER_TEMP/app/OpenCharm.app" "$RUNNER_TEMP/out/OpenCharm_${VERSION}_${ARCH}.dmg"
+          [ "$(tar -tzf "$tarball" | cut -d/ -f1 | sort -u)" = "OpenCharm.app" ]
+          # Into a fresh folder, apart from whatever else the download held.
+          mkdir "$RUNNER_TEMP/unpacked" "$RUNNER_TEMP/out"
+          tar -xzf "$tarball" --no-same-owner -C "$RUNNER_TEMP/unpacked"
+          sh apps/desktop/scripts/sign-macos.sh "$RUNNER_TEMP/unpacked/OpenCharm.app" "$RUNNER_TEMP/out/OpenCharm_${VERSION}_${ARCH}.dmg"
       - uses: actions/upload-artifact@v7
         with:
           name: installer-${{ matrix.target }}
