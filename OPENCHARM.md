@@ -44,7 +44,7 @@ Principles (apply to every choice below):
 
 A body for the agent you already run: eyes, a voice, a key you can find without looking. Your agent keeps its memory, skills and model. The charm is desk-first and pocket-friendly.
 
-The charm listens to your agent's events and shows them as faces, so you know whether it's thinking, working, stuck, done or learned something new without opening a screen.
+The charm listens to your agent's events and shows them as faces, so you know whether it's thinking, working, stuck, done or learned something new without opening a screen. **What people get** (maintainer, 6 October 2026): the desktop charm by the Mac's notch, today, and the board you build, next. The emulator is a tool for developing OpenCharm OS and the board, not a way to use OpenCharm: user-facing copy (the site, the README, link previews, launch material) never offers the browser as a product path.
 
 ### 3.2 Why an object and not an app
 
@@ -300,7 +300,7 @@ The rows from Anthropic's buddy down were checked on 1 October 2026 (sources in 
 
 Each piece exists somewhere. What we found nowhere else is the combination: agent-agnostic over ACP; one key both to talk and to approve; MCP tools for the agent to drive its body; fully local with no vendor cloud; the same firmware core in a browser emulator; memory and persona as plain files; a printable case, and nothing sold.
 
-Safe to say: "an open-source body for the agent you already run", "one key to talk and to approve", "runs on your computer, no cloud of ours", "try it in your browser: the emulator runs the real firmware". Don't say "the first" anything: Anthropic's buddy already approves on a device, and several projects already talk to Claude Code by voice.
+Safe to say: "an open-source body for the agent you already run", "one key to talk and to approve", "runs on your computer, no cloud of ours", "the desktop charm runs the same OpenCharm OS the board will". Don't say "the first" anything: Anthropic's buddy already approves on a device, and several projects already talk to Claude Code by voice.
 
 Our gap: about $32, fully open, works with the agent you already host (not a vendor cloud), Hermes and OpenClaw through their own extension points, pocket-sized, one key, and a face people get attached to. The face and the setup experience are the moat.
 

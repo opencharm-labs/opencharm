@@ -12,7 +12,7 @@ const geistMono = Geist_Mono({
 
 const TITLE = "OpenCharm: a face, a voice and one key for your AI agent";
 const DESCRIPTION =
-  "OpenCharm is an open-source body for the AI agent you already run (Claude Code, Codex, Hermes Agent, OpenClaw or any ACP agent): a face, a voice and one key. On a small board, on your Mac or Windows PC, or in your browser.";
+  "OpenCharm is an open-source body for the AI agent you already run (Claude Code, Codex, Hermes Agent, OpenClaw or any ACP agent): a face, a voice and one key. At the top of your Mac or Windows screen today, on a small board you build next.";
 
 // Only Vercel builds count page views; local builds would ask for a script that isn't there.
 const ANALYTICS = process.env.VERCEL === "1";

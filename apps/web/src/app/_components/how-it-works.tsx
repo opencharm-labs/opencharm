@@ -32,8 +32,8 @@ const PIECES = [
   {
     name: "OpenCharm OS",
     where: "firmware/core, C++",
-    what: "Glyph faces, the key, the PIN pad, questions on the charm. Runs in your browser as an emulator today; the board port is next.",
-    status: "EMULATOR",
+    what: "Glyph faces, the key, the PIN pad, questions on the charm. Runs in the desktop charm today; the board port is next.",
+    status: "DESKTOP · BOARD NEXT",
   },
   {
     name: "Desktop charm",
@@ -99,9 +99,9 @@ function HowItWorks() {
           <Kicker>1 · THE CHARM</Kicker>
           <h3 className={NODE_TITLE}>Face, voice, one key</h3>
           <BodyText className="max-w-[34ch]">
-            One OS, three bodies: the board, the desktop charm on your Mac or
-            Windows PC, and the emulator in your browser. Hold the key to talk;
-            the mic is open only while you hold it.
+            One OS for every body: the desktop charm on your Mac or Windows PC
+            today, the board you build next. Hold the key to talk; the mic is
+            open only while you hold it.
           </BodyText>
         </div>
         <div className={NODE}>

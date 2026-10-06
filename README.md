@@ -2,7 +2,7 @@
 
 # OpenCharm
 
-**Give your agent a body.** OpenCharm is a small open-source companion that becomes the face and voice of the AI agent you already run: Claude Code, Codex, Gemini CLI, Hermes Agent, OpenClaw, any ACP agent or anything OpenAI-compatible. It sits by your laptop or hangs from your keys. Hold its one key to talk; glance at its face to see what your agent is doing.
+**Give your agent a body.** OpenCharm is a small open-source companion that becomes the face and voice of the AI agent you already run: Claude Code, Codex, Gemini CLI, Hermes Agent, OpenClaw, any ACP agent or anything OpenAI-compatible. Today it lives by your Mac's notch as the desktop charm; next, it's a small board you build that sits by your laptop or hangs from your keys. Hold its one key to talk; glance at its face to see what your agent is doing.
 
 - **One agent at a time.** The charm is the body of an agent that already works. It doesn't replace your agent, your phone or your apps.
 - **A face you can type.** Two characters for eyes and one for a mouth (`^ ^`, `o O`, `> <`), in its own colour on true black.
@@ -15,37 +15,11 @@ Site: [opencharm.dev](https://opencharm.dev) · Product spec: [OPENCHARM.md](OPE
 
 Early. Tested end to end on macOS (3 October 2026): `opencharm init`, charmd (the charm daemon), the emulator and Claude Code, from pairing to a spoken answer through a real microphone. The desktop charm runs on macOS; its Windows build is untested on a real machine. charmd also has presets for Codex, Gemini CLI, goose, Hermes and OpenClaw, and adapters for OpenAI-compatible agents: covered by tests with a stand-in agent, not yet each tried for real. Firmware for the real board (spec 009) is next. Work is specified spec by spec ([specs/](specs/README.md)).
 
-## Try it
+## Get it
 
-```bash
-npx opencharm            # the face in your terminal
-npx opencharm faces      # all 22 moods
-npx opencharm hardware   # what to buy and print
-```
+**The desktop charm (macOS).** Download it from the [latest release](https://github.com/opencharm-labs/opencharm/releases/latest) ([how](apps/desktop/README.md)). In Settings, choose your agent's folder, then hold **⌥ Space** and talk. The Windows build is untested on a real machine.
 
-**Your own charm, in your browser** (Node 24, git, and an agent such as Claude Code):
-
-```bash
-npm i -g opencharm
-opencharm init my-charm && cd my-charm   # your charm's workspace (default name Momo)
-opencharm serve                          # charmd; it runs your agent in charm/
-opencharm sim                            # in another terminal: the charm in your browser
-opencharm pair <code>                    # the code on its screen; then choose a PIN
-```
-
-Hold Space and talk. The workspace's README covers the voice (local on macOS, or OpenAI).
-
-**The desktop charm (macOS).** Download it from the [latest release](https://github.com/opencharm-labs/opencharm/releases/latest) ([how](apps/desktop/README.md)). In Settings, choose your agent's folder, then hold **⌥ Space** and talk.
-
-**The emulator, from source** (Node 24; Emscripten, see [CONTRIBUTING.md](CONTRIBUTING.md)):
-
-```bash
-npm ci
-npm run firmware:sim         # build the emulator
-npm run cli -- serve         # charmd; keep it running
-npm run sim                  # in another terminal: the charm in your browser
-npm run cli -- pair <code>   # the code on its screen; then choose a PIN
-```
+**The board** is next: what to buy and print is in [docs/build.md](docs/build.md) (`npx opencharm hardware` lists it too), and OpenCharm goes onto it with the device port (spec 009).
 
 ## Develop
 
@@ -55,6 +29,18 @@ npm run check            # format, lint, typecheck, tests, Python lint
 npm run dev              # the website
 npm run cli -- faces     # the CLI from source
 ```
+
+**The emulator** is OpenCharm OS in a browser tab, for working on the firmware and the board before the hardware (it isn't a way to use OpenCharm). With the published CLI (Node 24, git, and an agent such as Claude Code):
+
+```bash
+npm i -g opencharm
+opencharm init my-charm && cd my-charm   # a charm workspace (default name Momo)
+opencharm serve                          # charmd; it runs your agent in charm/
+opencharm sim                            # in another terminal: the emulator
+opencharm pair <code>                    # the code on its screen; then choose a PIN
+```
+
+From source (Emscripten, see [CONTRIBUTING.md](CONTRIBUTING.md)): `npm run firmware:sim`, then `npm run cli -- serve` and, in another terminal, `npm run sim`.
 
 How we work (specs, branches, PRs, agents): [CONTRIBUTING.md](CONTRIBUTING.md). Coding agents start at [AGENTS.md](AGENTS.md).
 

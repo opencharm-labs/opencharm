@@ -38,7 +38,7 @@ function Hero() {
               <a href="#desktop">Get the desktop charm</a>
             </Button>
             <Button asChild variant="outline" size="hero">
-              <a href="#build">Try it in your browser</a>
+              <a href="#how">How it works</a>
             </Button>
           </Actions>
           <a
