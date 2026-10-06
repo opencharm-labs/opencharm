@@ -21,6 +21,13 @@ afterEach(() => {
   agent = undefined;
 });
 
+// These wait for a line in the log a real child process (the fake agent) writes: its start or its
+// next write can take seconds on a busy machine, running every workspace's tests at once, so the
+// polls get 10 s and their tests 15 s (Vitest's defaults are 1 s and 5 s). A passing poll still
+// returns as soon as the line appears.
+const PROCESS = { timeout: 10_000 };
+const SLOW = 15_000;
+
 function setup(
   env: Record<string, string> = {},
   options: Partial<AcpAgentOptions> = {}
@@ -133,13 +140,17 @@ describe("acp agent", () => {
     expect(new Set(logged().map((l) => l.pid)).size).toBe(1);
   });
 
-  it("warms up the session before the first question", async () => {
-    const { agent, logged } = setup();
-    agent.warm?.("opencharm-c_1");
-    await expect
-      .poll(() => logged().some((l) => l.method === "session/new"))
-      .toBe(true);
-  });
+  it(
+    "warms up the session before the first question",
+    async () => {
+      const { agent, logged } = setup();
+      agent.warm?.("opencharm-c_1");
+      await expect
+        .poll(() => logged().some((l) => l.method === "session/new"), PROCESS)
+        .toBe(true);
+    },
+    SLOW
+  );
 
   it("breaks the line where the agent stopped to use a tool", async () => {
     const { agent } = setup();
@@ -148,24 +159,31 @@ describe("acp agent", () => {
     );
   });
 
-  it("cancels the turn when the user presses the key, and stays usable", async () => {
-    const { agent, logged } = setup();
-    const stop = new AbortController();
-    const chunks: string[] = [];
-    for await (const chunk of agent.reply({
-      sessionKey: "opencharm-c_1",
-      text: "slow",
-      signal: stop.signal,
-    })) {
-      chunks.push(chunk);
-      stop.abort();
-    }
-    expect(chunks).toEqual(["Thinking"]);
-    await expect
-      .poll(() => logged().some((l) => l.method === "session/cancel"))
-      .toBe(true);
-    expect(await collect(agent, "again")).toBe("You said: again.");
-  });
+  it(
+    "cancels the turn when the user presses the key, and stays usable",
+    async () => {
+      const { agent, logged } = setup();
+      const stop = new AbortController();
+      const chunks: string[] = [];
+      for await (const chunk of agent.reply({
+        sessionKey: "opencharm-c_1",
+        text: "slow",
+        signal: stop.signal,
+      })) {
+        chunks.push(chunk);
+        stop.abort();
+      }
+      expect(chunks).toEqual(["Thinking"]);
+      await expect
+        .poll(
+          () => logged().some((l) => l.method === "session/cancel"),
+          PROCESS
+        )
+        .toBe(true);
+      expect(await collect(agent, "again")).toBe("You said: again.");
+    },
+    SLOW
+  );
 
   it("never sends a question the user already cancelled", async () => {
     const { agent, logged } = setup();
@@ -202,26 +220,30 @@ describe("acp agent", () => {
     expect(agent.name).toBe("claude");
   });
 
-  it("asks the person on the charm, and allows once on yes", async () => {
-    const { agent, logged } = setup();
-    const asked: string[] = [];
-    let out = "";
-    for await (const chunk of agent.reply({
-      sessionKey: "opencharm-c_1",
-      text: "permission please",
-      signal: new AbortController().signal,
-      ask: (action) => {
-        asked.push(action);
-        return Promise.resolve(true);
-      },
-    }))
-      out += chunk;
-    expect(asked).toEqual(["edit AGENTS.md"]);
-    expect(out).toBe("Done.");
-    expect(
-      logged().find((l) => l.method === "permission-answer")?.params
-    ).toEqual({ outcome: { outcome: "selected", optionId: "yes" } });
-  });
+  it(
+    "asks the person on the charm, and allows once on yes",
+    async () => {
+      const { agent, logged } = setup();
+      const asked: string[] = [];
+      let out = "";
+      for await (const chunk of agent.reply({
+        sessionKey: "opencharm-c_1",
+        text: "permission please",
+        signal: new AbortController().signal,
+        ask: (action) => {
+          asked.push(action);
+          return Promise.resolve(true);
+        },
+      }))
+        out += chunk;
+      expect(asked).toEqual(["edit AGENTS.md"]);
+      expect(out).toBe("Done.");
+      expect(
+        logged().find((l) => l.method === "permission-answer")?.params
+      ).toEqual({ outcome: { outcome: "selected", optionId: "yes" } });
+    },
+    SLOW
+  );
 
   it("answers 'cancelled' when the turn is cancelled while the question waits", async () => {
     const { agent, logged } = setup();
@@ -240,7 +262,8 @@ describe("acp agent", () => {
       chunks.push(chunk);
     await expect
       .poll(
-        () => logged().find((l) => l.method === "permission-answer")?.params
+        () => logged().find((l) => l.method === "permission-answer")?.params,
+        PROCESS
       )
       .toEqual({ outcome: { outcome: "cancelled" } });
   });
