@@ -13,16 +13,16 @@ opencharm.dev is how people find the project. It describes what exists, says pla
 - **Built and shipped:** Tailwind CSS 4 and shadcn/ui (Radix), no custom stylesheet; every route static; security headers (a same-origin Content Security Policy, HSTS and friends) in `next.config.ts`; a branded 404; charms are built only as they near the screen. An end-to-end suite runs the production build in Chrome in CI (`ci.yml`, job `website`).
 - **Sections, in order:** header, hero, key numbers, face library, agent states, uses, why, the desktop charm, screen and key, how it works, hack it, build one, lessons, build yours, title block.
 - **Uses:** ten examples of what your agent does through the charm (no feature promises of the charm's own), filtered at your desk or at home, with a Charm / Desktop switch that shows each moment on the device or by the notch.
-- **Screen and key, how it works:** the same switch shows the three layouts on the desktop charm; the desktop key (⌥ Option + Space, Ctrl + Alt + Space on Windows) is named; how it works counts three bodies for one OS (board, desktop charm, emulator), and the desktop charm brings its own charmd.
+- **Screen and key, how it works:** the same switch shows the three layouts on the desktop charm; the desktop key (⌥ Option + Space, Ctrl + Alt + Space on Windows) is named; how it works shows one OS for every body (the desktop charm today, the board next), and the desktop charm brings its own charmd.
 - **Why:** four reasons for a body over an app, then "it works where your agent lives": on your computer (files, terminal, apps) or on your own server (always on, reached over `wss://`, linking `docs/deploy.md`).
-- **Three ways to have a charm:** on the board, on your Mac or Windows PC (the desktop charm), or in your browser (the emulator). The hero says so and points to the desktop charm and the emulator.
+- **What people get:** the desktop charm on your Mac or Windows PC today, the board they build next; the emulator is a development tool, never offered as a way to use OpenCharm (maintainer, 6 October 2026). The hero points to the desktop charm and to how it works.
 - **The desktop charm** (spec 013), its own section:
   - it lives by the notch, and you hold the talk key in any app to talk
   - a panel opens below the notch for answers and questions
   - Settings choose the agent's folder, the agent and the voice; the app runs its own charmd and pairs by itself
   - macOS and Windows: download it from GitHub Releases (built by the repository's CI from the code, with checksums and build provenance) or build it yourself. The site doesn't say "unsigned" or "Mac only" (maintainer, 2 October 2026)
 - **It feels alive** (spec 005): breathing, blinking, glancing, looking at your finger, falling asleep when left alone, a greeting, reactions when poked.
-- **Privacy, plainly:** the microphone is on only while the key is held (charm, emulator and desktop). Speech can stay on your Mac. The charm holds no keys.
+- **Privacy, plainly:** the microphone is on only while the key is held (the desktop charm and the board). Speech can stay on your Mac. The charm holds no keys.
 - **Captions:** long answers scroll like captions on the screen.
 - **The hero: a centred headline, the promise and both buttons, then a big, to-scale close-up in a rounded frame.** The top of a 14-inch MacBook Pro (bezel, menu bar, the notch), with the desktop charm dropping from the notch at its real size, and the charm standing in front, both at 1 pt = 0.2 mm (the 46.8 mm charm is 234 pt). two callouts name the bodies, and the charm stands over the frame's corner. On phones the crop narrows to the notch so it stays readable. The day plays like a live demo below it, with a caption, a graduated progress line, a pause button and reduced motion respected. No strap, no eyebrow line, no filler labels.
 - **Make it yours:** pick the charm's colour (the six identity colours: shell and glyphs together; or a colour of your own, picked or typed as `#RRGGBB`, which lights the glyphs of a white charm, never orange-like or too dark, by the same rule as charmd's, `packages/design/src/own-colour.ts`; added 5 October 2026), its name and a face, and see it on the charm and by the notch. The example agent on the page is Momo.
@@ -37,9 +37,9 @@ opencharm.dev is how people find the project. It describes what exists, says pla
 - **The look follows `DESIGN.md`** (repo root, the DESIGN.md format from Google Stitch); a check keeps its tokens equal to `packages/design/tokens.json`.
 - **Agents:** any agent over ACP (Claude Code, Codex, Gemini CLI, goose, Hermes, OpenClaw) or an OpenAI-compatible API. Claude Code is the one tested end to end.
 - **How it works:** the real path (charm → charmd: pairing, PIN, voice, questions, the charm's tools → your agent), the real terminal (`opencharm init` → `serve` → `pair`) and the status of each piece.
-- **Build one:** the board, trying it today in the browser emulator (`opencharm sim`), flashing marked as coming, charmd with the starter workspace.
+- **Build one:** the board, using the desktop charm until the device port, flashing marked as coming, charmd with the starter workspace.
 - **Hack it:** the workspace persona and skills, then tools (MCP, including the charm's own), then the firmware core. Only real files and real code.
-- **Copy rules:** every claim matches the code or `OPENCHARM.md`, or says it's coming (the device firmware port, the CLI on npm). No waitlist or forms; a closing "Build yours" section links the build guide and the code. The footer carries the no-warranty notice and the not-affiliated line (naming Anthropic, OpenAI and Google, whose agents we name).
+- **Copy rules:** every claim matches the code or `OPENCHARM.md`, or says it's coming (the device firmware port). No waitlist or forms; a closing "Build yours" section links the build guide and the code. The footer carries the no-warranty notice and the not-affiliated line (naming Anthropic, OpenAI and Google, whose agents we name).
 
 ## Decisions
 

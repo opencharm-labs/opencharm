@@ -113,7 +113,7 @@ function runInit(ctx: CliContext, args: readonly string[]): void {
 
   cd ${dir}
   opencharm serve          start charmd here; it runs your agent in charm/
-  opencharm sim            no charm yet? it appears in your browser (another terminal)
+  opencharm sim            the emulator, for developing the charm (another terminal)
   opencharm pair <code>    the code on the charm (or the emulator); you choose its PIN
 
   The charm is called ${charm}: its name, colour and greeting are in opencharm.json ("charm").

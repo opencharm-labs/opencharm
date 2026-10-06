@@ -46,7 +46,7 @@ const LEVELS: Level[] = [
     k: "LEVEL 3 · FIRMWARE",
     who: "C++ · ESP-IDF",
     t: "Change the body",
-    d: "Fork OpenCharm OS: one C++ core for the board and the browser emulator, tested on your computer.",
+    d: "Fork OpenCharm OS: one C++ core for the desktop charm and the board, developed and tested in an emulator on your computer.",
     code: [
       ["// firmware/core/src/app.cpp", D],
       ["case ServerKind::Ask:", W],
