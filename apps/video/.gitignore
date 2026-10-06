@@ -1,0 +1,5 @@
+# Renders and audio stay out of git (the 1 MB guard): the track is licensed, the guide is generated.
+out/
+public/*.wav
+public/*.mp3
+public/*.m4a

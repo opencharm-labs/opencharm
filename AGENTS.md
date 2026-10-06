@@ -15,6 +15,7 @@ Read in this order, only as far as the task needs:
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `apps/web`          | `@opencharm-labs/web`: opencharm.dev, Next.js 16 on Vercel; static landing page, spec 008                                                                                               |
 | `apps/desktop`      | `@opencharm-labs/desktop`: the desktop charm (spec 013), Tauri 2 around the emulator's firmware core: the Mac notch, a global talk key, settings; releases from CI                      |
+| `apps/video`        | `@opencharm-labs/video`: the 42-second promo film, made in code with Remotion (faces from the face engine, the charm from the STLs); music stays out of git                             |
 | `packages/charmd`   | `@opencharm-labs/charmd`: charmd, the charm daemon (config, auth, store, device sessions, admin socket); bundled into the CLI as `opencharm serve`                                      |
 | `packages/cli`      | `opencharm`: the published CLI (bundled with tsdown to `dist/main.mjs`); `opencharm init` clones github.com/opencharm-labs/opencharm-starter                                            |
 | `packages/protocol` | `@opencharm-labs/protocol`: charm ↔ charmd messages (zod schemas, parser) and the JSON contract fixtures the C++ core also reads                                                        |
@@ -37,6 +38,7 @@ npm test                  # all workspaces, including repo-invariant checks
 npm run cli -- faces      # run the CLI from source
 npm run cli -- serve      # run charmd from source (then: npm run cli -- pair <code>)
 npm run dev               # the website on http://localhost:3000
+npm run render -w @opencharm-labs/video   # the promo film into apps/video/out (see its README for the music)
 npm run design:export     # after editing packages/design/src/charm-face.js
 npm run prototype:build   # after changing hardware/stl or the prototype template
 npm run cad:build         # after editing hardware/cad/gen.py (Python deps: see CONTRIBUTING)
