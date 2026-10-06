@@ -82,13 +82,14 @@ canvas {
   background: #000;
   height: var(--strip);
   overflow: hidden;
-  transition: height 0.28s cubic-bezier(0.2, 0.9, 0.25, 1.1);
+  transition:
+    height 0.28s cubic-bezier(0.2, 0.9, 0.25, 1.1),
+    border-radius 0.28s ease;
 }
 .charm.notch.open {
   height: var(--panel);
-  /* the open panel's corners: the firmware's kNotchPanelRadius (60 px at 2x), which the orange
-     outline follows */
-  border-radius: 0 0 30px 30px;
+  /* set by sim.js from the core, which draws the orange outline with the same radius */
+  border-radius: 0 0 var(--panel-radius) var(--panel-radius);
 }
 .charm.notch canvas {
   border-radius: 0;

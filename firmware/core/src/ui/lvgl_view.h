@@ -9,8 +9,9 @@
 
 namespace charm {
 
-// The open notch panel's bottom corner radius, in pixels (30 pt at 2x). The hosts clip the panel to
-// it (apps/desktop/web/desktop.html, firmware/sim/web/sim.css), and the orange outline follows it.
+// The open notch panel's bottom corner radius, in pixels (30 pt at 2x). The emulator's page reads
+// it (sim_panel_radius) and clips the open panel to it, so the orange outline, drawn with it, is
+// never cut.
 constexpr int kNotchPanelRadius = 60;
 
 struct ViewOptions {
@@ -68,6 +69,9 @@ class LvglView : public View {
   void set_line(std::string_view text, bool typed);
   void set_mode(Mode mode);
   void place_line();
+  void reset_hint();
+  void set_hint(std::string_view yes, std::string_view no, const char* gap, int letter_space);
+  int hint_width(int letter_space) const;
   void apply_notch(const design::Face& f, float breath, float sx, float sy, float swell,
                    float spin);
   void update_panel();

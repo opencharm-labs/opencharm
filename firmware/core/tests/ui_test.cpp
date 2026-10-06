@@ -721,3 +721,44 @@ TEST_CASE("calm motion: no squash and no voice swell") {
   s.app.on_key(false, s.now);
   CHECK(loud < quiet * 1.1);
 }
+
+TEST_CASE("on the narrowest notch, the longest yes and no stay inside the orange outline") {
+  // A 185 pt notch with its ears: the desktop app's narrowest panel, at 2x.
+  const int w = 626, h = 360;
+  Headless screen{w, h};
+  QuietHal hal;
+  charm::LvglView view{screen.display(), charm::ViewOptions{false, 0xF4F3EE, true, 370, 76}};
+  charm::App app{hal, view};
+  uint32_t t = 0;
+  auto at = [&](uint32_t end) {
+    while (t < end) app.tick(t += 16);
+    screen.render();
+  };
+  app.start(0);
+  at(1300);
+  app.on_connected(t);
+  app.on_text(R"({"type":"charm","op":"unlocked"})", t);
+  at(t + 2000);
+  // labels at their longest (12 characters)
+  app.on_text(R"({"type":"charm","op":"ask","id":"q1","text":"Allow Bash: curl the forecast?",)"
+              R"("yes":"ALLOW ALWAYS","no":"DENY EXPLAIN"})",
+              t);
+  at(t + 600);
+  screen.save_png("notch-ask-long-labels");
+  // The hint's rows: nothing but the orange line where the outline runs and curves.
+  const int edge = charm::kNotchPanelRadius * 3 / 5;
+  int over = 0, hint = 0;
+  for (int y = h * 85 / 100; y < h; ++y)
+    for (int x = 0; x < w; ++x) {
+      uint32_t p = screen.pixel(x, y);
+      int r = int(p >> 16), g = int((p >> 8) & 0xFF), b = int(p & 0xFF);
+      bool orange = r > 180 && g < 160 && b < 120;
+      if (r + g + b <= 300 || orange) continue;
+      if (x < edge || x >= w - edge)
+        ++over;
+      else
+        ++hint;
+    }
+  CHECK_EQ(over, 0);
+  CHECK(hint > 200);
+}

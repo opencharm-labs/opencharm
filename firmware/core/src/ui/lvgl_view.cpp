@@ -324,6 +324,7 @@ void LvglView::show_pairing(std::string_view code) {
   std::string spaced(code);
   if (spaced.size() == 6) spaced.insert(3, " ");
   lv_label_set_text(code_, spaced.c_str());
+  reset_hint();
   lv_label_set_text_fmt(hint_, "opencharm pair %.*s", int(code.size()), code.data());
   set_face("neutral", true);
   set_mode(Mode::Pairing);
@@ -402,6 +403,28 @@ void LvglView::set_needs_you(bool on) {
   hide(ring_, !on);
 }
 
+// The hint as created: one line as wide as its text, letters at their normal spacing.
+void LvglView::reset_hint() {
+  lv_label_set_long_mode(hint_, LV_LABEL_LONG_MODE_WRAP);
+  lv_obj_set_width(hint_, LV_SIZE_CONTENT);
+  lv_obj_set_style_text_letter_space(hint_, 0, 0);
+}
+
+void LvglView::set_hint(std::string_view yes, std::string_view no, const char* gap,
+                        int letter_space) {
+  reset_hint();
+  lv_obj_set_style_text_letter_space(hint_, letter_space, 0);
+  lv_label_set_text_fmt(hint_, "HOLD \u00B7 %.*s%sPRESS \u00B7 %.*s", int(yes.size()), yes.data(),
+                        gap, int(no.size()), no.data());
+}
+
+int LvglView::hint_width(int letter_space) const {
+  lv_point_t size;
+  lv_text_get_size(&size, lv_label_get_text(hint_), &charm_text_24, letter_space, 0, LV_COORD_MAX,
+                   LV_TEXT_FLAG_NONE);
+  return size.x;
+}
+
 // The decision layout: the "ask" face small at the top, the question where speech goes, and the
 // hint at the bottom. Shown at once (not typed): it waits for an answer, not for reading along.
 void LvglView::show_decision(std::string_view text, std::string_view yes, std::string_view no) {
@@ -409,9 +432,19 @@ void LvglView::show_decision(std::string_view text, std::string_view yes, std::s
   speaking_ = false;
   set_face("ask", true);
   // A round screen is narrower at the bottom: the hint goes on two short lines there.
-  const char* gap = options_.round ? "\n" : "    ";
-  lv_label_set_text_fmt(hint_, "HOLD \u00B7 %.*s%sPRESS \u00B7 %.*s", int(yes.size()), yes.data(),
-                        gap, int(no.size()), no.data());
+  set_hint(yes, no, options_.round ? "\n" : "    ", 0);
+  // A notch panel is narrow and its bottom corners are round: a hint too wide for the room inside
+  // the orange outline closes up (a shorter gap, tighter letters), and only if that isn't enough
+  // ends in "…". Labels are at most 12 characters, so that takes the narrowest notch and both
+  // labels at their longest.
+  if (options_.notch) {
+    const int room = w_ - 2 * (kNotchPanelRadius * 3 / 5 + 4);
+    if (hint_width(0) > room) set_hint(yes, no, "  ", -1);
+    if (hint_width(-1) > room) {
+      lv_label_set_long_mode(hint_, LV_LABEL_LONG_MODE_DOTS);
+      lv_obj_set_width(hint_, room);
+    }
+  }
   set_mode(Mode::Decision);
   set_line(text, false);
   layout_target_ = 1;
