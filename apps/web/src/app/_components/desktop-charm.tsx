@@ -2,7 +2,7 @@ import { facesData } from "@opencharm-labs/design/faces";
 
 import { Button } from "@/components/ui/button";
 
-import { DESKTOP_README, RELEASES } from "../_lib/links";
+import { DESKTOP_README, DOWNLOAD } from "../_lib/links";
 import { Actions } from "./actions";
 import { NotchPreview } from "./notch-preview";
 import { Panel, PanelGrid, PanelTitle } from "./panel-grid";
@@ -80,7 +80,7 @@ function DesktopCharm() {
       </div>
       <Actions>
         <Button asChild variant="outline">
-          <a href={RELEASES}>Download</a>
+          <a href={DOWNLOAD}>Download</a>
         </Button>
         <Button asChild variant="outline">
           <a href={DESKTOP_README}>Build it yourself</a>

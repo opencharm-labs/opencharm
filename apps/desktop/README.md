@@ -8,7 +8,7 @@ It's the same OpenCharm OS as the board and the emulator: the firmware core comp
 
 ## Install
 
-Download the latest **OpenCharm Desktop** from [Releases](https://github.com/opencharm-labs/opencharm/releases):
+Download the latest **OpenCharm Desktop** from the [latest release](https://github.com/opencharm-labs/opencharm/releases/latest):
 
 - macOS (Apple silicon or Intel): the `.dmg` (`aarch64` for Apple silicon, `x64` for Intel). Drag OpenCharm into Applications and open it. The builds are signed with OpenCharm's own certificate, not an Apple Developer ID, so the first time macOS says it can't verify the developer: choose **Done**, then **System Settings → Privacy & Security → Open Anyway** (on macOS 14 and older, right-click OpenCharm and choose **Open**). If macOS says OpenCharm "is damaged" (desktop 0.2.0 and older, whose bundle wasn't signed), check the checksum (below), then run `xattr -dr com.apple.quarantine /Applications/OpenCharm.app`.
 - Windows: the setup `.exe`. SmartScreen warns about unsigned apps: **More info → Run anyway**.

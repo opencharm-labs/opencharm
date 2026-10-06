@@ -275,7 +275,7 @@ jobs:
             echo "$MARK"
           } >> "$RUNNER_TEMP/notes/notes.md"
           ID=$(gh api -X POST "repos/$GITHUB_REPOSITORY/releases" -f tag_name="$TAG" -f target_commitish="$SHA" \
-            -f name="desktop: $VERSION" -F draft=true -F prerelease=true -F body=@"$RUNNER_TEMP/notes/notes.md" -q .id)
+            -f name="desktop: $VERSION" -F draft=true -F prerelease=false -F body=@"$RUNNER_TEMP/notes/notes.md" -q .id)
           for file in "$RUNNER_TEMP"/assets/*; do
             name=$(basename "$file")
             curl -fsS -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Content-Type: application/octet-stream" \
@@ -283,5 +283,5 @@ jobs:
               "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$ID/assets?name=$name" >/dev/null
             echo "Attached $name"
           done
-          gh api -X PATCH "repos/$GITHUB_REPOSITORY/releases/$ID" -F draft=false >/dev/null
+          gh api -X PATCH "repos/$GITHUB_REPOSITORY/releases/$ID" -F draft=false -f make_latest=true >/dev/null
           echo "Published $TAG"

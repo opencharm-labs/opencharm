@@ -165,7 +165,7 @@ jobs:
           fi
           echo "Install or update: npm i -g opencharm (Node 24). Published from CI with npm provenance." >> "$RUNNER_TEMP/release/notes.md"
           gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$TARGET" \
-            --title "cli: $VERSION" --notes-file "$RUNNER_TEMP/release/notes.md" --latest
+            --title "cli: $VERSION" --notes-file "$RUNNER_TEMP/release/notes.md" --latest=false
       # After a repair, what came after the repaired release is still unreleased: plan it afresh.
       - if: needs.build.outputs.repair == 'true'
         env:

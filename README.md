@@ -35,7 +35,7 @@ opencharm pair <code>                    # the code on its screen; then choose a
 
 Hold Space and talk. The workspace's README covers the voice (local on macOS, or OpenAI).
 
-**The desktop charm (macOS).** Download it from [Releases](https://github.com/opencharm-labs/opencharm/releases) ([how](apps/desktop/README.md)). In Settings, choose your agent's folder, then hold **⌥ Space** and talk.
+**The desktop charm (macOS).** Download it from the [latest release](https://github.com/opencharm-labs/opencharm/releases/latest) ([how](apps/desktop/README.md)). In Settings, choose your agent's folder, then hold **⌥ Space** and talk.
 
 **The emulator, from source** (Node 24; Emscripten, see [CONTRIBUTING.md](CONTRIBUTING.md)):
 
