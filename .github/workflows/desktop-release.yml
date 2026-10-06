@@ -283,5 +283,7 @@ jobs:
               "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$ID/assets?name=$name" >/dev/null
             echo "Attached $name"
           done
+          # Latest: the site's Download button and the READMEs open /releases/latest, so the newest
+          # desktop release must hold it (the CLI and web releases never take it; tools/checks guards that).
           gh api -X PATCH "repos/$GITHUB_REPOSITORY/releases/$ID" -F draft=false -f make_latest=true >/dev/null
           echo "Published $TAG"

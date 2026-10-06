@@ -82,7 +82,7 @@ jobs:
             node tools/release/scripts/next-release.ts cli --head "$PUBLISHED" --notes "$RUNNER_TEMP/release/notes.md" > /dev/null
             { echo "build=false"; echo "target=$PUBLISHED"; echo "repair=true"; } >> "$GITHUB_OUTPUT"
           else
-            echo "::error::opencharm@$VERSION is on npm from '${PUBLISHED:-an unrecorded commit}', not an ancestor of $SHA: find the commit in the package's provenance on npmjs.com and tag it by hand (gh release create cli@$VERSION --target <commit> --title 'cli: $VERSION' --generate-notes)"
+            echo "::error::opencharm@$VERSION is on npm from '${PUBLISHED:-an unrecorded commit}', not an ancestor of $SHA: find the commit in the package's provenance on npmjs.com and tag it by hand (gh release create cli@$VERSION --target <commit> --title 'cli: $VERSION' --generate-notes --latest=false)"
             exit 1
           fi
       # The exact commit for every build's identity (spec 015): stamping the version edits package.json,

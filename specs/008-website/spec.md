@@ -60,7 +60,7 @@ Docs pages, a blog, a shop (there is none).
 - [x] Lighthouse on the production build (local, 2 October 2026): desktop performance 100, accessibility 100, best practices 100, SEO 100; mobile 95, 100, 100, 100. Target ≥ 95 on performance and accessibility.
 - [x] The mockup removed (`apps/web/mockup` deleted).
 - [x] `npm run check` and `npm run build -w apps/web` green.
-- [x] The desktop charm, the alive face, captions and the mic rule are on the page, every claim true to the code (specs 005 and 013); the Download button points at GitHub Releases, where the first desktop release will appear (maintainer, 2 October 2026).
+- [x] The desktop charm, the alive face, captions and the mic rule are on the page, every claim true to the code (specs 005 and 013); the Download button points at GitHub Releases, where the first desktop release will appear (maintainer, 2 October 2026); since 6 October 2026 it opens `/releases/latest`, the newest desktop release, which is the only release marked Latest (maintainer).
 - [x] Screenshots of the updated page reviewed by the maintainer at 1440 and 390 px; branding and content decided with the maintainer, section by section (2 October 2026).
 - [x] The hero shows the charm (no strap) and the desktop charm in sync; the configurator changes colour, name and face on both.
 - [x] A colour of your own: typed `#ff6ec7` recolours the preview and clears the six; the needs-you orange is refused with its reason (site end-to-end test).
