@@ -153,6 +153,12 @@ M._sim_init(
   notch ? NOTCH.width : 0,
   notch ? NOTCH.strip : 0
 );
+// The open panel's corners come from the core, which draws the orange outline with the same radius.
+if (notch)
+  charmEl.style.setProperty(
+    "--panel-radius",
+    `${M._sim_panel_radius() * scale}px`
+  );
 const frame = canvas.getContext("2d").createImageData(W, H);
 
 function withString(text, fn) {
