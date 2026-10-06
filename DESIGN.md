@@ -317,3 +317,7 @@ Don't:
 - Draw faces as images, sprites or emoji; they are text glyphs.
 - Light the screen background or put a colour behind the glyphs.
 - Use "Muse" in any name, handle, path or visual.
+
+Scope:
+
+- These rules and tokens govern the product (the charm, the desktop app, the CLI, the emulator) and opencharm.dev. `apps/video` is the promo film, not UI: its scenes draw video frames, so literal colour values, motion blur and a soft contact shadow there are deliberate. AI design reviews (crocotaste included) skip `apps/video/**`; the film is reviewed by watching its render.
