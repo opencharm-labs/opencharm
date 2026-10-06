@@ -2,7 +2,7 @@
 
 OpenCharm without the hardware: your charm lives by the Mac's notch. Its eyes sit on either side of the notch, breathing and blinking. Hold the talk key in any app to speak. When it answers, thinks or needs you, a panel opens below the notch. On a Mac without a notch, and on Windows, it's a black pill at the top centre of the screen.
 
-It's the same OpenCharm OS as the board and the emulator: the firmware core compiled to WebAssembly, in a small Tauri 2 app. Overview: [OPENCHARM.md](../../OPENCHARM.md) ("The desktop charm"); specs `specs/013-desktop-charm` and `specs/013-desktop-charm`. The pitch is "the charm, without the hardware", not a notch status app.
+It's the same OpenCharm OS the board will run: the firmware core compiled to WebAssembly, in a small Tauri 2 app. Overview: [OPENCHARM.md](../../OPENCHARM.md) ("The desktop charm"); spec `specs/013-desktop-charm`. The pitch is "the charm, without the hardware", not a notch status app.
 
 **No warranty:** provided as is; see the [disclaimer](../../README.md#no-warranty).
 

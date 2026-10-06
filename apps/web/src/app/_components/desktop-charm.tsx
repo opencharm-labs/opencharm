@@ -63,8 +63,8 @@ function DesktopCharm() {
       <SectionIntro title="The charm, without the hardware.">
         No board yet? The desktop charm lives at the top of your screen: by the
         notch on a Mac, as a small black pill on Windows. It’s the same
-        OpenCharm OS as the board, about 2% of one core at rest, and a 4&nbsp;MB
-        app.
+        OpenCharm OS the board will run, about 2% of one core at rest, and a
+        4&nbsp;MB app.
       </SectionIntro>
       <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
         <NotchDrawing />

@@ -8,7 +8,7 @@ Status: the desktop charm (macOS; Windows untested) and charmd work today, and t
 
 ## Docs
 
-- [README](https://github.com/opencharm-labs/opencharm/blob/main/README.md): what it is, status, how to try it, licences, no warranty
+- [README](https://github.com/opencharm-labs/opencharm/blob/main/README.md): what it is, status, how to get it, licences, no warranty
 - [OPENCHARM.md](https://github.com/opencharm-labs/opencharm/blob/main/OPENCHARM.md): the product spec, the source of truth
 - [Build guide](https://github.com/opencharm-labs/opencharm/blob/main/docs/build.md): the board, the shell, pairing
 - [Run charmd on a server](https://github.com/opencharm-labs/opencharm/blob/main/docs/deploy.md)

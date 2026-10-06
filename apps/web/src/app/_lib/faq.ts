@@ -18,7 +18,7 @@ export const FAQ: Faq[] = [
   },
   {
     q: "Is it always listening?",
-    a: "No. The microphone opens only while you hold the key, in the desktop charm and on the board; let go and it closes. There is no wake word. The rule lives in OpenCharm OS itself, so your agent can’t open the microphone on its own.",
+    a: "No. The microphone opens only while you hold the key, in the desktop charm, and so it will on the board; let go and it closes. There is no wake word. The rule lives in OpenCharm OS itself, so your agent can’t open the microphone on its own.",
   },
   {
     q: "Where do my data and keys live?",

@@ -39,7 +39,7 @@ opencharm.dev is how people find the project. It describes what exists, says pla
 - **How it works:** the real path (charm → charmd: pairing, PIN, voice, questions, the charm's tools → your agent), the real terminal (`opencharm init` → `serve` → `pair`) and the status of each piece.
 - **Build one:** the board, using the desktop charm until the device port, flashing marked as coming, charmd with the starter workspace.
 - **Hack it:** the workspace persona and skills, then tools (MCP, including the charm's own), then the firmware core. Only real files and real code.
-- **Copy rules:** every claim matches the code or `OPENCHARM.md`, or says it's coming (the device firmware port, the CLI on npm). No waitlist or forms; a closing "Build yours" section links the build guide and the code. The footer carries the no-warranty notice and the not-affiliated line (naming Anthropic, OpenAI and Google, whose agents we name).
+- **Copy rules:** every claim matches the code or `OPENCHARM.md`, or says it's coming (the device firmware port). No waitlist or forms; a closing "Build yours" section links the build guide and the code. The footer carries the no-warranty notice and the not-affiliated line (naming Anthropic, OpenAI and Google, whose agents we name).
 
 ## Decisions
 

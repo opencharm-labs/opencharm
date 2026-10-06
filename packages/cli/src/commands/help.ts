@@ -17,7 +17,7 @@ function runHelp(ctx: CliContext): void {
     opencharm init [dir]            clone the starter workspace for your agent [--agent claude|codex|gemini|goose|hermes|openclaw] [--from <git url>] [--name <name>] [--colour <colour|#RRGGBB>]
     opencharm setup --domain <d>    install charmd as a service (Linux, sudo)   [--dry-run]
     opencharm serve                 start charmd   [--config <file>]
-    opencharm sim                   the charm on screen, in your browser   [--url <ws>] [--port <n>]
+    opencharm sim                   the emulator, for developing the charm [--url <ws>] [--port <n>]
     opencharm voice                 the local voice's models   [install: download them now]
     opencharm pair <code>           pair the charm showing <code>   [--name <name>]
     opencharm status                paired charms and their state

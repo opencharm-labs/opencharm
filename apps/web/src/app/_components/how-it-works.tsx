@@ -33,7 +33,7 @@ const PIECES = [
     name: "OpenCharm OS",
     where: "firmware/core, C++",
     what: "Glyph faces, the key, the PIN pad, questions on the charm. Runs in the desktop charm today; the board port is next.",
-    status: "DESKTOP · BOARD NEXT",
+    status: "DESKTOP",
   },
   {
     name: "Desktop charm",
@@ -149,7 +149,7 @@ function HowItWorks() {
         <div className="overflow-hidden rounded-[14px] border-[1.5px] border-ink">
           <div className="flex justify-between gap-3 bg-night px-5.5 pt-4 font-mono text-2xs tracking-caption text-on-night-2">
             <span>TERMINAL</span>
-            <span>FROM SOURCE TODAY · NPM SOON</span>
+            <span>ON NPM · NODE 24</span>
           </div>
           <CodeBlock>
             <CodeLines lines={TERMINAL} />

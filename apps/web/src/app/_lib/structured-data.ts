@@ -44,7 +44,7 @@ export function structuredData() {
         "@id": `${SITE}/#cli`,
         name: "opencharm",
         description:
-          "The OpenCharm command line: opencharm init, serve (charmd, the charm daemon), pair and sim. Runs from source with Node.js today; the npm package is coming.",
+          "The OpenCharm command line: opencharm init, serve (charmd, the charm daemon), pair and sim. On npm as opencharm (Node 24).",
         applicationCategory: "DeveloperApplication",
         operatingSystem: "Node.js",
         url: `${REPO}/tree/main/packages/cli`,

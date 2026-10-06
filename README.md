@@ -40,7 +40,7 @@ opencharm sim                            # in another terminal: the emulator
 opencharm pair <code>                    # the code on its screen; then choose a PIN
 ```
 
-From source (Emscripten, see [CONTRIBUTING.md](CONTRIBUTING.md)): `npm run firmware:sim`, then `npm run cli -- serve` and, in another terminal, `npm run sim`.
+From source (Emscripten, see [CONTRIBUTING.md](CONTRIBUTING.md)): `npm run firmware:sim`, then `npm run cli -- serve` and, in another terminal, `npm run sim`; pair with `npm run cli -- pair <code>`. In the emulator, hold Space to talk.
 
 How we work (specs, branches, PRs, agents): [CONTRIBUTING.md](CONTRIBUTING.md). Coding agents start at [AGENTS.md](AGENTS.md).
 

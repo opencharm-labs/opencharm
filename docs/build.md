@@ -2,7 +2,7 @@
 
 What to buy, what to check when it arrives, and how to flash it. The design decisions behind it are in [OPENCHARM.md](../OPENCHARM.md); this page is the practical guide.
 
-Status: **charmd (the charm daemon) and the emulator work today; firmware for the board (OpenCharm OS, spec 009) isn't written yet.** Today you can buy the parts, check the board, run Waveshare's own XiaoZhi firmware, and run charmd with your agent through the emulator or the [desktop charm](../apps/desktop/README.md). The steps marked _later_ land with the firmware.
+Status: **charmd (the charm daemon) and the [desktop charm](../apps/desktop/README.md) work today; firmware for the board (OpenCharm OS, spec 009) isn't written yet.** Today you can buy the parts, check the board, run Waveshare's own XiaoZhi firmware, and use the desktop charm with your agent until the firmware lands. The steps marked _later_ land with the firmware.
 
 **No warranty: you build and use this at your own risk**, especially the lithium battery. Read the [disclaimer](../README.md#no-warranty) first.
 
@@ -83,7 +83,7 @@ The battery version ships a 3.7 V 1000 mAh LiPo with an MX1.25 plug. Waveshare d
 
 ## 6. Connect it to your agent
 
-Steps 1, 2 and 4 work today with the emulator (`opencharm sim`) or the [desktop charm](../apps/desktop/README.md); step 3 is _later_.
+Steps 1, 2 and 4 work today with the [desktop charm](../apps/desktop/README.md); step 3 is _later_.
 
 1. On the agent's machine, install and start charmd (`npm i -g opencharm`, then `opencharm serve`). On your own computer that's all; on a server, follow [deploy.md](deploy.md) (a system service behind Caddy for HTTPS).
 2. Point charmd at your agent (config: [`packages/charmd/README.md`](../packages/charmd/README.md)). On your computer charmd starts Claude Code, Codex, Gemini CLI, Hermes, OpenClaw or another ACP agent itself. On a server it talks to the agent's OpenAI-compatible API on localhost only: Hermes `API_SERVER_ENABLED=true` ([docs](https://hermes-agent.nousresearch.com/docs/user-guide/features/api-server)), or OpenClaw's chat completions endpoint ([docs](https://docs.openclaw.ai/gateway/openai-http-api)).

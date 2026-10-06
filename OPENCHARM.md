@@ -298,7 +298,7 @@ The rows from Anthropic's buddy down were checked on 1 October 2026 (sources in 
 | Meta Muse Charm                                                | Keychain screen with an avatar, press to talk, 5G                                  | Meta's own agent and cloud                                                                    |
 | Claude Code /voice                                             | Built-in hold-to-talk in the terminal (March 2026)                                 | Cloud speech-to-text, no device                                                               |
 
-Each piece exists somewhere. What we found nowhere else is the combination: agent-agnostic over ACP; one key both to talk and to approve; MCP tools for the agent to drive its body; fully local with no vendor cloud; the same firmware core in a browser emulator; memory and persona as plain files; a printable case, and nothing sold.
+Each piece exists somewhere. What we found nowhere else is the combination: agent-agnostic over ACP; one key both to talk and to approve; MCP tools for the agent to drive its body; fully local with no vendor cloud; the same firmware core on your desktop and, next, on the board; memory and persona as plain files; a printable case, and nothing sold.
 
 Safe to say: "an open-source body for the agent you already run", "one key to talk and to approve", "runs on your computer, no cloud of ours", "the desktop charm runs the same OpenCharm OS the board will". Don't say "the first" anything: Anthropic's buddy already approves on a device, and several projects already talk to Claude Code by voice.
 
