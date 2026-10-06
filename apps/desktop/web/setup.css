@@ -154,13 +154,6 @@ body.setup:not(.welcome) .charm {
   outline: 2px solid var(--ink);
   outline-offset: 2px;
 }
-/* Settings' inputs grow along a row (flex: 1); stacked in a step they keep their height. */
-.setup section > input,
-.setup section > select,
-.setup .extra > input,
-.setup .extra > select {
-  flex: none;
-}
 .mic-row {
   align-items: center;
   gap: 12px;

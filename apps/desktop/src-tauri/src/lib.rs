@@ -815,11 +815,21 @@ fn show_settings(app: &AppHandle) -> tauri::Result<()> {
         window.show()?;
         return window.set_focus();
     }
+    // A long page: as tall as 780 points, but never past the screen's usable area on a small Mac
+    // (the title bar and a margin stay inside it). Resizable, and the page keeps to its column.
+    let height = app
+        .primary_monitor()
+        .ok()
+        .flatten()
+        .map_or(780.0, |m| {
+            f64::from(m.work_area().size.height) / m.scale_factor() - 60.0
+        })
+        .clamp(480.0, 780.0);
     let window =
         WebviewWindowBuilder::new(app, "settings", WebviewUrl::App("settings.html".into()))
             .title("OpenCharm")
-            .inner_size(440.0, 760.0)
-            .resizable(false)
+            .inner_size(520.0, height)
+            .min_inner_size(460.0, 480.0)
             .center()
             .build()?;
     window.set_focus()

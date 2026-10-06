@@ -1,11 +1,13 @@
-/* The brand: off-white paper with a faint grid, black ink, mono labels, pill buttons. Colour only on
-   the charm itself. */
+/* The brand (DESIGN.md), as on opencharm.dev: off-white paper under the site's faint grid, black ink,
+   drawn boxes, mono labels, pill buttons. Colour only on the charm itself. */
 :root {
   --paper: #f6f6f4;
   --ink: #0a0a0a;
-  --dim: #77756f;
-  --line: rgba(10, 10, 10, 0.12);
+  --ink-2: #3a3a3a;
+  --dim: #6e6e6e;
+  --line: rgba(10, 10, 10, 0.22);
   --signal: #ff5a1f;
+  --grid-minor: 20px;
   font-family:
     "Geist",
     ui-sans-serif,
@@ -13,22 +15,45 @@
     -apple-system,
     sans-serif;
   color: var(--ink);
+  /* Scrollbars in ink on paper, thin and flat, like the site's. */
+  scrollbar-color: var(--ink) var(--paper);
+  scrollbar-width: thin;
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: var(--paper);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--ink);
+  border: 3px solid var(--paper);
 }
 * {
   box-sizing: border-box;
 }
 body {
   margin: 0;
-  padding: 24px 24px 18px;
+  /* A resized window centres a column of at most 560px rather than stretch the fields across it. */
+  padding: var(--grid-minor) max(var(--grid-minor), calc(50% - 280px));
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   gap: 18px;
   background-color: var(--paper);
+  /* The site's drawing paper (apps/web globals.css), so the app and opencharm.dev read as one. */
   background-image:
-    linear-gradient(var(--line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--line) 1px, transparent 1px);
-  background-size: 24px 24px;
+    linear-gradient(rgba(10, 10, 10, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(10, 10, 10, 0.07) 1px, transparent 1px),
+    linear-gradient(rgba(10, 10, 10, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(10, 10, 10, 0.03) 1px, transparent 1px);
+  background-size:
+    160px 160px,
+    160px 160px,
+    20px 20px,
+    20px 20px;
   background-position: -1px -1px;
   -webkit-user-select: none;
   user-select: none;
@@ -63,7 +88,7 @@ h1 {
 }
 .lede {
   margin: 0;
-  color: #3a3935;
+  color: var(--ink-2);
   font-size: 14px;
   line-height: 1.4;
 }
@@ -72,11 +97,11 @@ form {
   flex-direction: column;
   gap: 12px;
 }
+/* Cards are drawn boxes, not lit ones (DESIGN.md "Shapes"). */
 section {
   background: #fff;
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  padding: 14px 16px;
+  border: 1.5px solid var(--ink);
+  padding: var(--grid-minor);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -88,10 +113,10 @@ section {
 }
 .grow {
   flex: 1;
+  min-width: 0;
 }
 select,
 input {
-  flex: 1;
   height: 38px;
   padding: 0 14px;
   border: 1.5px solid var(--ink);
@@ -103,6 +128,8 @@ input {
   appearance: none;
 }
 select {
+  /* WebKit draws a long choice past a narrow select's edge, which widened the page. */
+  overflow: hidden;
   min-height: 38px;
   line-height: 34px;
   padding-right: 34px;
@@ -220,7 +247,7 @@ footer {
   gap: 12px;
   align-items: center;
   padding: 10px 12px;
-  border-radius: 14px;
+  border: 1px dashed var(--line);
   background: var(--paper);
 }
 .status-card strong {
@@ -232,7 +259,6 @@ footer {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 250px;
 }
 .dot {
   width: 10px;
@@ -293,11 +319,10 @@ summary {
   flex-direction: column;
   gap: 8px;
 }
-.look > input,
-.look > select {
-  flex: none;
-}
-.row select {
+/* Fields share a row's line; stacked in a column they keep their own height. */
+.row > input,
+.row > select {
+  flex: 1;
   min-width: 0;
 }
 .look .switch-row {
@@ -305,10 +330,9 @@ summary {
   gap: 12px;
   margin-top: 6px;
 }
-/* The six identity colours as soft squircles; the chosen one gets an ink ring. */
+/* A new version: the one solid ink box on the page, so it's seen first. */
 .update {
   border: none;
-  border-radius: 14px;
   padding: 12px 16px;
   background: var(--ink);
   color: #fff;
