@@ -21,6 +21,11 @@ afterEach(() => {
   agent = undefined;
 });
 
+// These wait on a real child process (the fake agent). On a busy machine, running every
+// workspace's tests at once, starting it can take longer than expect.poll's 1 s default;
+// a passing poll still returns as soon as the line appears.
+const PROCESS = { timeout: 10_000 };
+
 function setup(
   env: Record<string, string> = {},
   options: Partial<AcpAgentOptions> = {}
@@ -137,7 +142,7 @@ describe("acp agent", () => {
     const { agent, logged } = setup();
     agent.warm?.("opencharm-c_1");
     await expect
-      .poll(() => logged().some((l) => l.method === "session/new"))
+      .poll(() => logged().some((l) => l.method === "session/new"), PROCESS)
       .toBe(true);
   });
 
@@ -162,7 +167,7 @@ describe("acp agent", () => {
     }
     expect(chunks).toEqual(["Thinking"]);
     await expect
-      .poll(() => logged().some((l) => l.method === "session/cancel"))
+      .poll(() => logged().some((l) => l.method === "session/cancel"), PROCESS)
       .toBe(true);
     expect(await collect(agent, "again")).toBe("You said: again.");
   });
@@ -240,7 +245,8 @@ describe("acp agent", () => {
       chunks.push(chunk);
     await expect
       .poll(
-        () => logged().find((l) => l.method === "permission-answer")?.params
+        () => logged().find((l) => l.method === "permission-answer")?.params,
+        PROCESS
       )
       .toEqual({ outcome: { outcome: "cancelled" } });
   });

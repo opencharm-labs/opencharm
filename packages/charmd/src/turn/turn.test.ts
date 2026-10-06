@@ -1,5 +1,5 @@
 import type { ServerMessage } from "@opencharm-labs/protocol/messages";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { AgentAdapter } from "../agent/types";
 import { createFakeAgent } from "../agent/fake";
@@ -859,66 +859,72 @@ describe("getting the voice ready while you speak", () => {
 
 describe("a reply read as text, with questions in the middle", () => {
   it("holds a sentence's reading time until the last question is answered, then reads on", async () => {
-    const events: string[] = [];
-    const agent: AgentAdapter = {
-      name: "fake",
-      async *reply(input) {
-        yield "Here is the first part of it. ";
-        // 8 real ms in: about 800 ms of the sentence's 2 s reading time has gone.
-        await new Promise((resolve) => setTimeout(resolve, 8));
-        // Two questions at once (parallel tools): the charm shows them one after the other.
-        await Promise.all([
-          input.ask?.("write a.md"),
-          input.ask?.("write b.md"),
-        ]);
-        yield "And the end.";
-      },
-    };
-    let line = Promise.resolve(true);
-    const turn = new TurnController({
-      voice: createFakeVoice({ transcript: "hi" }),
-      agent,
-      sessionKey: "opencharm-c_1",
-      send: (m) => {
-        if ("type" in m && m.type === "tts" && m.state === "sentence_start")
-          events.push(`show ${m.text ?? ""}`);
-      },
-      sendAudio: () => undefined,
-      timeoutMs: 5000,
-      // Time a hundred times faster, the same for the clock and for sleeping.
-      now: () => performance.now() * 100,
-      sleep: (ms) => {
-        events.push(`read ${Math.round(ms / 100) * 100}`);
-        return new Promise((resolve) => setTimeout(resolve, ms / 100));
-      },
-      ask: () =>
-        (line = line.then(() => {
-          events.push("asked");
-          return new Promise((resolve) =>
-            setTimeout(() => {
-              events.push("answered");
-              resolve(true);
-            }, 40)
-          );
-        })),
-      speakAloud: () => false,
-    });
-    await speak(turn);
-    const resumed = Number(events[6]?.replace("read ", ""));
-    expect(events).toEqual([
-      "show Here is the first part of it.",
-      // Seven words at three a second.
-      "read 2300",
-      "asked",
-      "answered",
-      "asked",
-      "answered",
-      events[6],
-      "show And the end.",
-      "read 2000",
-    ]);
-    // What it had left, not the full time again and not what the questions took.
-    expect(resumed).toBeGreaterThan(800);
-    expect(resumed).toBeLessThan(2000);
+    // Fake timers: time moves only when the test moves it, so the numbers are exact on every run
+    // (real time, even sped up, drifts on a busy machine).
+    vi.useFakeTimers();
+    try {
+      const events: string[] = [];
+      const agent: AgentAdapter = {
+        name: "fake",
+        async *reply(input) {
+          yield "Here is the first part of it. ";
+          // 800 ms into the sentence's reading time…
+          await new Promise((resolve) => setTimeout(resolve, 800));
+          // …two questions at once (parallel tools): the charm shows them one after the other.
+          await Promise.all([
+            input.ask?.("write a.md"),
+            input.ask?.("write b.md"),
+          ]);
+          yield "And the end.";
+        },
+      };
+      let line = Promise.resolve(true);
+      const turn = new TurnController({
+        voice: createFakeVoice({ transcript: "hi" }),
+        agent,
+        sessionKey: "opencharm-c_1",
+        send: (m) => {
+          if ("type" in m && m.type === "tts" && m.state === "sentence_start")
+            events.push(`show ${m.text ?? ""}`);
+        },
+        sendAudio: () => undefined,
+        timeoutMs: 60_000,
+        now: () => Date.now(),
+        sleep: (ms) => {
+          events.push(`read ${Math.round(ms)}`);
+          return new Promise((resolve) => setTimeout(resolve, ms));
+        },
+        ask: () =>
+          (line = line.then(() => {
+            events.push("asked");
+            // Answering takes a while: none of it may count as reading time.
+            return new Promise((resolve) =>
+              setTimeout(() => {
+                events.push("answered");
+                resolve(true);
+              }, 3000)
+            );
+          })),
+        speakAloud: () => false,
+      });
+      const spoken = speak(turn);
+      await vi.runAllTimersAsync();
+      await spoken;
+      expect(events).toEqual([
+        "show Here is the first part of it.",
+        // Seven words at three a second.
+        "read 2333",
+        "asked",
+        "answered",
+        "asked",
+        "answered",
+        // What it had left (2333 − 800), not the full time again and not what the questions took.
+        "read 1533",
+        "show And the end.",
+        "read 2000",
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
