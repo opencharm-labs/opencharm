@@ -2,7 +2,7 @@ import { type ColourId, colour, face, flapAt } from "../charm/engine";
 import { NOTCH, type NotchState } from "../charm/notch";
 import { SCREEN } from "../mac/mac-screen";
 import { type Line } from "../mac/terminal";
-import { FPS, FRAMES_PER_BEAT, beat } from "../track";
+import { FPS, beat, beatAt } from "../track";
 import { keys, rand, snap, step } from "../motion";
 
 type Beat = {
@@ -260,7 +260,7 @@ export function cameraAt(frame: number): Camera {
   }
   // While the moods go by, the camera kicks a little on every beat.
   if (frame >= beat(16) && frame < beat(32)) {
-    const since = (frame - beat(16)) % FRAMES_PER_BEAT;
+    const { since } = beatAt(frame);
     cam = { ...cam, z: cam.z * (1 + 0.03 * Math.exp(-since / 6)) };
   }
   return cam;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BEATS, DURATION, FPS, FRAMES_PER_BEAT, beat } from "./track";
+import { BEATS, DURATION, FPS, beat, beatAt } from "./track";
 
 describe("the film's beat clock", () => {
   it("keeps the film between 30 and 45 seconds", () => {
@@ -14,7 +14,10 @@ describe("the film's beat clock", () => {
     }
   });
 
-  it("measures a beat in frames at the track's tempo", () => {
-    expect(FRAMES_PER_BEAT).toBe(beat(1) - beat(0));
+  it("finds the beat a frame is in, and how far into it", () => {
+    for (let b = 0; b < BEATS; b++) {
+      expect(beatAt(beat(b))).toEqual({ index: b, since: 0 });
+      expect(beatAt(beat(b + 1) - 1).index).toBe(b);
+    }
   });
 });

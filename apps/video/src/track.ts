@@ -13,6 +13,11 @@ export const BEATS = 84;
 export const beat = (n: number): number =>
   Math.round((TRACK.firstBeat + (n * 60) / TRACK.bpm) * FPS);
 
-export const FRAMES_PER_BEAT = beat(1) - beat(0);
+// Which beat a frame is in, and how many frames into it: exact at any tempo, where a fixed number
+// of frames per beat would drift.
+export function beatAt(frame: number): { index: number; since: number } {
+  const index = Math.floor(((frame / FPS - TRACK.firstBeat) * TRACK.bpm) / 60);
+  return { index, since: frame - beat(index) };
+}
 export const DURATION = beat(BEATS);
 export const trackSrc = (): string => staticFile(TRACK.file);

@@ -52,6 +52,9 @@ type Engine = {
   ) => void;
 };
 
+// The firmware's mouth while it speaks: these glyphs, 110 ms each.
+const FLAP = ["o", "−", "O", "o", "−"];
+
 const charm = (window as unknown as { CharmFace: Engine }).CharmFace;
 
 export const FACES = charm.FACES;
@@ -63,7 +66,5 @@ export const colour = (id: ColourId): Colour =>
   charm.COLORS.find((c) => c.id === id) ?? (charm.COLORS[0] as Colour);
 export const face = (id: string): Face => FACES[id] ?? (FACES.neutral as Face);
 
-// The firmware's mouth while it speaks: these glyphs, 110 ms each.
-const FLAP = ["o", "−", "O", "o", "−"];
 export const flapAt = (ms: number): string =>
   FLAP[Math.floor(ms / 110) % FLAP.length] as string;

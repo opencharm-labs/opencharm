@@ -28,7 +28,8 @@ function inkCentre(ch: string, weight: number): number {
   const centre =
     ((m.actualBoundingBoxAscent || 70) - (m.actualBoundingBoxDescent || 0)) /
     200;
-  inkCache.set(key, centre);
+  // Only Geist Mono's own metrics are kept: a measure taken before the font loaded is redone.
+  if (document.fonts.check(ctx.font)) inkCache.set(key, centre);
   return centre;
 }
 

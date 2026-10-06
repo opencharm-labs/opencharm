@@ -133,7 +133,7 @@ export function Body() {
   const frame = useCurrentFrame();
   const B = (n: number) => beat(n) - beat(68);
   const handoff = span(frame, 0, B(70), snap);
-  const [, colourId, faceId] = step(
+  const [swapAt, colourId, faceId] = step(
     frame,
     SWAPS.map((s) => [B(s[0]), s] as [number, (typeof SWAPS)[number]])
   );
@@ -152,14 +152,7 @@ export function Body() {
     ],
     snap
   );
-  const sinceSwap =
-    frame -
-    B(
-      step(
-        frame,
-        SWAPS.map((s) => [B(s[0]), s[0]] as [number, number])
-      )
-    );
+  const sinceSwap = frame - B(swapAt);
   const pop =
     frame < B(72)
       ? 1

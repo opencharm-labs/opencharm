@@ -14,15 +14,15 @@ export const PAPER: CSSProperties = {
   backgroundPosition: "-1px -1px",
 };
 
-export function Paper({ style }: { style?: CSSProperties }) {
-  return <div style={{ position: "absolute", inset: 0, ...PAPER, ...style }} />;
-}
-
 const LEFT = 46;
 const RIGHT = 1840;
 const TOP = 46;
 const X0 = 200;
 const X1 = 1720;
+
+export function Paper({ style }: { style?: CSSProperties }) {
+  return <div style={{ position: "absolute", inset: 0, ...PAPER, ...style }} />;
+}
 
 function Ticks({
   draw,

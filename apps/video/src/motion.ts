@@ -2,6 +2,10 @@ import { Easing, interpolate } from "remotion";
 
 export type Key = [frame: number, value: number];
 
+export const snap = Easing.bezier(0.85, 0, 0.15, 1);
+export const out = Easing.bezier(0.16, 1, 0.3, 1);
+export const back = Easing.bezier(0.34, 1.56, 0.64, 1);
+
 // A value through keyframes; each segment eased (default: smooth in and out).
 export function keys(
   frame: number,
@@ -31,10 +35,6 @@ export const span = (
     ],
     easing
   );
-
-export const snap = Easing.bezier(0.85, 0, 0.15, 1);
-export const out = Easing.bezier(0.16, 1, 0.3, 1);
-export const back = Easing.bezier(0.34, 1.56, 0.64, 1);
 
 // The last value at or before this frame, for things that switch rather than move.
 export function step<T>(frame: number, points: [number, T][]): T {

@@ -1,7 +1,8 @@
 import path from "node:path";
 import { Config } from "@remotion/cli/config";
 
-// npm runs workspace scripts from apps/video, so the repo root is two levels up.
+// Remotion runs from its project folder (it needs this tsconfig.json there) and compiles this file
+// to CommonJS, where import.meta is empty: the working directory is apps/video, so the root is two up.
 const ROOT = path.resolve(process.cwd(), "../..");
 
 Config.setVideoImageFormat("jpeg");

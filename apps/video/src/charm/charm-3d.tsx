@@ -2,10 +2,21 @@ import { ThreeCanvas } from "@remotion/three";
 import { useEffect, useMemo, useState } from "react";
 import { cancelRender, continueRender, delayRender } from "remotion";
 import * as THREE from "three";
+import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
+import { toCreasedNormals } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import backUrl from "opencharm-stl/view_back.stl";
 import frontUrl from "opencharm-stl/view_front.stl";
 import keyUrl from "opencharm-stl/view_key.stl";
 import { type Colour, type GlyphState, drawGlyphs } from "./engine";
+
+export type CharmPose = {
+  rotY: number;
+  rotX: number;
+  y: number;
+  scale: number;
+  colour: Colour;
+  glyphs: GlyphState;
+};
 
 type Parts = {
   front: THREE.BufferGeometry;
@@ -22,93 +33,34 @@ export const PX_PER_MM = WINDOW_PX / WINDOW_MM;
 export const CAMERA_DISTANCE =
   1080 / PX_PER_MM / (2 * Math.tan(((CAMERA_FOV / 2) * Math.PI) / 180));
 
-// Binary STL with normals smoothed across edges under 35°, like hardware/prototype.
-function parseStl(buffer: ArrayBuffer): THREE.BufferGeometry {
-  const view = new DataView(buffer);
-  const n = view.getUint32(80, true);
-  const pos = new Float32Array(n * 9);
-  let o = 84;
-  for (let i = 0; i < n; i++) {
-    o += 12;
-    for (let j = 0; j < 9; j++) {
-      pos[i * 9 + j] = view.getFloat32(o, true);
-      o += 4;
-    }
-    o += 2;
-  }
-  const fn = new Float32Array(n * 3);
-  const ids = new Map<string, number>();
-  const vid = new Int32Array(n * 3);
-  const groups: number[][] = [];
-  for (let t = 0; t < n; t++) {
-    const a = t * 9;
-    const ux = pos[a + 3]! - pos[a]!,
-      uy = pos[a + 4]! - pos[a + 1]!,
-      uz = pos[a + 5]! - pos[a + 2]!;
-    const vx = pos[a + 6]! - pos[a]!,
-      vy = pos[a + 7]! - pos[a + 1]!,
-      vz = pos[a + 8]! - pos[a + 2]!;
-    const nx = uy * vz - uz * vy,
-      ny = uz * vx - ux * vz,
-      nz = ux * vy - uy * vx;
-    const l = Math.hypot(nx, ny, nz) || 1;
-    fn[t * 3] = nx / l;
-    fn[t * 3 + 1] = ny / l;
-    fn[t * 3 + 2] = nz / l;
-    for (let c = 0; c < 3; c++) {
-      const p = a + c * 3;
-      const k = `${Math.round(pos[p]! * 1000)},${Math.round(pos[p + 1]! * 1000)},${Math.round(pos[p + 2]! * 1000)}`;
-      let id = ids.get(k);
-      if (id == null) {
-        id = groups.length;
-        ids.set(k, id);
-        groups.push([]);
-      }
-      vid[t * 3 + c] = id;
-      groups[id]!.push(t);
-    }
-  }
-  const nor = new Float32Array(n * 9);
-  const cos = Math.cos((35 * Math.PI) / 180);
-  for (let t = 0; t < n; t++)
-    for (let c = 0; c < 3; c++) {
-      let sx = 0,
-        sy = 0,
-        sz = 0;
-      for (const f of groups[vid[t * 3 + c]!]!) {
-        const d =
-          fn[f * 3]! * fn[t * 3]! +
-          fn[f * 3 + 1]! * fn[t * 3 + 1]! +
-          fn[f * 3 + 2]! * fn[t * 3 + 2]!;
-        if (d > cos) {
-          sx += fn[f * 3]!;
-          sy += fn[f * 3 + 1]!;
-          sz += fn[f * 3 + 2]!;
-        }
-      }
-      const l = Math.hypot(sx, sy, sz) || 1;
-      const b = t * 9 + c * 3;
-      nor[b] = sx / l;
-      nor[b + 1] = sy / l;
-      nor[b + 2] = sz / l;
-    }
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-  geo.setAttribute("normal", new THREE.BufferAttribute(nor, 3));
-  return geo;
+// Parsed once per tab and shared: every mount of the scene uses the same geometry.
+let loading: Promise<Parts> | null = null;
+
+// Binary STL, normals smoothed across edges under 35°, like hardware/prototype.
+async function loadStl(url: string): Promise<THREE.BufferGeometry> {
+  const response = await fetch(url);
+  if (!response.ok)
+    throw new Error(`Can't load ${url}: HTTP ${response.status}`);
+  const geometry = new STLLoader().parse(await response.arrayBuffer());
+  return toCreasedNormals(geometry, (35 * Math.PI) / 180);
+}
+
+function loadParts(): Promise<Parts> {
+  loading ??= Promise.all([
+    loadStl(frontUrl),
+    loadStl(backUrl),
+    loadStl(keyUrl),
+  ]).then(([front, back, key]) => ({ front, back, key }));
+  return loading;
 }
 
 function useParts(): Parts | null {
   const [parts, setParts] = useState<Parts | null>(null);
   const [handle] = useState(() => delayRender("Loading the STL files"));
   useEffect(() => {
-    const load = (url: string) =>
-      fetch(url)
-        .then((r) => r.arrayBuffer())
-        .then(parseStl);
-    Promise.all([load(frontUrl), load(backUrl), load(keyUrl)])
-      .then(([front, back, key]) => {
-        setParts({ front, back, key });
+    loadParts()
+      .then((loaded) => {
+        setParts(loaded);
         continueRender(handle);
       })
       .catch((error: unknown) => cancelRender(error));
@@ -145,15 +97,6 @@ function screenGeometry(): THREE.ShapeGeometry {
     );
   return geo;
 }
-
-export type CharmPose = {
-  rotY: number;
-  rotX: number;
-  y: number;
-  scale: number;
-  colour: Colour;
-  glyphs: GlyphState;
-};
 
 function Charm({ parts, pose }: { parts: Parts; pose: CharmPose }) {
   const canvas = useMemo(() => {
@@ -203,14 +146,14 @@ function Charm({ parts, pose }: { parts: Parts; pose: CharmPose }) {
             toneMapped={false}
           />
         </mesh>
-        <mesh geometry={parts.front}>
+        <mesh geometry={parts.front} dispose={null}>
           <meshStandardMaterial
             color={pose.colour.c}
             roughness={0.62}
             metalness={0}
           />
         </mesh>
-        <mesh geometry={parts.back}>
+        <mesh geometry={parts.back} dispose={null}>
           <meshStandardMaterial
             color={pose.colour.c}
             roughness={0.62}
@@ -218,6 +161,7 @@ function Charm({ parts, pose }: { parts: Parts; pose: CharmPose }) {
           />
         </mesh>
         <mesh
+          dispose={null}
           geometry={parts.key}
           position={[24.2, 0, 9.6]}
           rotation={[0, -Math.PI / 2, 0]}

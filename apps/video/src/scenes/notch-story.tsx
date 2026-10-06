@@ -68,15 +68,8 @@ function ColdOpen({ frame }: { frame: number }) {
     [B(5.75), { x: 0, y: 0 }],
   ]);
   const blink = !eyesOpen || (frame >= B(3.5) && frame < B(3.5) + 7);
-  const appear = span(frame, B(1), B(1) + 10, out);
   return (
-    <div
-      style={{
-        position: "absolute",
-        inset: 0,
-        opacity: appear > 0 || p > 0 ? 1 : 1,
-      }}
-    >
+    <div style={{ position: "absolute", inset: 0 }}>
       {frame < B(1) ? (
         <div style={{ position: "absolute", inset: 0, background: "#000" }} />
       ) : (

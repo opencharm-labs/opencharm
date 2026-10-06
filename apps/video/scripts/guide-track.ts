@@ -40,6 +40,7 @@ header.writeUInt16LE(2, 32);
 header.writeUInt16LE(16, 34);
 header.write("data", 36);
 header.writeUInt32LE(samples.byteLength, 40);
-const file = join(import.meta.dirname, "../public", TRACK.file);
+// Always guide.wav: TRACK.file may name the licensed track by now, and this must never replace it.
+const file = join(import.meta.dirname, "../public", "guide.wav");
 writeFileSync(file, Buffer.concat([header, Buffer.from(samples.buffer)]));
 console.log(`wrote ${file}`);
