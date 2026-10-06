@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useVideoConfig } from "remotion";
 import { type Camera } from "../scenes/notch-timeline";
 import { Paper } from "../ui/sheet";
 import { MacScreen } from "./mac-screen";
@@ -15,6 +16,7 @@ export function MacStage({
   shake?: number;
   children?: ReactNode;
 }) {
+  const { width, height } = useVideoConfig();
   return (
     <>
       <Paper />
@@ -24,7 +26,7 @@ export function MacStage({
           left: 0,
           top: 0,
           transformOrigin: "0 0",
-          transform: `translate(960px, ${540 + shake}px) rotate(${cam.roll}deg) scale(${cam.z}) translate(${-cam.cx}px, ${-cam.cy}px)`,
+          transform: `translate(${width / 2}px, ${height / 2 + shake}px) rotate(${cam.roll}deg) scale(${cam.z}) translate(${-cam.cx}px, ${-cam.cy}px)`,
         }}
       >
         <MacScreen notch={notch}>{children}</MacScreen>

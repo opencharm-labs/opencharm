@@ -273,24 +273,26 @@ export function cameraAt(frame: number): Camera {
   return cam;
 }
 
-// A point on the Mac screen, in output pixels.
+// A point on the Mac screen, in output pixels, for a frame of this size (the film's by default).
 export function toOutput(
   cam: Camera,
   x: number,
-  y: number
+  y: number,
+  w = 1920,
+  h = 1080
 ): { x: number; y: number } {
   const dx = (x - cam.cx) * cam.z;
   const dy = (y - cam.cy) * cam.z;
   const r = (cam.roll * Math.PI) / 180;
   return {
-    x: 960 + dx * Math.cos(r) - dy * Math.sin(r),
-    y: 540 + dx * Math.sin(r) + dy * Math.cos(r),
+    x: w / 2 + dx * Math.cos(r) - dy * Math.sin(r),
+    y: h / 2 + dx * Math.sin(r) + dy * Math.cos(r),
   };
 }
 
-export const notchEyes = (cam: Camera) => ({
-  left: toOutput(cam, SCREEN.w / 2 - EAR, NOTCH.strip / 2),
-  right: toOutput(cam, SCREEN.w / 2 + EAR, NOTCH.strip / 2),
+export const notchEyes = (cam: Camera, w = 1920, h = 1080) => ({
+  left: toOutput(cam, SCREEN.w / 2 - EAR, NOTCH.strip / 2, w, h),
+  right: toOutput(cam, SCREEN.w / 2 + EAR, NOTCH.strip / 2, w, h),
   size: NOTCH.strip * 1.05 * cam.z,
 });
 

@@ -13,6 +13,18 @@ npm run render -w @opencharm-labs/video   # out/opencharm.mp4, 1920 × 1080, 60 
 scripts/sheets.sh out/opencharm.mp4       # contact sheets (one frame per beat) for review
 ```
 
+## Brand kit
+
+`npm run kit -w @opencharm-labs/video` renders the film's resources into `out/kit/`, from the same faces and look:
+
+| File                                | What                                                                                                         |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `still-wide-1…6.png`                | 2540 × 1520 stills (1270 × 760 at 2x): the charm, the moods, the key, the question, the agents, the hardware |
+| `icon-animated-240.gif`, `-480.gif` | the app icon, alive: a blink, a glance, a wink; it loops                                                     |
+| `clip-square-1…7.mp4`               | 1080 × 1080 cuts of the film, one idea each, silent                                                          |
+
+The kit renders the film first and the square clips play it (copied to `public/film.mp4`, ignored by git), so they always match it; their cuts follow the film's scenes (`CUTS` in `src/track.ts`). The compositions are in `src/kit/`.
+
 ## The music
 
 Every cut sits on a beat. The track is licensed, so it never enters git (`public/` audio and `out/` are ignored). Put the file in `public/`, then set `TRACK` in `src/track.ts`: its file name, its tempo and the time of its first downbeat. The cuts move with it.
@@ -27,4 +39,5 @@ Every cut sits on a beat. The track is licensed, so it never enters git (`public
 | `src/scenes/any-agent.tsx`     | the agents it works with                                               |
 | `src/scenes/body.tsx`          | a glimpse of the printed charm, "next"                                 |
 | `src/scenes/finale.tsx`        | the face fills the frame, flies home to the notch and says the address |
+| `src/kit/`                     | the brand kit: stills, the animated icon, square clips                 |
 | `src/charm/`                   | the notch charm, the 3D charm, glyphs, the bridge to the face engine   |
