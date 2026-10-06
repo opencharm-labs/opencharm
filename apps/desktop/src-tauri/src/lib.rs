@@ -818,8 +818,9 @@ fn show_settings(app: &AppHandle) -> tauri::Result<()> {
     let window =
         WebviewWindowBuilder::new(app, "settings", WebviewUrl::App("settings.html".into()))
             .title("OpenCharm")
-            .inner_size(440.0, 760.0)
-            .resizable(false)
+            .inner_size(520.0, 780.0)
+            // Taller for a long page, or smaller for a small screen; the page keeps to its column.
+            .min_inner_size(460.0, 480.0)
             .center()
             .build()?;
     window.set_focus()
