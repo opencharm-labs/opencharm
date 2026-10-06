@@ -5,7 +5,7 @@
 # keychain). The private key leaves this Mac only as an encrypted GitHub secret; a backup stays in a
 # folder only you can read, to keep in your password manager. Run it again only to replace the
 # certificate (macOS then asks once more, after the next update). The secrets go into a GitHub
-# Environment, macos-signing, that only main may use, so no other branch's workflow can read them.
+# Environment, Release, that only main may use, so no other branch's workflow can read them.
 #
 # Usage: sh apps/desktop/scripts/create-signing-certificate.sh   (needs openssl and gh, logged in)
 set -eu
@@ -43,16 +43,16 @@ rm -f key.pem
 printf '%s\n' "$P12PASS" > password.txt
 
 # The environment, limited to main, then the two secrets in it.
-gh api -X PUT "repos/$repo/environments/macos-signing" --input - >/dev/null <<'JSON'
+gh api -X PUT "repos/$repo/environments/Release" --input - >/dev/null <<'JSON'
 { "deployment_branch_policy": { "protected_branches": false, "custom_branch_policies": true } }
 JSON
-gh api "repos/$repo/environments/macos-signing/deployment-branch-policies" \
+gh api "repos/$repo/environments/Release/deployment-branch-policies" \
   --jq '.branch_policies[].name' | grep -qx main \
-  || gh api -X POST "repos/$repo/environments/macos-signing/deployment-branch-policies" \
+  || gh api -X POST "repos/$repo/environments/Release/deployment-branch-policies" \
     -f name=main -f type=branch >/dev/null
 base64 < certificate.p12 | tr -d '\n' \
-  | gh secret set MACOS_SIGNING_CERTIFICATE --repo "$repo" --env macos-signing
-printf '%s' "$P12PASS" | gh secret set MACOS_SIGNING_PASSWORD --repo "$repo" --env macos-signing
+  | gh secret set MACOS_SIGNING_CERTIFICATE --repo "$repo" --env Release
+printf '%s' "$P12PASS" | gh secret set MACOS_SIGNING_PASSWORD --repo "$repo" --env Release
 done_ok=yes
 
 echo "Done. The next macOS release is signed with it."
