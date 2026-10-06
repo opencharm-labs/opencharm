@@ -13,7 +13,7 @@ npm run dev -w apps/web      # http://localhost:3000
 
 ## Release and revision (spec 015)
 
-The site is a release unit, `web@x.y.z`: after a green CI on `main`, a merged `fix`/`feat`/`perf` touching `apps/web` or `packages/design` tags it (`.github/workflows/web-release.yml`, CONTRIBUTING "Releasing"); Vercel deploys every merge regardless. The title block's REV and `/version.json` say which release and commit are live, computed at build time from the latest `web@` tag (`src/lib/build-identity.ts`): `web@0.3.1+2 (abc1234)` is two commits after `web@0.3.1`. A release's own deploy shows the previous version until the next deploy (the tag is made after it).
+The site is a release unit, `web@x.y.z`: after a green CI on `main`, a merged `fix`/`feat`/`perf` touching `apps/web` or `packages/design` tags it (`.github/workflows/web-release.yml`, CONTRIBUTING "Releasing"); Vercel deploys every merge regardless. The title block's REV and `/version.json` say which release and commit are live, computed at build time from the latest `web@` tag (`src/lib/build-identity.ts`): `web@0.3.1+2 (abc1234)` is two commits after `web@0.3.1`. A release's own deploy shows the previous version until the next deploy (the tag is made after it). The header's `DESKTOP v… · CLI v…` comes from the newest `desktop@` and `cli@` tags the same way (the code's versions stay `0.0.0`), so a desktop or CLI release shows up there with the site's next deploy.
 
 ## Checks
 

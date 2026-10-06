@@ -5,8 +5,11 @@
 import { execFileSync } from "node:child_process";
 
 type BuildIdentity = { version: string; commit: string; text: string };
+// The newest desktop app and CLI releases, for the title block: the code says 0.0.0, the tags don't.
+type Releases = { desktop?: string; cli?: string };
 
 const DESCRIBE = /^(web@\d+\.\d+\.\d+)(?:-(\d+)-g[0-9a-f]+)?$/;
+const RELEASE = /^(\w+)@(\d+)\.(\d+)\.(\d+)$/;
 
 function git(...args: string[]): string | undefined {
   try {
@@ -31,6 +34,28 @@ function fromDescribe(
     : "web@unknown";
   const full = `${commit}${dirty}`;
   return { version, commit: full, text: `${version} (${full})` };
+}
+
+function newestRelease(tags: string[], unit: string): string | undefined {
+  const versions = tags
+    .map((tag) => RELEASE.exec(tag))
+    .filter((m) => m?.[1] === unit)
+    .map((m) => [Number(m![2]), Number(m![3]), Number(m![4])] as const);
+  versions.sort((a, b) => b[0] - a[0] || b[1] - a[1] || b[2] - a[2]);
+  return versions[0]?.join(".");
+}
+
+// Read after buildIdentity(), which fetches the tags first where the clone has none (Vercel, CI).
+function releases(): Releases {
+  const known = process.env.OPENCHARM_RELEASES;
+  if (known) return JSON.parse(known) as Releases;
+  const tags = (git("tag", "--list") ?? "").split("\n");
+  const found = {
+    desktop: newestRelease(tags, "desktop"),
+    cli: newestRelease(tags, "cli"),
+  };
+  process.env.OPENCHARM_RELEASES = JSON.stringify(found);
+  return found;
 }
 
 // OPENCHARM_COMMIT when CI sets it, else git (Vercel's commit variable without it). Vercel clones
@@ -61,5 +86,5 @@ function buildIdentity(): BuildIdentity {
   return identity;
 }
 
-export { buildIdentity, fromDescribe };
-export type { BuildIdentity };
+export { buildIdentity, fromDescribe, newestRelease, releases };
+export type { BuildIdentity, Releases };

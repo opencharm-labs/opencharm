@@ -1,4 +1,4 @@
-import type { BuildIdentity } from "./build-identity";
+import type { BuildIdentity, Releases } from "./build-identity";
 
 // What this deploy is (spec 015), as next.config.ts computed it at build time: the one place the
 // title block and /version.json read it from.
@@ -9,4 +9,10 @@ function siteIdentity(): BuildIdentity {
     : { version: "web@dev", commit: "local", text: "web@dev (local)" };
 }
 
-export { siteIdentity };
+// The newest desktop app and CLI releases, as the build found them in the tags.
+function siteReleases(): Releases {
+  const built = process.env.OPENCHARM_RELEASES;
+  return built ? (JSON.parse(built) as Releases) : {};
+}
+
+export { siteIdentity, siteReleases };

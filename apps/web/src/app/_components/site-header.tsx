@@ -1,8 +1,8 @@
 import { Button } from "@/components/ui/button";
 
+import { siteReleases } from "@/lib/site-identity";
+
 import { REPO } from "../_lib/links";
-import desktop from "../../../../desktop/package.json";
-import cli from "../../../../../packages/cli/package.json";
 import { DrawingRuler } from "./drawing-ruler";
 import { MobileNav, type NavLink } from "./mobile-nav";
 
@@ -37,7 +37,11 @@ const ALL: NavLink[] = [
   { href: REPO, label: "GITHUB" },
 ];
 
+// The code always says 0.0.0 (releases are cut from tags), so the title block reads the tags.
+const version = (v: string | undefined) => (v ? ` v${v}` : "");
+
 function SiteHeader() {
+  const released = siteReleases();
   return (
     <>
       <div
@@ -51,7 +55,7 @@ function SiteHeader() {
           </span>
           {/* Centred on the page, not between the two sides (they differ in width). */}
           <span className="absolute left-1/2 hidden -translate-x-1/2 whitespace-nowrap lg:block">
-            DESKTOP v{desktop.version} · CLI v{cli.version} · MIT
+            {`DESKTOP${version(released.desktop)} · CLI${version(released.cli)} · MIT`}
           </span>
           <span className="whitespace-nowrap">
             <span className="max-sm:hidden">SHEET 1/1 · </span>
