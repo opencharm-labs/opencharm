@@ -202,7 +202,7 @@ void LvglView::build() {
   lv_obj_set_style_border_width(ring_, std::max(4, int(u_ * 0.022f)), 0);
   lv_obj_set_style_radius(ring_,
                           options_.round   ? LV_RADIUS_CIRCLE
-                          : options_.notch ? int(u_ * 0.09f)
+                          : options_.notch ? kNotchPanelRadius
                                            : int(u_ * 0.108f),
                           0);
   lv_obj_remove_flag(ring_, LV_OBJ_FLAG_CLICKABLE);

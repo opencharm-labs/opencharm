@@ -9,6 +9,10 @@
 
 namespace charm {
 
+// The open notch panel's bottom corner radius, in pixels (30 pt at 2x). The hosts clip the panel to
+// it (apps/desktop/web/desktop.html, firmware/sim/web/sim.css), and the orange outline follows it.
+constexpr int kNotchPanelRadius = 60;
+
 struct ViewOptions {
   bool round = false;         // round screens keep content inside the circle
   uint32_t glyph = 0xF4F3EE;  // the charm's identity glyph colour (white charm by default)

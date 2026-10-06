@@ -449,6 +449,30 @@ TEST_CASE("on a notch, a question opens the panel with its hint and the orange o
   CHECK(n.notch_lit() == 0);
 }
 
+TEST_CASE(
+    "on a notch, the orange outline follows the panel's rounded bottom, so none of it is cut") {
+  Notch n;
+  n.server(R"({"type":"charm","op":"ask","id":"q1","text":"Allow Bash: curl the forecast?"})");
+  // The host clips the open panel's bottom corners to this radius: an outline with tighter
+  // corners pokes out there and loses its corners and its bottom edge.
+  const int r = charm::kNotchPanelRadius;
+  int outside = 0;
+  for (int y = Notch::kH - r; y < Notch::kH; ++y)
+    for (int x = 0; x < Notch::kW; ++x) {
+      // pixel centres against the corner circles' centres, as the host clips them
+      float px = float(x) + 0.5f, py = float(y) + 0.5f;
+      float cx = px < float(r) ? float(r) : px > float(Notch::kW - r) ? float(Notch::kW - r) : px;
+      float dx = px - cx, dy = py - float(Notch::kH - r);
+      if (dx * dx + dy * dy > float(r * r) &&
+          n.screen.count_colour(x, y, x + 1, y + 1, 0xFF5A1F, 60) > 0)
+        ++outside;
+    }
+  CHECK_EQ(outside, 0);
+  // and its bottom edge runs all the way across
+  CHECK(n.screen.count_colour(r, Notch::kH - 6, Notch::kW - r, Notch::kH, 0xFF5A1F, 60) >
+        (Notch::kW - 2 * r) * 3);
+}
+
 TEST_CASE("on a notch, a short reply opens a shorter panel, with all of its words inside") {
   Notch n;
   n.server(R"({"type":"tts","state":"start"})");

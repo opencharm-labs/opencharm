@@ -86,6 +86,9 @@ canvas {
 }
 .charm.notch.open {
   height: var(--panel);
+  /* the open panel's corners: the firmware's kNotchPanelRadius (60 px at 2x), which the orange
+     outline follows */
+  border-radius: 0 0 30px 30px;
 }
 .charm.notch canvas {
   border-radius: 0;
