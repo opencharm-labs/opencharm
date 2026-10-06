@@ -3,6 +3,7 @@
 :root {
   --paper: #f6f6f4;
   --ink: #0a0a0a;
+  --ink-2: #3a3a3a;
   --dim: #6e6e6e;
   --line: rgba(10, 10, 10, 0.22);
   --signal: #ff5a1f;
@@ -35,7 +36,7 @@
 body {
   margin: 0;
   /* A resized window centres a column of at most 560px rather than stretch the fields across it. */
-  padding: 24px max(24px, calc(50% - 280px)) 18px;
+  padding: 20px max(20px, calc(50% - 280px));
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -86,7 +87,7 @@ h1 {
 }
 .lede {
   margin: 0;
-  color: #3a3a3a;
+  color: var(--ink-2);
   font-size: 14px;
   line-height: 1.4;
 }
@@ -99,7 +100,7 @@ form {
 section {
   background: #fff;
   border: 1.5px solid var(--ink);
-  padding: 16px 18px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 8px;
