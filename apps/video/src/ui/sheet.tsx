@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
+import { useVideoConfig } from "remotion";
 import { MONO } from "../fonts";
 import { out, span } from "../motion";
 
@@ -15,7 +16,8 @@ export const PAPER: CSSProperties = {
 };
 
 const LEFT = 46;
-const RIGHT = 1840;
+// The hatched band's width on the right, as on opencharm.dev.
+const BAND = 80;
 
 export function Paper({ style }: { style?: CSSProperties }) {
   return <div style={{ position: "absolute", inset: 0, ...PAPER, ...style }} />;
@@ -30,8 +32,10 @@ function Ticks({
   ink: string;
   shift: number;
 }) {
+  const { width: w, height: h } = useVideoConfig();
+  const right = w - BAND;
   const left: ReactNode[] = [];
-  for (let y = -100 + (((shift % 100) + 100) % 100); y < 1080; y += 20) {
+  for (let y = -100 + (((shift % 100) + 100) % 100); y < h; y += 20) {
     const major = Math.round(y - shift) % 100 === 0;
     left.push(
       <line
@@ -46,7 +50,7 @@ function Ticks({
     );
   }
   return (
-    <svg width={1920} height={1080} style={{ position: "absolute", inset: 0 }}>
+    <svg width={w} height={h} style={{ position: "absolute", inset: 0 }}>
       <defs>
         <pattern
           id="hatch"
@@ -65,7 +69,7 @@ function Ticks({
           />
         </pattern>
         <clipPath id="draw">
-          <rect x={0} y={0} width={1920 * draw} height={1080} />
+          <rect x={0} y={0} width={w * draw} height={h} />
         </clipPath>
       </defs>
       <g clipPath="url(#draw)">
@@ -73,23 +77,17 @@ function Ticks({
           x1={LEFT}
           x2={LEFT}
           y1={0}
-          y2={1080}
+          y2={h}
           stroke={ink}
           strokeOpacity={0.35}
         />
         {left}
-        <rect
-          x={RIGHT}
-          y={0}
-          width={1920 - RIGHT}
-          height={1080}
-          fill="url(#hatch)"
-        />
+        <rect x={right} y={0} width={BAND} height={h} fill="url(#hatch)" />
         <line
-          x1={RIGHT}
-          x2={RIGHT}
+          x1={right}
+          x2={right}
           y1={0}
-          y2={1080}
+          y2={h}
           stroke={ink}
           strokeOpacity={0.35}
         />
@@ -140,6 +138,7 @@ export function Leader({
   align?: "left" | "right";
   ink?: string;
 }) {
+  const { width: w, height: h } = useVideoConfig();
   if (p <= 0) return null;
   const elbow = { x: from.x + (align === "right" ? 36 : -36), y: from.y };
   const line = Math.min(1, p * 1.6);
@@ -153,11 +152,7 @@ export function Leader({
   };
   return (
     <>
-      <svg
-        width={1920}
-        height={1080}
-        style={{ position: "absolute", inset: 0 }}
-      >
+      <svg width={w} height={h} style={{ position: "absolute", inset: 0 }}>
         <polyline
           points={`${from.x},${from.y} ${first.x},${first.y} ${line > 0.5 ? `${mid.x},${mid.y}` : ""}`}
           fill="none"
@@ -171,7 +166,7 @@ export function Leader({
           position: "absolute",
           top: from.y - 10,
           ...(align === "right"
-            ? { right: 1920 - from.x + 14, textAlign: "right" as const }
+            ? { right: w - from.x + 14, textAlign: "right" as const }
             : { left: from.x + 14 }),
           opacity: span(p, 0.3, 0.8),
         }}

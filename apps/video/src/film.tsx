@@ -19,7 +19,7 @@ function Blur({ children }: { children: ReactNode }) {
 
 // The whole film: the notch (what people can get now), the agents, a glimpse of the body to come,
 // and back to the face, which ends it.
-export function Film() {
+export function Film({ muted = false }: { muted?: boolean }) {
   return (
     <AbsoluteFill style={{ background: "#000" }}>
       <Sequence durationInFrames={beat(60)}>
@@ -40,7 +40,7 @@ export function Film() {
           <Finale />
         </Blur>
       </Sequence>
-      <Audio src={trackSrc()} />
+      {!muted && <Audio src={trackSrc()} />}
     </AbsoluteFill>
   );
 }

@@ -7,7 +7,8 @@
   "scripts": {
     "studio": "remotion studio src/index.ts",
     "guide": "tsx scripts/guide-track.ts",
-    "render": "remotion render src/index.ts film out/opencharm.mp4",
+    "render": "remotion render src/index.ts film out/opencharm.mp4 --crf=16",
+    "kit": "sh scripts/kit.sh",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run"
