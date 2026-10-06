@@ -146,11 +146,12 @@ jobs:
   # macOS: signed with OpenCharm's own certificate (apps/desktop/scripts/sign-macos.sh), so macOS
   # recognises every update as the same app and keeps its answers (Desktop folder, microphone,
   # keychain). The key reaches only this job, which installs and runs nothing but Apple's tools and that
-  # script: no npm, no cargo. Without the secret (a fork) the app stays signed ad hoc.
+  # script: no npm, no cargo. Without the secret a fork's app stays signed ad hoc; here the release
+  # stops instead, because an ad hoc update would make every Mac ask its questions again.
   sign-macos:
     needs: [plan, build]
     # The key lives in this environment, which only main may use: no other branch's workflow can read it.
-    environment: macos-signing
+    environment: Release
     strategy:
       fail-fast: false
       matrix:
@@ -179,6 +180,10 @@ jobs:
           VERSION: ${{ needs.plan.outputs.version }}
           ARCH: ${{ matrix.arch }}
         run: |
+          if [ -z "$MACOS_SIGNING_CERTIFICATE" ] && [ "$GITHUB_REPOSITORY" = opencharm-labs/opencharm ]; then
+            echo "::error::No signing certificate in the Release environment (CONTRIBUTING, macOS signing)"
+            exit 1
+          fi
           # The build job's upload keeps the tar under its folder relative to the other path it
           # uploads (Windows' installer), so it's found by name: exactly one.
           tarball=$(find "$RUNNER_TEMP/app" -type f -name OpenCharm.app.tar.gz)

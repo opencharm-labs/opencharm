@@ -6,8 +6,8 @@
 #
 # Usage: sign-macos.sh <OpenCharm.app> <out.dmg>
 # Signs with MACOS_SIGNING_CERTIFICATE (the .p12, base64) and MACOS_SIGNING_PASSWORD from the
-# environment; without them (a fork, or before the certificate exists) the app stays as built, signed
-# ad hoc, and only the disk image is made.
+# environment; without them (a fork) the app stays as built, signed ad hoc, and only the disk image is
+# made. OpenCharm's own release refuses to get this far without them (desktop-release.yml).
 # Runs only Apple's own tools (security, codesign, hdiutil): CI gives it the key in a job that installs
 # nothing else.
 set -eu
