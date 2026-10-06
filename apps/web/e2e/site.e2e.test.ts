@@ -154,6 +154,16 @@ describe("the site in Chrome", () => {
       .toContain(build.text);
   });
 
+  it("shows the released desktop and CLI versions in its header, from the tags (not the code's 0.0.0)", async () => {
+    const html = await (await fetch(base)).text();
+    const label = /DESKTOP v(\d+\.\d+\.\d+) · CLI v(\d+\.\d+\.\d+) · MIT/.exec(
+      html
+    );
+    expect(label, "the header's release label").not.toBeNull();
+    expect(label?.[1]).not.toBe("0.0.0");
+    expect(label?.[2]).not.toBe("0.0.0");
+  });
+
   it("answers an unknown page with its own 404 and a way back", async () => {
     const response = await fetch(`${base}/no-such-page`);
     expect(response.status).toBe(404);

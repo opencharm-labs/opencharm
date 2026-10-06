@@ -4,7 +4,6 @@ import { buildIdentity, releases } from "./src/lib/build-identity";
 
 // What this deploy is (spec 015), computed once and inlined into the page and /version.json.
 const BUILD = buildIdentity();
-// After the identity, which fetches the tags where the clone has none.
 const RELEASES = releases();
 
 // A static page that loads nothing from other origins (HSTS keeps it on https, so no request ever
