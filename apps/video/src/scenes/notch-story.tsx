@@ -1,14 +1,14 @@
 import { useCurrentFrame } from "remotion";
 import { colour, face } from "../charm/engine";
-import { NOTCH, NotchCharm, notchPanelHeight } from "../charm/notch";
-import { MacScreen, SCREEN } from "../mac/mac-screen";
+import { NotchCharm, notchPanelHeight } from "../charm/notch";
+import { MacStage } from "../mac/mac-stage";
 import { Terminal } from "../mac/terminal";
 import { out, rand, snap, span, step } from "../motion";
 import { beat } from "../track";
 import { Kinetic, wordsFrom } from "../ui/kinetic";
-import { Leader, Paper, Sheet } from "../ui/sheet";
+import { Leader, Sheet } from "../ui/sheet";
 import { TalkKeys } from "../ui/keycaps";
-import { BIG_EYES, type Eyes, FULL_FRAME, Morph, type Rect } from "../ui/morph";
+import { BIG_EYES, type Eyes, FULL_FRAME, Morph } from "../ui/morph";
 import { MoodGrid } from "./mood-grid";
 import {
   type Camera,
@@ -18,7 +18,9 @@ import {
   cameraAt,
   charmAt,
   noteAt,
+  eyesOf,
   notchEyes,
+  panelRect,
   toOutput,
 } from "./notch-timeline";
 
@@ -32,30 +34,6 @@ export const AGENT_EYES: Eyes = {
 };
 
 const B = (n: number) => beat(n);
-
-function panelRect(cam: Camera, frame: number): Rect {
-  const s = charmAt(frame);
-  const tl = toOutput(cam, SCREEN.w / 2 - NOTCH.wide / 2, 0);
-  const h = notchPanelHeight(s) * cam.z;
-  return {
-    x: tl.x,
-    y: tl.y,
-    w: NOTCH.wide * cam.z,
-    h,
-    r: (s.open > 0.5 ? 30 : NOTCH.strip / 2) * cam.z,
-  };
-}
-
-const eyesOf = (cam: Camera): Eyes => {
-  const e = notchEyes(cam);
-  return {
-    lx: e.left.x,
-    ly: e.left.y,
-    rx: e.right.x,
-    ry: e.right.y,
-    size: e.size,
-  };
-};
 
 function ColdOpen({ frame }: { frame: number }) {
   if (frame >= B(8)) return null;
@@ -76,7 +54,7 @@ function ColdOpen({ frame }: { frame: number }) {
         <Morph
           p={p}
           from={FULL_FRAME}
-          to={panelRect(WIDE, B(8))}
+          to={panelRect(WIDE, charmAt(B(8)))}
           eyesFrom={BIG_EYES}
           eyesTo={eyesOf(WIDE)}
           face={face("neutral")}
@@ -96,7 +74,7 @@ function ToBlack({ frame }: { frame: number }) {
   return (
     <Morph
       p={p}
-      from={panelRect(cam, B(58))}
+      from={panelRect(cam, charmAt(B(58)))}
       to={FULL_FRAME}
       eyesFrom={eyesOf(cam)}
       eyesTo={AGENT_EYES}
@@ -114,13 +92,6 @@ function keyDown(frame: number): number {
   }
   return 0;
 }
-
-const TITLES: [number, string][] = [
-  [0, "01 · YOUR AGENT"],
-  [B(16), "02 · ITS FACE"],
-  [B(35), "03 · HOLD TO TALK"],
-  [B(52), "04 · IT NEEDS YOU"],
-];
 
 // The notes on the drawing: what the charm is, what each mood means, where the talk key is.
 function Notes({ frame, cam }: { frame: number; cam: Camera }) {
@@ -191,34 +162,27 @@ export function NotchStory() {
         overflow: "hidden",
       }}
     >
-      <Paper />
-      <div
-        style={{
-          position: "absolute",
-          left: 0,
-          top: 0,
-          transformOrigin: "0 0",
-          transform: `translate(960px, ${540 + shake}px) rotate(${cam.roll}deg) scale(${cam.z}) translate(${-cam.cx}px, ${-cam.cy}px)`,
-        }}
+      <MacStage
+        cam={cam}
+        shake={shake}
+        notch={<NotchCharm s={{ ...s, noEyes: morphing }} />}
       >
-        <MacScreen notch={<NotchCharm s={{ ...s, noEyes: morphing }} />}>
-          <div
-            style={{
-              transform: `translateY(${termOut * 900}px)`,
-              opacity: 1 - termOut,
-            }}
-          >
-            <Terminal
-              frame={frame}
-              lines={TERMINAL}
-              x={790}
-              y={190}
-              w={630}
-              h={480}
-            />
-          </div>
-        </MacScreen>
-      </div>
+        <div
+          style={{
+            transform: `translateY(${termOut * 900}px)`,
+            opacity: 1 - termOut,
+          }}
+        >
+          <Terminal
+            frame={frame}
+            lines={TERMINAL}
+            x={790}
+            y={190}
+            w={630}
+            h={480}
+          />
+        </div>
+      </MacStage>
 
       <Notes frame={frame} cam={cam} />
 
@@ -290,12 +254,7 @@ export function NotchStory() {
       {frame >= B(22) && frame < B(26) && (
         <MoodGrid frame={frame} from={B(22)} />
       )}
-      <Sheet
-        frame={frame}
-        from={B(8)}
-        title={step(frame, TITLES)}
-        shift={cam.cy * cam.z}
-      />
+      <Sheet frame={frame} from={B(8)} shift={cam.cy * cam.z} />
       <ColdOpen frame={frame} />
       <ToBlack frame={frame} />
     </div>

@@ -1,6 +1,6 @@
 # The OpenCharm film
 
-A 42-second promo film, made in code with [Remotion](https://www.remotion.dev): the desktop charm by the Mac's notch (what people can install today), the agents it works with, then the printed charm and opencharm.dev. Nothing in it is a screen recording: the faces come from the face engine (`packages/design/src/charm-face.js`), the notch layout from the firmware (`firmware/core/src/ui/lvgl_view.cpp`), and the 3D charm from the STL files people print (`hardware/stl/view`).
+A 42-second promo film, made in code with [Remotion](https://www.remotion.dev): the desktop charm by the Mac's notch (what people can install today), the agents it works with, a glimpse of the printed charm to come, and back to the face: the charm in the notch says opencharm.dev itself and winks. Nothing in it is a screen recording: the faces come from the face engine (`packages/design/src/charm-face.js`), the notch layout from the firmware (`firmware/core/src/ui/lvgl_view.cpp`), and the 3D charm from the STL files people print (`hardware/stl/view`).
 
 **Remotion's licence** (`node_modules/remotion/LICENSE.md`) is not open source: it's free for individuals, for-profit organisations with up to 3 employees and non-profits; bigger companies need a company licence. Only this film uses it; nothing OpenCharm ships depends on it.
 
@@ -19,11 +19,12 @@ Every cut sits on a beat. The track is licensed, so it never enters git (`public
 
 ## Where things are
 
-| File                           | What                                                                 |
-| ------------------------------ | -------------------------------------------------------------------- |
-| `src/track.ts`                 | tempo, beats, length                                                 |
-| `src/scenes/notch-timeline.ts` | what the charm shows on each beat, and the camera                    |
-| `src/scenes/notch-story.tsx`   | the Mac: cold open, hook, moods, hold to talk, the question          |
-| `src/scenes/any-agent.tsx`     | the agents it works with                                             |
-| `src/scenes/body.tsx`          | the printed charm and the end card                                   |
-| `src/charm/`                   | the notch charm, the 3D charm, glyphs, the bridge to the face engine |
+| File                           | What                                                                   |
+| ------------------------------ | ---------------------------------------------------------------------- |
+| `src/track.ts`                 | tempo, beats, length                                                   |
+| `src/scenes/notch-timeline.ts` | what the charm shows on each beat, and the camera                      |
+| `src/scenes/notch-story.tsx`   | the Mac: cold open, hook, moods, hold to talk, the question            |
+| `src/scenes/any-agent.tsx`     | the agents it works with                                               |
+| `src/scenes/body.tsx`          | a glimpse of the printed charm, "next"                                 |
+| `src/scenes/finale.tsx`        | the face fills the frame, flies home to the notch and says the address |
+| `src/charm/`                   | the notch charm, the 3D charm, glyphs, the bridge to the face engine   |

@@ -16,9 +16,6 @@ export const PAPER: CSSProperties = {
 
 const LEFT = 46;
 const RIGHT = 1840;
-const TOP = 46;
-const X0 = 200;
-const X1 = 1720;
 
 export function Paper({ style }: { style?: CSSProperties }) {
   return <div style={{ position: "absolute", inset: 0, ...PAPER, ...style }} />;
@@ -43,21 +40,6 @@ function Ticks({
         x2={LEFT}
         y1={y}
         y2={y}
-        stroke={ink}
-        strokeOpacity={major ? 0.9 : 0.4}
-      />
-    );
-  }
-  const top: ReactNode[] = [];
-  for (let x = X0; x <= X1; x += 20) {
-    const major = (x - X0) % 100 === 0;
-    top.push(
-      <line
-        key={`t${x}`}
-        x1={x}
-        x2={x}
-        y1={TOP}
-        y2={TOP - (major ? 12 : 6)}
         stroke={ink}
         strokeOpacity={major ? 0.9 : 0.4}
       />
@@ -96,15 +78,6 @@ function Ticks({
           strokeOpacity={0.35}
         />
         {left}
-        <line
-          x1={X0}
-          x2={X1}
-          y1={TOP}
-          y2={TOP}
-          stroke={ink}
-          strokeOpacity={0.9}
-        />
-        {top}
         <rect
           x={RIGHT}
           y={0}
@@ -125,56 +98,26 @@ function Ticks({
   );
 }
 
-const label = (ink: string): CSSProperties => ({
-  position: "absolute",
-  top: 16,
-  font: `400 15px/1 ${MONO}`,
-  letterSpacing: "0.14em",
-  color: ink,
-  opacity: 0.75,
-  whiteSpace: "pre",
-});
-
-// The drawing sheet around every shot, as on opencharm.dev: the graduated ruler on the left, a ruler
-// with the title block along the top, and the hatched band on the right. The left ruler reads the
-// camera (shift), so it measures the scene as it moves.
+// The drawing sheet around every shot, as on opencharm.dev: the graduated ruler on the left and the
+// hatched band on the right. The ruler reads the camera (shift), so it measures the scene as it moves.
 export function Sheet({
   frame,
   from,
-  title,
   shift = 0,
   night = false,
-  labels = true,
 }: {
   frame: number;
   from: number;
-  title: string;
   shift?: number;
   night?: boolean;
-  labels?: boolean;
 }) {
-  const ink = night ? "#EDEDED" : "#0A0A0A";
-  const draw = span(frame, from, from + 40, out);
-  const seconds = frame / 60;
-  const time = `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${(seconds % 60).toFixed(2).padStart(5, "0")}`;
   return (
     <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
-      <Ticks draw={draw} ink={ink} shift={shift} />
-      {labels && (
-        <div style={{ opacity: span(frame, from + 10, from + 30) }}>
-          <div style={{ ...label(ink), left: X0 }}>
-            DWG OC-002 · FILM · REV 1.0
-          </div>
-          <div
-            style={{ ...label(ink), left: 0, right: 0, textAlign: "center" }}
-          >
-            {title}
-          </div>
-          <div
-            style={{ ...label(ink), right: 1920 - X1 }}
-          >{`T ${time} · 60 FPS`}</div>
-        </div>
-      )}
+      <Ticks
+        draw={span(frame, from, from + 40, out)}
+        ink={night ? "#EDEDED" : "#0A0A0A"}
+        shift={shift}
+      />
     </div>
   );
 }

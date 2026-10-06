@@ -1,11 +1,11 @@
 import { useCurrentFrame } from "remotion";
 import { Charm3D, type CharmPose, PX_PER_MM } from "../charm/charm-3d";
 import { type ColourId, colour, face } from "../charm/engine";
-import { MONO, SANS } from "../fonts";
-import { keys, out, rand, snap, span, step } from "../motion";
+import { MONO } from "../fonts";
+import { keys, out, snap, span, step } from "../motion";
 import { FPS, beat } from "../track";
 import { Kinetic, wordsFrom } from "../ui/kinetic";
-import { Morph, FULL_FRAME } from "../ui/morph";
+import { BIG_EYES, type Eyes, FULL_FRAME, Morph, type Rect } from "../ui/morph";
 import { Paper, Sheet } from "../ui/sheet";
 import { AGENT_EYES } from "./notch-story";
 
@@ -13,8 +13,33 @@ import { AGENT_EYES } from "./notch-story";
 const WINDOW = 41.7 * PX_PER_MM;
 const ACTIVE = 38.99 * PX_PER_MM;
 const SHELL = 46.8 * PX_PER_MM;
-const INK = "#0A0A0A";
 const LINE = "#A3A3A3";
+
+const SWAPS: [number, ColourId, string][] = [
+  [70, "white", "happy"],
+  [71.5, "cobalt", "wink"],
+  [72, "lime", "loved"],
+  [72.5, "lilac", "joy"],
+  [73, "sun", "cute"],
+  [73.5, "coal", "happy"],
+  [74, "white", "happy"],
+];
+
+// The window (41.7 mm) seen straight on, and where the face engine puts the eyes in the screen.
+export const CHARM_WINDOW: Rect = {
+  x: 960 - WINDOW / 2,
+  y: 540 - WINDOW / 2,
+  w: WINDOW,
+  h: WINDOW,
+  r: 3.9 * PX_PER_MM,
+};
+export const CHARM_EYES: Eyes = {
+  lx: 960 - ACTIVE * 0.215,
+  ly: 540 - ACTIVE / 2 + ACTIVE * 0.46,
+  rx: 960 + ACTIVE * 0.215,
+  ry: 540 - ACTIVE / 2 + ACTIVE * 0.46,
+  size: ACTIVE * 0.34,
+};
 
 // A dimension line drawn on like ink: ticks at both ends, the label in the middle.
 function Dimension({
@@ -116,93 +141,54 @@ function Dimension({
   );
 }
 
-const SWAPS: [number, ColourId, string][] = [
-  [70, "white", "happy"],
-  [72, "cobalt", "wink"],
-  [73, "lime", "loved"],
-  [74, "lilac", "joy"],
-  [75, "sun", "cute"],
-  [76, "coal", "happy"],
-  [77, "white", "happy"],
-  [79, "white", "wink"],
-  [79.6, "white", "happy"],
-];
-
-// Starts at beat 68: the face leaves the screen for a body you print, then the address.
+// Starts at beat 68: the face moves into a body you print, turns once through its colours, and
+// grows back into the whole frame for the finale.
 export function Body() {
   const frame = useCurrentFrame();
   const B = (n: number) => beat(n) - beat(68);
   const handoff = span(frame, 0, B(70), snap);
+  const handback = span(frame, B(74), B(75), snap);
   const [swapAt, colourId, faceId] = step(
     frame,
     SWAPS.map((s) => [B(s[0]), s] as [number, (typeof SWAPS)[number]])
   );
   const c = colour(colourId);
   const f = face(faceId);
-  const turn = keys(frame, [
-    [B(71.75), 0],
-    [B(76), Math.PI * 2 - 0.42],
-    [B(77.5), Math.PI * 2 - 0.35],
-  ]);
-  const lift = keys(
+  // one full turn, back to face-on for the hand-back
+  const turn = keys(
     frame,
     [
-      [B(76), 0],
-      [B(77.5), 1],
+      [B(71.5), 0],
+      [B(73.85), Math.PI * 2],
     ],
     snap
   );
   const sinceSwap = frame - B(swapAt);
   const pop =
-    frame < B(72)
+    frame < B(71.5)
       ? 1
       : 1 - 0.18 * Math.exp(-sinceSwap / 5) * Math.cos(sinceSwap / 2.4);
   const ms = (frame / FPS) * 1000;
-  const blink = frame > B(80) && (frame - B(80)) % 170 < 7;
-  const glance = Math.floor(frame / 80);
 
   const pose: CharmPose = {
     rotY: turn,
-    rotX: 0.08 * lift + Math.sin(turn) * 0.05,
-    y: 9 * lift,
-    scale: 1 - 0.28 * lift,
+    rotX: Math.sin(turn) * 0.06,
+    y: 0,
+    scale: 1,
     colour: c,
     glyphs: {
       face: f,
       colour: c,
-      blink,
       pop,
-      look:
-        frame > B(77.5)
-          ? {
-              x: (rand(glance) * 2 - 1) * 0.6,
-              y: (rand(glance + 7) * 2 - 1) * 0.4,
-            }
-          : { x: 0, y: 0 },
+      look: { x: 0, y: 0 },
       cursorOn: Math.floor(ms / 500) % 2 === 0,
       t: ms,
     },
   };
 
-  const dims =
-    span(frame, B(70), B(71.25), out) - span(frame, B(71.75), B(72.25));
+  const dims = span(frame, B(70), B(71), out) - span(frame, B(71.25), B(71.6));
   const half = SHELL / 2;
   const top = 540 - half;
-  const window = {
-    x: 960 - WINDOW / 2,
-    y: 540 - WINDOW / 2,
-    w: WINDOW,
-    h: WINDOW,
-    r: 3.9 * PX_PER_MM,
-  };
-  const eyesTo = {
-    lx: 960 - ACTIVE * 0.215,
-    ly: 540 - ACTIVE / 2 + ACTIVE * 0.46,
-    rx: 960 + ACTIVE * 0.215,
-    ry: 540 - ACTIVE / 2 + ACTIVE * 0.46,
-    size: ACTIVE * 0.34,
-  };
-  const shadow = 1 - lift * 0.3;
 
   return (
     <div style={{ position: "absolute", inset: 0 }}>
@@ -210,9 +196,9 @@ export function Body() {
       <div
         style={{
           position: "absolute",
-          left: 960 - 300 * shadow,
-          top: 540 + half * (1 - 0.28 * lift) - lift * 9 * PX_PER_MM + 30,
-          width: 600 * shadow,
+          left: 960 - 300,
+          top: 540 + half + 30,
+          width: 600,
           height: 60,
           borderRadius: "50%",
           background:
@@ -265,8 +251,8 @@ export function Body() {
 
       <Kinetic
         frame={frame}
-        words={wordsFrom("Next: a body you can hold.", B(70.5), 6)}
-        leave={B(76)}
+        words={wordsFrom("Next: a body you can hold.", B(70.25), 5)}
+        leave={B(73.6)}
         size={76}
         align="center"
         style={{ left: 0, right: 0, top: 850 }}
@@ -281,42 +267,31 @@ export function Body() {
           font: `500 24px/1 ${MONO}`,
           letterSpacing: "0.14em",
           color: "#6E6E6E",
-          opacity: span(frame, B(72), B(72.5)) - span(frame, B(76), B(76.25)),
+          opacity: span(frame, B(71), B(71.5)) - span(frame, B(73.6), B(73.85)),
         }}
       >
         OPEN HARDWARE · PRINT YOUR OWN
       </div>
 
-      <div
-        style={{
-          position: "absolute",
-          left: 0,
-          right: 0,
-          top: 790,
-          textAlign: "center",
-          font: `600 120px/1 ${SANS}`,
-          letterSpacing: "-0.05em",
-          color: INK,
-          opacity: span(frame, B(77), B(77) + 10),
-          transform: `translateY(${(1 - span(frame, B(77), B(77) + 18, out)) * 36}px)`,
-        }}
-      >
-        opencharm.dev
-      </div>
-
-      <Sheet
-        frame={frame + beat(68)}
-        from={beat(8)}
-        title="06 · THE CHARM"
-        labels={frame < B(76)}
-      />
+      <Sheet frame={frame + beat(68)} from={beat(8)} />
       {frame < B(70) && (
         <Morph
           p={handoff}
           from={FULL_FRAME}
-          to={window}
+          to={CHARM_WINDOW}
           eyesFrom={AGENT_EYES}
-          eyesTo={eyesTo}
+          eyesTo={CHARM_EYES}
+          face={face("happy")}
+          colour={colour("white")}
+        />
+      )}
+      {frame >= B(74) && (
+        <Morph
+          p={handback}
+          from={CHARM_WINDOW}
+          to={FULL_FRAME}
+          eyesFrom={CHARM_EYES}
+          eyesTo={BIG_EYES}
           face={face("happy")}
           colour={colour("white")}
         />

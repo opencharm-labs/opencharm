@@ -116,12 +116,7 @@ export function AnyAgent() {
           Your agent. Its face.
         </div>
       )}
-      <Sheet
-        frame={frame + beat(60)}
-        from={beat(8)}
-        title="05 · ANY AGENT"
-        night
-      />
+      <Sheet frame={frame + beat(60)} from={beat(8)} night />
     </div>
   );
 }

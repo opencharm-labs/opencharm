@@ -1,5 +1,6 @@
 import { type ColourId, colour, face, flapAt } from "../charm/engine";
-import { NOTCH, type NotchState } from "../charm/notch";
+import { NOTCH, type NotchState, notchPanelHeight } from "../charm/notch";
+import type { Eyes, Rect } from "../ui/morph";
 import { SCREEN } from "../mac/mac-screen";
 import { type Line } from "../mac/terminal";
 import { FPS, beat, beatAt } from "../track";
@@ -212,7 +213,7 @@ export function lookAt(frame: number): { x: number; y: number } {
   return { x: (rand(i) * 2 - 1) * 0.6, y: (rand(i + 99) * 2 - 1) * 0.4 };
 }
 
-export const WIDE: Camera = { cx: SCREEN.w / 2, cy: 354, z: 1.1, roll: 0 };
+export const WIDE: Camera = { cx: SCREEN.w / 2, cy: 427, z: 1.1, roll: 0 };
 const CLOSE: Camera = { cx: SCREEN.w / 2, cy: 96, z: 4.2, roll: 0 };
 const EAR = NOTCH.width / 2 + NOTCH.strip * 0.85;
 const TALK: Camera = { cx: SCREEN.w / 2, cy: 92, z: 2.9, roll: 0 };
@@ -299,3 +300,29 @@ export const TERMINAL: Line[] = [
   { at: beat(13), text: "  ✓ 48 passed", tone: "ok" },
   { at: beat(14), text: "● git push origin fix/cart-rounding", tone: "dim" },
 ];
+
+// The black of the charm by the notch, and its eyes, in output pixels: where a morph starts or lands.
+export function panelRect(
+  cam: Camera,
+  s: { open: number; panel: number }
+): Rect {
+  const tl = toOutput(cam, SCREEN.w / 2 - NOTCH.wide / 2, 0);
+  return {
+    x: tl.x,
+    y: tl.y,
+    w: NOTCH.wide * cam.z,
+    h: notchPanelHeight(s) * cam.z,
+    r: (s.open > 0.5 ? 30 : NOTCH.strip / 2) * cam.z,
+  };
+}
+
+export function eyesOf(cam: Camera): Eyes {
+  const e = notchEyes(cam);
+  return {
+    lx: e.left.x,
+    ly: e.left.y,
+    rx: e.right.x,
+    ry: e.right.y,
+    size: e.size,
+  };
+}
