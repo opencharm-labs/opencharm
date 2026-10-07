@@ -1,0 +1,4 @@
+# Paths Crocotaste (AI design review) leaves out. Read at the pull request's base commit.
+# apps/video is the promo film, not UI (DESIGN.md, Scope).
+exclude:
+  - apps/video/**
