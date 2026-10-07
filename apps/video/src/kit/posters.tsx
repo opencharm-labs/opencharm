@@ -1,23 +1,22 @@
 import type { ReactNode } from "react";
 import { Charm3D } from "../charm/charm-3d";
 import { type ColourId, colour, face } from "../charm/engine";
-import { Glyph } from "../charm/glyph";
+import { FaceCanvas } from "../charm/face-canvas";
 import { NotchCharm, type NotchState } from "../charm/notch";
 import { SANS } from "../fonts";
 import { MacStage } from "../mac/mac-stage";
-import { SCREEN } from "../mac/mac-screen";
+import { BEZEL, SCREEN } from "../mac/mac-screen";
 import { type Camera } from "../scenes/notch-timeline";
 import { TalkKeys } from "../ui/keycaps";
 import { Paper, Sheet } from "../ui/sheet";
+import { STILL } from "./stills";
 
 // Gallery posters, one template: a headline, a line under it, and a card that shows the feature
 // large, cut off by the bottom edge. Same canvas as the stills.
-export const POSTER = { width: 1920, height: 1149 };
+export const POSTER = STILL;
 
 const INK = "#0A0A0A";
 const CARD = { left: 210, top: 390, width: 1500, height: 800 };
-// The Mac's bezel above the screen, in screen points (mac/mac-screen.tsx).
-const BEZEL = 18;
 
 // Little charms floating around the card: [x, y, size, rotation, colour, face].
 const SWARM: [number, number, number, number, ColourId, string][] = [
@@ -31,7 +30,9 @@ const SWARM: [number, number, number, number, ColourId, string][] = [
 const POSTERS = [CompanionPoster, TalkPoster, AskPoster, BodyPoster];
 export const POSTER_COUNT = POSTERS.length;
 
-const charm = (s: Partial<NotchState> & { f: string; c?: ColourId }) => {
+const charm = (
+  s: Omit<Partial<NotchState>, "face" | "colour"> & { f: string; c?: ColourId }
+) => {
   const { f, c, ...rest } = s;
   return {
     open: 1,
@@ -105,49 +106,23 @@ function Card({ children }: { children: ReactNode }) {
 function Swarm() {
   return (
     <>
-      {SWARM.map(([x, y, size, rotate, c, f]) => {
-        const fc = face(f);
-        const g = colour(c).g;
-        return (
-          <div
-            key={`${x}-${y}`}
-            style={{
-              position: "absolute",
-              left: x - size / 2,
-              top: y - size / 2,
-              width: size,
-              height: size,
-              background: "#000000",
-              borderRadius: size * 0.26,
-              transform: `rotate(${rotate}deg)`,
-            }}
-          >
-            <Glyph
-              ch={fc.L}
-              x={size * 0.32}
-              y={size * 0.44}
-              size={size * 0.34}
-              colour={g}
-            />
-            <Glyph
-              ch={fc.R}
-              x={size * 0.68}
-              y={size * 0.44}
-              size={size * 0.34}
-              colour={g}
-            />
-            {fc.M && (
-              <Glyph
-                ch={fc.M}
-                x={size * 0.5}
-                y={size * 0.7}
-                size={size * 0.26}
-                colour={g}
-              />
-            )}
-          </div>
-        );
-      })}
+      {SWARM.map(([x, y, size, rotate, c, f]) => (
+        <div
+          key={`${x}-${y}`}
+          style={{
+            position: "absolute",
+            left: x - size / 2,
+            top: y - size / 2,
+            width: size,
+            height: size,
+            borderRadius: size * 0.26,
+            overflow: "hidden",
+            transform: `rotate(${rotate}deg)`,
+          }}
+        >
+          <FaceCanvas face={face(f)} colour={colour(c)} width={size} />
+        </div>
+      ))}
     </>
   );
 }

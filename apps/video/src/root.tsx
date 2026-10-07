@@ -9,7 +9,6 @@ import { Film } from "./film";
 import { fontsReady } from "./fonts";
 import { CLIP, CLIPS, Clip, clipFrames } from "./kit/clips";
 import { AVATAR, AVATARS, Avatar } from "./kit/avatars";
-import { BANNER, Banner } from "./kit/banner";
 import { IconAnimated } from "./kit/icon-animated";
 import { POSTER, POSTER_COUNT, Poster } from "./kit/posters";
 import { STILL, STILL_COUNT, Still } from "./kit/stills";
@@ -59,12 +58,6 @@ export function Root() {
             height={POSTER.height}
           />
         ))}
-        <StillComposition
-          id="banner-wide"
-          component={Banner}
-          width={BANNER.width}
-          height={BANNER.height}
-        />
         {AVATARS.map((_, i) => (
           <StillComposition
             key={i}

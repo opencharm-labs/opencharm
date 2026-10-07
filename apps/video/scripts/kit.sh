@@ -1,5 +1,5 @@
 #!/bin/sh
-# The brand kit, rendered into out/kit/: wide stills and posters (2540 × 1520), avatars, a banner, the animated icon (GIF, 240 and
+# The brand kit, rendered into out/kit/: wide stills and posters (2540 × 1520), avatars, the animated icon (GIF, 240 and
 # 480 px) and square clips (1080 × 1080). Run from apps/video (npm run kit). Needs ffmpeg.
 set -e
 mkdir -p out/kit
@@ -8,17 +8,13 @@ npx remotion render src/index.ts film out/opencharm.mp4
 cp out/opencharm.mp4 public/film.mp4
 # Bundle once (public/ and the film with it), then render everything from that bundle.
 npx remotion bundle src/index.ts --out-dir out/bundle
-for i in 1 2 3 4 5 6; do
-  npx remotion still out/bundle "still-wide-$i" "out/kit/still-wide-$i.png" --scale=1.32292
+# Every still in the kit, by its id: the list comes from the bundle, so it follows src/kit/.
+for id in $(npx remotion compositions out/bundle -q); do
+  case "$id" in
+    still-wide-* | poster-wide-*) npx remotion still out/bundle "$id" "out/kit/$id.png" --scale=1.32292 ;;
+    avatar-*) npx remotion still out/bundle "$id" "out/kit/$id.png" ;;
+  esac
 done
-for i in 1 2 3; do
-  npx remotion still out/bundle "poster-wide-$i" "out/kit/poster-wide-$i.png" --scale=1.32292
-done
-# One avatar per face but "ask" (src/kit/avatars.tsx), and the banner at 2x.
-for i in $(seq 1 21); do
-  npx remotion still out/bundle "avatar-$i" "out/kit/avatar-$i.png"
-done
-npx remotion still out/bundle banner-wide out/kit/banner-wide.png --scale=2
 # The icon from lossless PNG frames, so the GIF's small palette holds only real colours.
 rm -rf out/icon-frames
 npx remotion render out/bundle icon-animated out/icon-frames --sequence --image-format=png
