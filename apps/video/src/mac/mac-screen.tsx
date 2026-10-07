@@ -5,7 +5,7 @@ import { SANS } from "../fonts";
 // A MacBook Pro 14" display in points, drawn like the hero on opencharm.dev: an ink outline, a black
 // band along the top, a white screen.
 export const SCREEN = { w: 1512, h: 982 };
-const BEZEL = 18;
+export const BEZEL = 18;
 const SIDE = 10;
 
 const MENU = ["File", "Edit", "View", "Window", "Help"];

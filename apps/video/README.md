@@ -20,6 +20,8 @@ scripts/sheets.sh out/opencharm.mp4       # contact sheets (one frame per beat) 
 | File                                | What                                                                                                         |
 | ----------------------------------- | ------------------------------------------------------------------------------------------------------------ |
 | `still-wide-1…6.png`                | 2540 × 1520 stills (1270 × 760 at 2x): the charm, the moods, the key, the question, the agents, the hardware |
+| `poster-wide-1…4.png`               | 2540 × 1520 posters, one template: a headline, a line, the feature large (companion, talk, yes/no, hardware) |
+| `avatar-1…21.png`                   | 1024 × 1024 profile pictures: one face, white on true black, safe for a round crop                           |
 | `icon-animated-240.gif`, `-480.gif` | the app icon, alive: a blink, a glance, a wink; it loops                                                     |
 | `clip-square-1…7.mp4`               | 1080 × 1080 cuts of the film, one idea each, silent                                                          |
 
@@ -31,13 +33,13 @@ Every cut sits on a beat. The track is licensed, so it never enters git (`public
 
 ## Where things are
 
-| File                           | What                                                                   |
-| ------------------------------ | ---------------------------------------------------------------------- |
-| `src/track.ts`                 | tempo, beats, length                                                   |
-| `src/scenes/notch-timeline.ts` | what the charm shows on each beat, and the camera                      |
-| `src/scenes/notch-story.tsx`   | the Mac: cold open, hook, moods, hold to talk, the question            |
-| `src/scenes/any-agent.tsx`     | the agents it works with                                               |
-| `src/scenes/body.tsx`          | a glimpse of the printed charm, "next"                                 |
-| `src/scenes/finale.tsx`        | the face fills the frame, flies home to the notch and says the address |
-| `src/kit/`                     | the brand kit: stills, the animated icon, square clips                 |
-| `src/charm/`                   | the notch charm, the 3D charm, glyphs, the bridge to the face engine   |
+| File                           | What                                                                     |
+| ------------------------------ | ------------------------------------------------------------------------ |
+| `src/track.ts`                 | tempo, beats, length                                                     |
+| `src/scenes/notch-timeline.ts` | what the charm shows on each beat, and the camera                        |
+| `src/scenes/notch-story.tsx`   | the Mac: cold open, hook, moods, hold to talk, the question              |
+| `src/scenes/any-agent.tsx`     | the agents it works with                                                 |
+| `src/scenes/body.tsx`          | a glimpse of the printed charm, "next"                                   |
+| `src/scenes/finale.tsx`        | the face fills the frame, flies home to the notch and says the address   |
+| `src/kit/`                     | the brand kit: stills, posters, avatars, the animated icon, square clips |
+| `src/charm/`                   | the notch charm, the 3D charm, glyphs, the bridge to the face engine     |

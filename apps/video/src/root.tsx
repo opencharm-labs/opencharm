@@ -8,7 +8,9 @@ import {
 import { Film } from "./film";
 import { fontsReady } from "./fonts";
 import { CLIP, CLIPS, Clip, clipFrames } from "./kit/clips";
+import { AVATAR, AVATARS, Avatar } from "./kit/avatars";
 import { IconAnimated } from "./kit/icon-animated";
+import { POSTER, POSTER_COUNT, Poster } from "./kit/posters";
 import { STILL, STILL_COUNT, Still } from "./kit/stills";
 import { DURATION, FPS } from "./track";
 
@@ -44,6 +46,26 @@ export function Root() {
             defaultProps={{ index: i }}
             width={STILL.width}
             height={STILL.height}
+          />
+        ))}
+        {Array.from({ length: POSTER_COUNT }, (_, i) => (
+          <StillComposition
+            key={i}
+            id={`poster-wide-${i + 1}`}
+            component={Poster}
+            defaultProps={{ index: i }}
+            width={POSTER.width}
+            height={POSTER.height}
+          />
+        ))}
+        {AVATARS.map((_, i) => (
+          <StillComposition
+            key={i}
+            id={`avatar-${i + 1}`}
+            component={Avatar}
+            defaultProps={{ index: i }}
+            width={AVATAR.width}
+            height={AVATAR.height}
           />
         ))}
         {CLIPS.map((_, i) => (
