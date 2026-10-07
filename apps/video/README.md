@@ -17,13 +17,13 @@ scripts/sheets.sh out/opencharm.mp4       # contact sheets (one frame per beat) 
 
 `npm run kit -w @opencharm-labs/video` renders the film's resources into `out/kit/`, from the same faces and look:
 
-| File                                | What                                                                                                         |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `still-wide-1…6.png`                | 2540 × 1520 stills (1270 × 760 at 2x): the charm, the moods, the key, the question, the agents, the hardware |
-| `poster-wide-1…4.png`               | 2540 × 1520 posters, one template: a headline, a line, the feature large (companion, talk, yes/no, hardware) |
-| `avatar-1…21.png`                   | 1024 × 1024 profile pictures: one face, white on true black, safe for a round crop                           |
-| `icon-animated-240.gif`, `-480.gif` | the app icon, alive: a blink, a glance, a wink; it loops                                                     |
-| `clip-square-1…7.mp4`               | 1080 × 1080 cuts of the film, one idea each, silent                                                          |
+| File                                | What                                                                                                            |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `still-wide-1…6.png`                | 2540 × 1520 stills (1270 × 760 at 2x): the charm, the moods, the key, the question, the agents, the hardware    |
+| `poster-wide-1…4.png`               | 2540 × 1520 posters, one template: a headline, a line, the feature large (companion, talk, yes/no, hardware)    |
+| `avatar-1…21.png`                   | 1024 × 1024 profile pictures: one face, white on true black, safe for a round crop                              |
+| `icon-animated-240.gif`, `-480.gif` | the app icon, alive: a blink, a glance, a wink; it loops. Full-bleed (no white rim), for thumbnails and avatars |
+| `clip-square-1…7.mp4`               | 1080 × 1080 cuts of the film, one idea each, silent                                                             |
 
 The kit renders the film first and the square clips play it (copied to `public/film.mp4`, ignored by git), so they always match it; their cuts follow the film's scenes (`CUTS` in `src/track.ts`). The compositions are in `src/kit/`.
 

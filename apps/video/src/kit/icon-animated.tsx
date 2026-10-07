@@ -3,28 +3,16 @@ import { colour } from "../charm/engine";
 import { Glyph } from "../charm/glyph";
 import { keys, step } from "../motion";
 
-// brand/build_icon.py: the screen is a squircle (n 3.5) inset 8.5 % from a white shell, carets
-// 22 % wide, 19 % either side of the middle, 47 % down.
-const SCREEN_N = 3.5;
-const INSET = 0.085;
-const EYE_DX = 0.19;
-const EYE_Y = 0.47;
-// Geist Mono 800's caret is about 0.6 em wide: this em gives the icon's 22 % caret.
-const EYE_EM = 0.37;
-
-function squircle(size: number, inset: number, n: number): string {
-  const h = size / 2 - inset;
-  const points: string[] = [];
-  for (let i = 0; i < 360; i++) {
-    const t = (i / 360) * Math.PI * 2;
-    const c = Math.cos(t);
-    const s = Math.sin(t);
-    const x = size / 2 + h * Math.sign(c) * Math.abs(c) ** (2 / n);
-    const y = size / 2 + h * Math.sign(s) * Math.abs(s) ** (2 / n);
-    points.push(`${x.toFixed(2)},${y.toFixed(2)}`);
-  }
-  return `M${points.join("L")}Z`;
-}
+// brand/build_icon.py's face, full-bleed: the black screen fills the square (no white rim, which
+// vanishes on white pages and makes the icon look small next to others on Product Hunt). Corners
+// stay square: a GIF has no soft transparent edge, so a baked-in squircle would be jagged. Everything scales by 1 / (1 − 2 × 8.5 %) so the face
+// keeps the app icon's proportions: carets 22 % of the screen wide, 19 % either side of the middle,
+// 47 % down.
+const ZOOM = 1 / (1 - 2 * 0.085);
+const EYE_DX = 0.19 * ZOOM;
+const EYE_Y = 0.5 - 0.03 * ZOOM;
+// Geist Mono 800's caret is about 0.43 em wide (measured on a frame): this em gives the 22 % caret.
+const EYE_EM = 0.51 * ZOOM;
 
 // The app icon, alive: a blink, a glance each way, a wink, back where it started (it loops).
 export function IconAnimated() {
@@ -46,21 +34,14 @@ export function IconAnimated() {
   const left = blink ? "−" : "^";
   const right = blink || wink ? "−" : "^";
   const em = size * EYE_EM * pop;
-  const shift = look * size * 0.025;
+  const shift = look * size * 0.025 * ZOOM;
   const tilt = step(frame, [
     [0, 0],
     [Math.round(2.35 * fps), -5],
     [Math.round(2.85 * fps), 0],
   ]);
   return (
-    <div style={{ position: "absolute", inset: 0, background: "#FFFFFF" }}>
-      <svg
-        width={size}
-        height={size}
-        style={{ position: "absolute", inset: 0 }}
-      >
-        <path d={squircle(size, size * INSET, SCREEN_N)} fill="#000000" />
-      </svg>
+    <div style={{ position: "absolute", inset: 0, background: "#000000" }}>
       <div
         style={{
           position: "absolute",
