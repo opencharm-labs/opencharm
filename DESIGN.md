@@ -320,4 +320,4 @@ Don't:
 
 Scope:
 
-- These rules and tokens govern the product (the charm, the desktop app, the CLI, the emulator) and opencharm.dev. `apps/video` is the promo film, not UI: its scenes draw video frames, so literal colour values, motion blur and a soft contact shadow there are deliberate. `.crocotaste.yml` at the root keeps `apps/video/**` out of Crocotaste's AI design review (its `exclude:` list, read at the pull request's base commit); the film is reviewed by watching its render.
+- These rules and tokens govern the product (the charm, the desktop app, the CLI, the emulator) and opencharm.dev. `apps/video` is the promo film, not UI: its scenes draw video frames, so literal colour values, motion blur and a soft contact shadow there are deliberate. AI design reviews skip `apps/video/**` (for Crocotaste, `.crocotaste.yml` at the root enforces it); the film is reviewed by watching its render.
