@@ -3,18 +3,19 @@ import { colour } from "../charm/engine";
 import { Glyph } from "../charm/glyph";
 import { keys, step } from "../motion";
 
-// brand/build_icon.py's face, full-bleed: the black screen fills the square (no white rim, which
-// vanishes on white pages and makes the icon look small next to others on Product Hunt). Corners
-// stay square: a GIF has no soft transparent edge, so a baked-in squircle would be jagged. Everything scales by 1 / (1 − 2 × 8.5 %) so the face
-// keeps the app icon's proportions: carets 22 % of the screen wide, 19 % either side of the middle,
-// 47 % down.
-const ZOOM = 1 / (1 - 2 * 0.085);
+// brand/build_icon.py's face, full-bleed: the black screen fills the square. The app icon's white
+// rim vanishes on light pages and makes the icon look small next to others in a list. Corners stay
+// square: a GIF has no soft transparent edge, so a baked-in squircle would be jagged. The face is
+// the app icon's (carets 22 % of the icon wide, 19 % either side of the middle, 47 % down), zoomed
+// by the rim it no longer has.
+const INSET = 0.085;
+const ZOOM = 1 / (1 - 2 * INSET);
 const EYE_DX = 0.19 * ZOOM;
-const EYE_Y = 0.5 - 0.03 * ZOOM;
-// Geist Mono 800's caret is about 0.43 em wide (measured on a frame): this em gives the 22 % caret.
-const EYE_EM = 0.51 * ZOOM;
+const EYE_Y = 0.5 + (0.47 - 0.5) * ZOOM;
+// Geist Mono 800's caret is 428 units wide in 1000 (CARET_W): this em gives the 22 % caret.
+const EYE_EM = (0.22 / 0.428) * ZOOM;
 
-// The app icon, alive: a blink, a glance each way, a wink, back where it started (it loops).
+// The app icon's face, alive: a blink, a glance each way, a wink, back where it started (it loops).
 export function IconAnimated() {
   const frame = useCurrentFrame();
   const { width: size, fps } = useVideoConfig();
