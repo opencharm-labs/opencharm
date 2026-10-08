@@ -51,6 +51,7 @@ const trace = {
   connected: false,
   micReady: false, // the microphone is open right now (only while the key is held)
   micOpens: 0, // how many times it was opened
+  micLatencyMs: null, // key-down to the first mic frame the core took, last hold (includes a 60 ms frame)
 };
 window.__charm = trace;
 
@@ -58,6 +59,8 @@ let ws;
 let wifiOn = true;
 let micOn = false;
 let keyHeld = false;
+let keyDownAt = 0;
+let firstFrame = false;
 let mic; // {stream, ctx} while the key is held; the microphone is closed otherwise
 let playCtx;
 let playAt = 0;
@@ -259,8 +262,12 @@ async function openMic() {
       opening.stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           channelCount: 1,
-          echoCancellation: true,
-          noiseSuppression: true,
+          // No voice processing: the charm never plays while the mic runs (a hold stops its speech
+          // first), and on macOS it makes WebKit open the mic through Apple's voice-processing unit,
+          // which ducks other sound and is expected to start slower, cutting a first word.
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
         },
       });
     await opening.ctx.audioWorklet.addModule("mic-worklet.js");
@@ -272,6 +279,13 @@ async function openMic() {
       const ptr = M._malloc(bytes.length);
       M.HEAPU8.set(bytes, ptr);
       M._sim_mic_pcm(ptr, data.length);
+      if (!firstFrame) {
+        firstFrame = true;
+        trace.micLatencyMs = Math.round(performance.now() - keyDownAt);
+        console.debug(
+          `OpenCharm emulator: first mic frame ${trace.micLatencyMs} ms after key-down`
+        );
+      }
       M._free(ptr);
     };
     if (fakeMic) {
@@ -309,6 +323,10 @@ window.charmKey = (down) => key(down);
 function key(down) {
   startPlayback();
   keyHeld = down;
+  if (down) {
+    keyDownAt = performance.now();
+    firstFrame = false;
+  }
   if (down) void openMic();
   else closeMic();
   keyEl.classList.toggle("down", down);
