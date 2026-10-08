@@ -5,13 +5,13 @@ Depends on: 003, 010
 
 ## Why
 
-The simplest way to use a charm: your agent lives in a folder you own, run on your own machine, with charmd and the emulator (or the charm) next to it. Everything local, in git, easy to fork and change. Developers who run coding agents expect to clone a repo, tweak it with their own agent and pull fixes later, so the workspace is a repo of its own with two audiences kept apart: the voice agent (locked down) and the developer customising it.
+The simplest way to use a charm: your agent lives in a folder you own, run on your own machine, with charmd and the emulator (or the charm) next to it. Everything local, in git, easy to fork and change. Developers who run coding agents expect to clone a repo, tweak it with their own agent and pull fixes later, so the workspace is a repo of its own with two audiences kept apart: the voice agent (with guarded permissions) and the developer customising it.
 
 ## Scope
 
 - **`opencharm-labs/opencharm-starter`**, its own repo and the single source of truth (a GitHub template):
   - The root, for developers and their coding agents: `README.md`, `AGENTS.md` (+ `CLAUDE.md` → `@AGENTS.md`), skill `customise-charm`, `opencharm.json`, tests (`node --test`, no dependencies), CI, MIT licence.
-  - `charm/`, the **workspace** the voice agent runs in: its persona (`AGENTS.md`, default name Momo: 1–3 short spoken sentences, no markdown, what it may and may not do), skills `charm-voice` and `charm-workspace`, `notes/` (what you ask it to remember, plain Markdown in git), and locked-down Claude Code rules (`.claude/settings.json`: accept edits inside `charm/`, no shell, its own rules read-only).
+  - `charm/`, the **workspace** the voice agent runs in: its persona (`AGENTS.md`, default name Momo: 1–3 short spoken sentences, no markdown, what it may and may not do), skills `charm-voice` and `charm-workspace`, `notes/` (what you ask it to remember, plain Markdown in git), and Claude Code rules (`.claude/settings.json`; with `"mode": "auto"` in `opencharm.json` it may run commands and edit its project folders, Claude Code's reviewer approving or blocking each action; its own rules and charmd's state off limits). Until 8 October 2026 it was locked down (edits inside `charm/` only, no shell); spec 010 has why that changed.
   - charmd's state stays in `~/.opencharm/` (its default), outside the repo, denied to the voice agent.
 - **`opencharm init [dir]`** (`packages/cli/src/commands/init.ts`) clones the starter (`git clone --depth 1 --origin upstream`, so fixes can be pulled later; `--from <url or path>` for forks), then fits `opencharm.json` to this machine: `local` voice on macOS, `fake` elsewhere; `--agent` picks an ACP preset (Claude Code by default). The CLI bundles no template. The charm's name lives in `charm/AGENTS.md` (`--name` overrides it in `opencharm.json`); init prints it, with the next steps: `serve`, `sim` (the charm in the browser, without hardware) and `pair`.
 - **`opencharm serve`** from the workspace runs the agent in `charm/`.
