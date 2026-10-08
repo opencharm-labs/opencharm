@@ -73,8 +73,7 @@ describe("the emulator against a real charmd", () => {
       "back to idle"
     );
 
-    // The next hold reuses the capture kept from the first, and opens the microphone again: only
-    // while the key is down, with frames from the start of the hold.
+    // The next hold opens the microphone again, and closes it when the key comes up.
     await page.evaluate("window.__charm.micLatencyMs = null;");
     await page.keyboard.down("Space");
     const again = await waitFor(

@@ -51,7 +51,7 @@ const trace = {
   connected: false,
   micReady: false, // the microphone is open right now (only while the key is held)
   micOpens: 0, // how many times it was opened
-  micLatencyMs: null, // key-down to the first mic frame reaching the core, for the last hold
+  micLatencyMs: null, // key-down to the first mic frame the core took, last hold (includes a 60 ms frame)
 };
 window.__charm = trace;
 
@@ -61,7 +61,7 @@ let micOn = false;
 let keyHeld = false;
 let keyDownAt = 0;
 let firstFrame = false;
-let mic; // {stream, ctx, source, node} while the key is held; the microphone is closed otherwise
+let mic; // {stream, ctx} while the key is held; the microphone is closed otherwise
 let playCtx;
 let playAt = 0;
 const playing = new Set();
@@ -247,53 +247,38 @@ function showMic(text) {
   statusEl.textContent = `${trace.connected ? "CONNECTED · " : ""}${text}`;
 }
 
-// Everything a hold needs except the microphone (an audio context and its worklet) is made once and
-// kept, suspended between holds: building it on every key-down cost the first words.
-let capture;
-function prepareCapture() {
-  capture ??= (async () => {
-    const ctx = new AudioContext({ sampleRate: 16000 });
-    await ctx.audioWorklet.addModule("mic-worklet.js");
-    if (!mic) void ctx.suspend();
-    return ctx;
-  })().catch((error) => {
-    capture = undefined;
-    throw error;
-  });
-  return capture;
-}
-void prepareCapture().catch(() => undefined);
-
 // The microphone opens when the key goes down and closes when it comes up, so the browser (and
 // anyone looking) only ever sees it recording while the key is held. The charm's core still decides
 // which of those frames may leave (after a 200 ms hold).
 async function openMic() {
   if (mic) return;
-  const opening = {};
+  const opening = {
+    stream: undefined,
+    ctx: new AudioContext({ sampleRate: 16000 }),
+  };
   mic = opening;
   try {
-    const [stream, ctx] = await Promise.all([
-      fakeMic
-        ? undefined
-        : navigator.mediaDevices.getUserMedia({
-            audio: {
-              channelCount: 1,
-              echoCancellation: true,
-              noiseSuppression: true,
-            },
-          }),
-      prepareCapture(),
-    ]);
-    opening.stream = stream;
+    if (!fakeMic)
+      opening.stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          channelCount: 1,
+          // No voice processing: the charm never plays while the mic runs (a hold stops its speech
+          // first), and on macOS it makes WebKit open the mic through Apple's voice-processing unit,
+          // which ducks other sound and is expected to start slower, cutting a first word.
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+        },
+      });
+    await opening.ctx.audioWorklet.addModule("mic-worklet.js");
     if (mic !== opening || !keyHeld) return closeMic(opening);
-    opening.ctx = ctx;
-    // Not awaited: frames flow once it runs, and a refused resume must not hang the key.
-    void ctx.resume();
-    // A new collector per hold, so no half-filled frame from the last hold is ever sent.
-    const node = new AudioWorkletNode(ctx, "mic-collector");
-    opening.node = node;
+    const node = new AudioWorkletNode(opening.ctx, "mic-collector");
     node.port.onmessage = ({ data }) => {
       if (!micOn) return;
+      const bytes = new Uint8Array(data.buffer);
+      const ptr = M._malloc(bytes.length);
+      M.HEAPU8.set(bytes, ptr);
+      M._sim_mic_pcm(ptr, data.length);
       if (!firstFrame) {
         firstFrame = true;
         trace.micLatencyMs = Math.round(performance.now() - keyDownAt);
@@ -301,21 +286,15 @@ async function openMic() {
           `OpenCharm emulator: first mic frame ${trace.micLatencyMs} ms after key-down`
         );
       }
-      const bytes = new Uint8Array(data.buffer);
-      const ptr = M._malloc(bytes.length);
-      M.HEAPU8.set(bytes, ptr);
-      M._sim_mic_pcm(ptr, data.length);
       M._free(ptr);
     };
     if (fakeMic) {
-      const tone = new OscillatorNode(ctx, { frequency: 330 });
-      const quiet = new GainNode(ctx, { gain: 0.2 });
+      const tone = new OscillatorNode(opening.ctx, { frequency: 330 });
+      const quiet = new GainNode(opening.ctx, { gain: 0.2 });
       tone.connect(quiet).connect(node);
       tone.start();
-      opening.source = tone;
     } else {
-      opening.source = ctx.createMediaStreamSource(stream);
-      opening.source.connect(node);
+      opening.ctx.createMediaStreamSource(opening.stream).connect(node);
     }
     trace.micReady = true;
     trace.micOpens += 1;
@@ -330,18 +309,11 @@ async function openMic() {
 function closeMic(which = mic) {
   if (!which) return;
   for (const track of which.stream?.getTracks() ?? []) track.stop();
-  which.source?.stop?.();
-  which.source?.disconnect();
-  if (which.node) {
-    which.node.port.onmessage = null;
-    which.node.disconnect();
-  }
+  void which.ctx.close().catch(() => undefined);
   if (mic === which) {
     mic = undefined;
     trace.micReady = false;
     showMic("MIC OFF");
-    // A running context keeps an audio thread busy: rest it until the next hold.
-    if (which.ctx?.state === "running") void which.ctx.suspend();
   }
 }
 
