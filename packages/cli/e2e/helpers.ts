@@ -17,6 +17,7 @@ type Trace = {
   connected: boolean;
   micReady: boolean; // the microphone is open right now
   micOpens: number;
+  micLatencyMs: number | null; // key-down to the first mic frame reaching the core, last hold
   panelOpen?: boolean; // the desktop charm's panel under the notch
   micFrames: number;
   audioFrames: number;

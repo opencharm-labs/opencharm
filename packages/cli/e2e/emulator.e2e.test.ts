@@ -66,10 +66,29 @@ describe("the emulator against a real charmd", () => {
       })
     );
     expect(done.audioFrames).toBeGreaterThan(0);
+    expect(done.micLatencyMs).toBeGreaterThan(0);
     await waitFor(
       page,
       (t) => t.messages.some((m) => m.op === "face" && m.state === "idle"),
       "back to idle"
+    );
+
+    // The next hold reuses the capture kept from the first, and opens the microphone again: only
+    // while the key is down, with frames from the start of the hold.
+    await page.evaluate("window.__charm.micLatencyMs = null;");
+    await page.keyboard.down("Space");
+    const again = await waitFor(
+      page,
+      (t) => t.micReady && t.micLatencyMs !== null,
+      "the microphone opening again"
+    );
+    expect(again.micOpens).toBe(2);
+    await page.keyboard.up("Space");
+    await waitFor(
+      page,
+      (t) => !t.micReady,
+      "the microphone closing again",
+      2000
     );
   }, 60_000);
 
