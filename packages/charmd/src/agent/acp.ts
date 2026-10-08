@@ -263,10 +263,18 @@ function createAcpAgent(options: AcpAgentOptions): AgentAdapter {
               throw new Error(
                 `${program} has no mode "${mode}" (it offers ${offered?.join(", ") || "none"})`
               );
-            await agent.context.request(acp.methods.agent.session.setMode, {
-              sessionId: created.sessionId,
-              modeId: mode,
-            });
+            // Offered but refused (Claude Code's auto mode off for a plan or by policy): the session
+            // keeps the agent's own mode, which is stricter, rather than every turn failing.
+            await agent.context
+              .request(acp.methods.agent.session.setMode, {
+                sessionId: created.sessionId,
+                modeId: mode,
+              })
+              .catch((error: unknown) =>
+                log(
+                  `mode "${mode}" refused, staying in "${created.modes?.currentModeId}": ${friendly(error, program).message}`
+                )
+              );
           }
           return { agent, sessionId: created.sessionId };
         } catch (error) {

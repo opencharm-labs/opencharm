@@ -122,12 +122,18 @@ acp
         availableModes: [
           { id: "default", name: "Ask" },
           { id: "acceptEdits", name: "Accept edits" },
+          { id: "auto", name: "Auto" },
         ],
       },
     };
   })
   .onRequest("session/set_mode", (ctx) => {
     log("session/set_mode", ctx.params);
+    // Like Claude Code when the plan or a policy turns auto mode off.
+    if (process.env.FAKE_ACP_REFUSE_MODE === ctx.params.modeId)
+      throw acp.RequestError.internalError({
+        details: "Auto mode is unavailable for your plan",
+      });
     return {};
   })
   .onRequest("session/prompt", (ctx) => prompt(ctx.params, ctx.client))

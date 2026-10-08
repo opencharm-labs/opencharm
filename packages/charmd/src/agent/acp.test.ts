@@ -106,7 +106,19 @@ describe("acp agent", () => {
   it("refuses a mode the agent doesn't offer", async () => {
     const { agent } = setup({}, { mode: "yolo" });
     await expect(collect(agent, "hello")).rejects.toThrow(
-      /mode "yolo".*default, acceptEdits/
+      /mode "yolo".*default, acceptEdits, auto/
+    );
+  });
+
+  // Auto mode can be off for a plan or by policy; the agent's own mode still guards it.
+  it("keeps answering in the agent's own mode when it refuses the configured one", async () => {
+    const { agent, notes } = setup(
+      { FAKE_ACP_REFUSE_MODE: "auto" },
+      { mode: "auto" }
+    );
+    expect(await collect(agent, "hello")).toBe("You said: hello.");
+    expect(notes.join("\n")).toMatch(
+      /mode "auto" refused.*unavailable for your plan/
     );
   });
 
