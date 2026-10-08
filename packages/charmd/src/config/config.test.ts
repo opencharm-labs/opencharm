@@ -103,8 +103,9 @@ describe("voice and agent config", () => {
           },
         },
       },
-      // Claude Code ignores a folder's own escalating defaultMode until the folder is trusted.
-      mode: "acceptEdits",
+      // Claude Code ignores a folder's own escalating defaultMode until the folder is trusted;
+      // auto mode reviews each action, risky ones are asked on the charm.
+      mode: "auto",
       // Nor the user's claude.ai connectors (Gmail, Drive…): only the workspace's own tools.
       env: { ENABLE_CLAUDEAI_MCP_SERVERS: "0" },
       charmTools: true,

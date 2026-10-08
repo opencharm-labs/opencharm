@@ -12,6 +12,7 @@ A charm should work with the agent a developer already runs, through the standar
 - charmd is an **ACP client** (official SDK `@agentclientprotocol/sdk`, ACP v1, stdio). Config: `"agent": { "adapter": "acp", "agent": "claude" }` with presets `claude`, `codex`, `gemini`, `hermes`, `openclaw`, `goose` (adapters pinned to exact versions), or `"command": [...]` for any ACP agent. `cwd` (default: the config's folder) and `projects` (extra folders the agent may work in, sent as `additionalDirectories`).
 - One agent process for charmd, one ACP session per charm; started on key-down (warm), restarted after a crash. Text chunks stream into speech; tool calls between texts become a line break; a key press sends `session/cancel`.
 - charmd offers the agent no file or terminal access of its own (text in, text out). Permission requests are **rejected** for now and logged; approving on the charm is spec 011.
+- The `claude` preset asks for Claude Code's `auto` mode (changed from `acceptEdits` on 8 October 2026), so a voice request can get real work done: Claude Code reviews each action, safe ones run, risky ones become a question on the charm (spec 011). `mode` in the config overrides it.
 - The hand-written Claude Code adapter is removed: `claude` over ACP replaces it. `opencharm init` writes the ACP config.
 - HTTP adapters (OpenAI-compatible, OpenClaw, Hermes) stay for agents behind a user boundary, like the droplet (spec 007), where charmd must not start the agent under its own user.
 - Tests with a fake ACP agent; the emulator end-to-end test runs through ACP.
@@ -36,3 +37,10 @@ Approving permissions on the charm (011), charmd's MCP server for the agent to r
 - Found and fixed on the way: the adapter loaded the user's own plugins and hooks (now only the home's settings), and Claude Code ignores a folder's own `acceptEdits` until the folder is trusted (now asked for with `session/set_mode`).
 - A fresh review found and fixed: a question cancelled while the agent was starting was still sent; a new question right after a cancelled one could lose its words; stopping charmd during start-up left the agent running; refusals now use "reject once", never "always".
 - Not verified: Codex, Gemini, goose, Hermes and OpenClaw over ACP (not installed here).
+
+## Notes (8 October 2026): auto mode
+
+- Why: with edits inside `charm/` only and no shell, asking the charm to do something on a project always ended in "do it at a computer". The maintainer chose auto mode and the shell as the starter's default.
+- Verified with real Claude Code over ACP (`claude-agent-acp` 0.84.0, which offers `default`, `acceptEdits`, `plan`, `auto`) in a starter clone with a `projects` folder: `git status` and a file edit in the project ran without asking; asked through the shell to change its own `AGENTS.md` or print `~/.opencharm/state.json`, it refused (its instructions; the deny rules bind only the file tools).
+- Asked explicitly ("I'm sure") to force-push to a local test remote, it did so without asking; that run had no charm tools, so the rule to ask on the charm before anything hard to undo is unverified until a run through charmd.
+- Not verified: the fallback to `acceptEdits` on a model without auto mode (the adapter's own code path).

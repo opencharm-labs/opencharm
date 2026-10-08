@@ -17,8 +17,10 @@ const ACP_AGENTS = {
       },
     },
     // Claude Code ignores a folder's own escalating `defaultMode` until the user trusts the folder,
-    // so the workspace's "acceptEdits" is asked for explicitly; its deny rules still apply.
-    mode: "acceptEdits",
+    // so "auto" is asked for explicitly: Claude Code reviews each action, safe ones run and risky
+    // ones become a question on the charm. On a model without auto mode the adapter falls back to
+    // "acceptEdits" (everything else asks). The workspace's deny rules still apply.
+    mode: "auto",
     // Nor the user's claude.ai connectors (Gmail, Drive…), which project settings don't cover.
     env: { ENABLE_CLAUDEAI_MCP_SERVERS: "0" },
   },
