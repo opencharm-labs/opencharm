@@ -4,6 +4,10 @@
 <dict>
   <key>NSMicrophoneUsageDescription</key>
   <string>OpenCharm listens only while you hold its key, and sends what you say to charmd on this computer.</string>
+  <key>NSDesktopFolderUsageDescription</key>
+  <string>OpenCharm creates your charm's workspace where you choose, and runs your agent in it.</string>
+  <key>NSDocumentsFolderUsageDescription</key>
+  <string>OpenCharm creates your charm's workspace where you choose, and runs your agent in it.</string>
   <key>NSLocalNetworkUsageDescription</key>
   <string>OpenCharm tells charms on your Wi-Fi where your charmd is, so a charm you're adding can connect to this Mac. Only while "Charms on this network" is on.</string>
   <key>NSBonjourServices</key>

@@ -34,6 +34,11 @@ use tauri_plugin_opener::OpenerExt;
 
 /// The menu-bar icon: the charm's head, a template image macOS tints for light and dark bars.
 const TRAY_ICON: &[u8] = include_bytes!("../../../../brand/icon/tray-template.png");
+/// The setup and Add a charm windows: every step fits without scrolling, with a note showing
+/// (measured with each step's longest content, an agent's server fields included).
+const SETUP_SIZE: (f64, f64) = (580.0, 760.0);
+const SETUP_MIN: (f64, f64) = (480.0, 520.0);
+const REFUSED: &str = "macOS isn't letting OpenCharm open that folder. Allow it in System Settings → Privacy & Security → Files and Folders, or choose another.";
 
 /// The menu-bar menu, to offer an update at its top.
 struct Tray {
@@ -415,6 +420,16 @@ fn open_add_charm(app: AppHandle) -> Result<(), String> {
     show_add_charm(&app).map_err(|e| e.to_string())
 }
 
+/// The setup windows' height, kept inside the screen (a short laptop screen, or large text): what
+/// doesn't fit then scrolls, and the window can be made taller where there's room.
+fn setup_height(app: &AppHandle) -> f64 {
+    let screen = app.primary_monitor().ok().flatten().map(|m| {
+        let size = m.work_area().size.to_logical::<f64>(m.scale_factor());
+        size.height
+    });
+    setup::window_height(SETUP_SIZE.1, SETUP_MIN.1, screen)
+}
+
 fn show_add_charm(app: &AppHandle) -> tauri::Result<()> {
     if let Some(window) = app.get_webview_window("add-charm") {
         window.show()?;
@@ -423,8 +438,8 @@ fn show_add_charm(app: &AppHandle) -> tauri::Result<()> {
     let window =
         WebviewWindowBuilder::new(app, "add-charm", WebviewUrl::App("add-charm.html".into()))
             .title("Add a charm")
-            .inner_size(480.0, 620.0)
-            .resizable(false)
+            .inner_size(SETUP_SIZE.0, setup_height(app))
+            .min_inner_size(SETUP_MIN.0, SETUP_MIN.1)
             .center()
             .build()?;
     window.set_focus()
@@ -493,6 +508,10 @@ struct SetupState {
     step: u32,
     location: String,
     platform: &'static str,
+    /// The saved folder when it's gone: the folder step offers to create it again, by its name.
+    missing: Option<String>,
+    /// The saved folder when it's there but this app may not open it: the folder step says so.
+    refused: Option<String>,
 }
 
 fn folder_ok(settings: &Settings) -> bool {
@@ -505,10 +524,25 @@ fn folder_ok(settings: &Settings) -> bool {
 #[tauri::command]
 fn setup_state(app: AppHandle, saved: State<Saved>) -> SetupState {
     let settings = saved.settings.lock().unwrap().clone();
-    let location = settings
-        .setup_location
-        .clone()
-        .filter(|l| std::path::Path::new(l).is_dir())
+    let saved_folder = settings.folder.as_deref().map(managed::inspect_folder);
+    let refused = saved_folder
+        .as_ref()
+        .filter(|f| f.refused)
+        .map(|f| f.path.clone());
+    let missing = saved_folder
+        .filter(|f| !f.exists && !f.refused)
+        .map(|f| f.path);
+    let location = missing
+        .as_deref()
+        .and_then(|m| std::path::Path::new(m).parent())
+        .filter(|p| p.is_dir())
+        .map(|p| p.to_string_lossy().to_string())
+        .or_else(|| {
+            settings
+                .setup_location
+                .clone()
+                .filter(|l| std::path::Path::new(l).is_dir())
+        })
         .or_else(|| {
             setup::default_location(app.path().document_dir().ok(), app.path().home_dir().ok())
                 .map(|p| p.to_string_lossy().to_string())
@@ -524,6 +558,8 @@ fn setup_state(app: AppHandle, saved: State<Saved>) -> SetupState {
         } else {
             "linux"
         },
+        missing,
+        refused,
     }
 }
 
@@ -637,8 +673,8 @@ fn show_setup(app: &AppHandle) -> tauri::Result<()> {
     }
     let window = WebviewWindowBuilder::new(app, "setup", WebviewUrl::App("setup.html".into()))
         .title("Set up OpenCharm")
-        .inner_size(480.0, 600.0)
-        .resizable(false)
+        .inner_size(SETUP_SIZE.0, setup_height(app))
+        .min_inner_size(SETUP_MIN.0, SETUP_MIN.1)
         .center()
         .build()?;
     window.set_focus()
@@ -693,6 +729,9 @@ fn apply_managed(app: &AppHandle) {
             return off("folder", "Choose your agent's folder.");
         };
         let folder = managed::inspect_folder(&path);
+        if folder.refused {
+            return off("folder", REFUSED);
+        }
         if !folder.exists {
             return off("folder", "That folder is gone. Choose another.");
         }

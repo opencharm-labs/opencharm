@@ -135,6 +135,9 @@ function fill() {
   if (!folder) {
     note.textContent =
       "An OpenCharm workspace (like Momo), or any folder your agent should work in.";
+  } else if (folder.refused) {
+    note.textContent =
+      "macOS isn't letting OpenCharm open that folder. Allow it in System Settings → Privacy & Security → Files and Folders, or choose another.";
   } else if (!folder.exists) {
     note.textContent = "That folder is gone. Choose another.";
   } else if (folder.isWorkspace) {

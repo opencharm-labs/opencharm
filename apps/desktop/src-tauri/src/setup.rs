@@ -119,6 +119,26 @@ pub fn install_page(agent: &str) -> Option<&'static str> {
     }
 }
 
+/// A window's height on a screen this tall (its work area, without a title bar's 40 pt): the one
+/// wanted, else what fits, never under the minimum.
+pub fn window_height(wanted: f64, min: f64, screen: Option<f64>) -> f64 {
+    screen.map_or(wanted, |h| wanted.min(h - 40.0).max(min))
+}
+
+/// A folder error in words: macOS asks before an app uses Desktop or Documents, and a "Don't Allow"
+/// arrives as a permission error that says nothing about where to change it.
+pub fn explain(error: &std::io::Error) -> String {
+    if error.kind() == std::io::ErrorKind::PermissionDenied {
+        let place = if cfg!(target_os = "macos") {
+            "Allow it in System Settings → Privacy & Security → Files and Folders, or choose another location."
+        } else {
+            "Choose another location."
+        };
+        return format!("OpenCharm isn't allowed to create a folder there. {place}");
+    }
+    error.to_string()
+}
+
 /// Makes `target` if it isn't there and runs `work` in it (`opencharm init`); when that fails, a
 /// folder made here is taken away again, so Retry finds the place free. One that was already there
 /// (an empty folder you chose) stays.
@@ -130,7 +150,7 @@ pub fn create_then(
     let made = match std::fs::create_dir(target) {
         Ok(()) => true,
         Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => false,
-        Err(e) => return Err(e.to_string()),
+        Err(e) => return Err(explain(&e)),
     };
     let result = work(target);
     if result.is_err() && made {
@@ -306,6 +326,22 @@ mod tests {
     #[test]
     fn set_up_again_after_finishing_starts_at_the_welcome() {
         assert_eq!(resume_step(&with(DONE, Some("/here")), true), 1);
+    }
+
+    #[test]
+    fn a_window_stays_inside_a_short_screen() {
+        assert_eq!(window_height(760.0, 520.0, None), 760.0);
+        assert_eq!(window_height(760.0, 520.0, Some(1000.0)), 760.0);
+        assert_eq!(window_height(760.0, 520.0, Some(700.0)), 660.0);
+        assert_eq!(window_height(760.0, 520.0, Some(400.0)), 520.0);
+    }
+
+    #[test]
+    fn a_refused_folder_says_where_to_allow_it() {
+        let refused = std::io::Error::from(std::io::ErrorKind::PermissionDenied);
+        assert!(explain(&refused).starts_with("OpenCharm isn't allowed to create a folder there."));
+        let other = std::io::Error::other("disk full");
+        assert_eq!(explain(&other), "disk full");
     }
 
     #[test]
