@@ -1,6 +1,6 @@
 # 009: Firmware device (Waveshare 2.16)
 
-Status: Approved
+Status: In progress
 Depends on: 005, board on the bench
 
 ## Why
@@ -40,6 +40,7 @@ What it's made of:
 - The charm gets one read-only status screen for battery, temperatures, Wi-Fi and charmd, in large type (maintainer, 12 October 2026). It changes nothing, so "settings live on the computer" still holds; touch and hold opens it because hold-to-talk is on the key, not the screen.
 - Built from XiaoZhi v2.5.2 on ESP-IDF 6.1, not v2.4 on 6.0: upstream moved there (release of 11 October 2026).
 - Upstream's Wi-Fi portal is reused instead of writing our own page: fewer parts, same result.
+- The fork is taken by import: `firmware/device` is a new ESP-IDF project that copies upstream files as each stage needs them, each credited with its commit, instead of cloning 154 boards and deleting (plan.md).
 
 ## Not in scope
 
