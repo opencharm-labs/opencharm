@@ -1102,6 +1102,25 @@ TEST_CASE("a charm without a battery never sends one; a new connection sends it 
   CHECK(b.hal.sent_contains(R"("percent":50)"));
 }
 
+TEST_CASE("after a charmd that took the battery, one that doesn't offer it never gets it") {
+  Rig r;
+  r.app.start(0);
+  r.at(1300);
+  r.app.on_connected(r.now);
+  r.server(kHelloBattery);
+  r.server(R"({"type":"charm","op":"unlocked"})");
+  r.app.on_status(battery_at(50), r.now);
+  CHECK(r.hal.sent_contains(R"("percent":50)"));
+  r.app.on_disconnected(r.now);
+  r.hal.sent.clear();
+  r.app.on_connected(r.now);
+  r.server(
+      R"({"type":"hello","transport":"websocket","session_id":"s2","audio_params":{"format":"opus","sample_rate":24000,"channels":1,"frame_duration":60}})");
+  r.server(R"({"type":"charm","op":"unlocked"})");
+  r.app.on_status(battery_at(49), r.now + 1000);
+  CHECK_FALSE(r.hal.sent_contains(R"("op":"battery")"));
+}
+
 TEST_CASE("an older charmd that doesn't offer it never gets the battery") {
   Rig r;
   r.unlocked();  // its hello has no features

@@ -88,8 +88,8 @@ const answer = z.object({
   yes: z.boolean(),
 });
 
-// The charm's battery (spec 009): sent once unlocked and again when it changes, so the agent can know
-// it. A charm without a battery (the desktop charm) never sends it.
+// The charm's battery (spec 009): sent once unlocked and again when it changes; charmd keeps it for
+// `opencharm status` (an agent tool for it is proposed in spec 012). A charm without a battery (the desktop charm) never sends it.
 const battery = z.object({
   type: z.literal("charm"),
   op: z.literal("battery"),

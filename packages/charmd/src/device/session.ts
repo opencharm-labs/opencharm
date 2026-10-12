@@ -405,6 +405,8 @@ class Session {
     this.#pendingAsk?.drop();
     this.#endTurn();
     this.#state = "locked";
+    // The charm reports only from its face, so a reading kept now would go stale while it's locked.
+    this.#battery = undefined;
     this.#send({ type: "charm", op: "locked", reason: "remote" });
   }
 

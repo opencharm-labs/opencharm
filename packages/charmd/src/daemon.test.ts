@@ -598,5 +598,9 @@ describe("the charm's battery (spec 009)", () => {
     await expect
       .poll(() => d.admin.status().charms[0]?.battery)
       .toEqual({ percent: 62, charging: true, usb: true });
+    // Locked from the computer: the charm stops reporting, so status shows no frozen reading.
+    await d.admin.lock({ charm: "board" });
+    await charm.next((m) => m.type === "charm" && m.op === "locked");
+    expect(d.admin.status().charms[0]?.battery).toBeUndefined();
   });
 });
