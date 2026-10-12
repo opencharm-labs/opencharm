@@ -18,7 +18,8 @@ charmd, the charm daemon, is the door and the guard between the charm and the ag
 - `packages/cli`: `opencharm serve`, `opencharm pair|lock|unlock|revoke|status`.
 - **Charms that wait, and being found** (maintainer, 12 October 2026, for adding a board from the app, spec 013):
   - admin `waiting`: the charms connected and waiting to pair, each with the code on its screen, what it runs (`build.kind`) and how long the code lasts. The app lists them; `opencharm pair` with no code says how many wait and asks for the code on the charm's screen (typed even when one waits, never shown: it's read off the charm).
-  - When charmd listens beyond this computer (`listen.host` not loopback), it announces itself on the local network by mDNS, service `_opencharm._tcp`, with its port and `path=/charm` (`"discoverable": false` turns it off). Never on loopback: nothing could reach it there.
+  - `network` (`{ host, port }`, needs `allowInsecureRemote`): a second listener for charms on the home network, beside `listen`, so the desktop app keeps its own charm on loopback at a port the system picks (security review, 12 October 2026: a fixed loopback port could be taken first by another local user).
+  - When charmd listens beyond this computer (`network`, or `listen.host` not loopback), it announces itself on the local network by mDNS, service `_opencharm._tcp`, with that listener's port and `path=/charm` (`"discoverable": false` turns it off). Never on loopback: nothing could reach it there.
 - Dev mode: plain `ws://` allowed only from localhost.
 - Skill `opencharm-charmd` (security rules, adding features).
 - `packages/charmd/README.md`: what charmd is and how its features fit, drawn from `OPENCHARM.md` "charmd".

@@ -416,8 +416,17 @@ async function showCharms() {
       remove.type = "button";
       remove.className = "pill ghost small";
       remove.textContent = "Remove";
+      // Two clicks: the app's web view answers confirm() with "no" without showing it.
       remove.addEventListener("click", async () => {
-        if (!confirm(`Remove ${c.name}? It will need to pair again.`)) return;
+        if (remove.dataset.sure !== "1") {
+          remove.dataset.sure = "1";
+          remove.textContent = "Remove: sure?";
+          setTimeout(() => {
+            remove.dataset.sure = "";
+            remove.textContent = "Remove";
+          }, 4000);
+          return;
+        }
         await invoke("remove_charm", { name: c.name }).catch(() => undefined);
         await showCharms();
       });
@@ -427,7 +436,9 @@ async function showCharms() {
   );
 }
 void showCharms();
-setInterval(() => void showCharms(), 5000);
+setInterval(() => {
+  if (document.visibilityState === "visible") void showCharms();
+}, 5000);
 
 $("login").addEventListener(
   "change",

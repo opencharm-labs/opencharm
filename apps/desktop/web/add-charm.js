@@ -43,7 +43,14 @@ async function showNetwork() {
     );
   else if (on && status.state === "running")
     note("network-note", "On. Your charm can reach this computer.", "ok");
-  else if (on) note("network-note", "Starting charmd…");
+  else if (on && status.state === "starting")
+    note("network-note", "Starting charmd…");
+  else if (on)
+    note(
+      "network-note",
+      `charmd isn't running${status.detail ? `: ${status.detail}` : ""}. If another charmd uses port 8787, stop it, or turn this off in Settings.`,
+      "bad"
+    );
   else note("network-note", "");
   $("next").disabled = !(on && status.state === "running");
 }
@@ -87,6 +94,18 @@ async function showWaiting() {
   checkPairFields();
 }
 
+// charmd's names: lowercase letters, digits and hyphens, starting with a letter or digit (40 at most).
+const NAME = /^[a-z0-9][a-z0-9-]{0,39}$/;
+function asName(text) {
+  return text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
+}
+
 function pairFields() {
   return {
     code: $("code").value.replace(/\s/g, ""),
@@ -101,7 +120,7 @@ function checkPairFields() {
   $("next").disabled =
     busy ||
     !/^\d{6}$/.test(code) ||
-    !name ||
+    !NAME.test(name) ||
     !/^\d{4,12}$/.test(pin) ||
     pin !== $("pin2").value;
 }
@@ -159,13 +178,15 @@ const ENTER = {
   },
   3: async () => {
     if (!$("name").value)
-      $("name").value = look?.look?.name || look?.defaultName || "";
+      $("name").value = asName(look?.look?.name || look?.defaultName || "");
     polling = setInterval(showWaiting, POLL_MS);
     await showWaiting();
   },
   4: async () => {
-    $("next").textContent = "Waiting…";
-    $("next").disabled = true;
+    // Close is there while it waits: a PIN mistyped on the charm, or a charm that never unlocks,
+    // isn't a dead end (Settings lists it, and Remove starts over).
+    $("next").textContent = "Close";
+    $("next").disabled = false;
     polling = setInterval(showUnlock, POLL_MS);
     await showUnlock();
   },

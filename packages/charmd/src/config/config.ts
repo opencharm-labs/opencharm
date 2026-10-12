@@ -190,6 +190,15 @@ const schema = z
     publicUrl: z.url().optional(),
     maxConnections: z.number().int().min(1).max(1024).default(16),
     allowInsecureRemote: z.boolean().default(false),
+    // A second listener for charms on the home network (spec 002), beside `listen`: the desktop
+    // app keeps its own charm on loopback at a port the system picks, and boards reach this one.
+    // Needs allowInsecureRemote (plain ws on the network).
+    network: z
+      .object({
+        host: z.string().min(1).default("0.0.0.0"),
+        port: z.number().int().min(0).max(65535).default(8787),
+      })
+      .optional(),
     // Announce this charmd on the local network by mDNS (spec 002) when it listens beyond this
     // computer; off with false. Never on loopback, where no charm could reach it.
     discoverable: z.boolean().default(true),
@@ -343,6 +352,11 @@ function parseConfig(input: unknown, baseDir?: string): CharmdConfig {
   }
   const config = result.data;
   // charmd speaks plain WebSocket and relies on Caddy for TLS, so it must not face the network by accident.
+  if (config.network && !config.allowInsecureRemote) {
+    throw new Error(
+      `Invalid charmd config: "network" listens beyond this computer; set "allowInsecureRemote": true for a trusted home network`
+    );
+  }
   if (!LOOPBACK.has(config.listen.host) && !config.allowInsecureRemote) {
     throw new Error(
       `Invalid charmd config: listen.host ${config.listen.host} is not loopback; put Caddy in front, or set "allowInsecureRemote": true for a trusted LAN`

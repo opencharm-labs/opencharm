@@ -626,6 +626,33 @@ describe("charms waiting to pair, and being found (spec 002)", () => {
     expect(d.admin.waiting().charms).toEqual([]);
   });
 
+  it("takes charms on a network listener of its own, and keeps its loopback address", async () => {
+    const announced: number[] = [];
+    const announce = (port: number) => {
+      announced.push(port);
+      return () => Promise.resolve();
+    };
+    const { daemon: d } = await start(
+      undefined,
+      { network: { host: "127.0.0.1", port: 0 }, allowInsecureRemote: true },
+      { announce }
+    );
+    expect(d.url).toMatch(/^ws:\/\/127\.0\.0\.1:\d+\/charm$/);
+    expect(announced).toHaveLength(1);
+    const networkPort = announced[0];
+    expect(networkPort).not.toBe(Number(/:(\d+)\/charm$/.exec(d.url)?.[1]));
+    // A charm on the network listener is the same charmd: it gets a pairing code.
+    const charm = await connectFakeCharm(`ws://127.0.0.1:${networkPort}/charm`);
+    await charm.next(isOp("pair_code"));
+    expect(d.admin.waiting().charms).toHaveLength(1);
+  });
+
+  it("refuses a network listener without allowInsecureRemote", () => {
+    expect(() => parseConfig({ network: { port: 8787 } })).toThrow(
+      /allowInsecureRemote/
+    );
+  });
+
   it("announces itself on the network only when it listens beyond this computer", async () => {
     const announced: number[] = [];
     let stopped = 0;

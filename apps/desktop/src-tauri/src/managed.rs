@@ -23,10 +23,8 @@ const PIPE_PREFIX: &str = r"\\.\pipe\opencharm-desktop-";
 /// How charmd announces its WebSocket (packages/charmd/src/daemon.ts): "charmd … listening on <url>".
 const LISTENING: &str = " listening on ";
 const LOOPBACK: &str = "ws://127.0.0.1:";
-/// charmd listening on every interface (Charms on this network): the app's own charm still
-/// connects through loopback, at the same port.
-const EVERYWHERE: &str = "ws://0.0.0.0:";
-/// Charms on this network: a fixed port, so a board's saved address stays valid (spec 013).
+/// Charms on this network: charmd's second listener, at a fixed port so a board's saved address
+/// stays valid (spec 013). The app's own charm never uses it.
 pub const NETWORK_PORT: u16 = 8787;
 const MARK: &str = "__OPENCHARM_ENV__";
 const LABELS: [(&str, &str); 6] = [
@@ -394,15 +392,12 @@ pub fn listening_url(line: &str) -> Option<String> {
         return None;
     }
     let url = line.split(LISTENING).nth(1)?.trim();
-    let port = url
-        .strip_prefix(LOOPBACK)
-        .or_else(|| url.strip_prefix(EVERYWHERE))?
-        .strip_suffix("/charm")?;
+    let port = url.strip_prefix(LOOPBACK)?.strip_suffix("/charm")?;
     let valid = !port.is_empty()
         && port.len() <= 5
         && port.chars().all(|c| c.is_ascii_digit())
         && port.parse::<u32>().is_ok_and(|p| (1..=65535).contains(&p));
-    valid.then(|| format!("{LOOPBACK}{port}/charm"))
+    valid.then(|| url.to_string())
 }
 
 /// The address a board can be given by hand (spec 013): this computer's mDNS name, so it keeps
@@ -451,16 +446,10 @@ pub fn build_config(settings: &Settings, folder: &Folder, data: &Path) -> (Value
     let voice = json!({ "listen": listen, "speak": speak, "language": settings.language });
     let (agent, label) = agent_config(settings, folder);
     let admin = admin_path(data).to_string_lossy().to_string();
-    // Charms on this network (spec 013): every interface at a fixed port, and announced by mDNS
-    // (charmd does that itself beyond loopback); otherwise only this computer, on a free port the
-    // system picks as charmd starts (charmd says which: listening_url).
-    let listen = if settings.network {
-        json!({ "host": "0.0.0.0", "port": NETWORK_PORT })
-    } else {
-        json!({ "host": "127.0.0.1", "port": 0 })
-    };
     let mut config = json!({
-        "listen": listen,
+        // 0: the system picks a free port as charmd starts; charmd says which (listening_url). The
+        // app's own charm always connects here, so nobody can hold its port first.
+        "listen": { "host": "127.0.0.1", "port": 0 },
         "statePath": state.join("state.json").to_string_lossy(),
         "adminSocket": admin,
         "voice": voice,
@@ -470,7 +459,9 @@ pub fn build_config(settings: &Settings, folder: &Folder, data: &Path) -> (Value
         "speakReplies": settings.speak_replies,
     });
     if settings.network {
-        // charmd refuses a non-loopback address without it: on a home network, by the person's choice.
+        // Charms on this network (spec 013): a second listener for boards, announced by mDNS;
+        // charmd refuses it without allowInsecureRemote: plain ws on a home network, by choice.
+        config["network"] = json!({ "host": "0.0.0.0", "port": NETWORK_PORT });
         config["allowInsecureRemote"] = json!(true);
     }
     (config, label)
@@ -1085,16 +1076,6 @@ mod tests {
     }
 
     #[test]
-    fn on_the_network_its_own_charm_still_connects_through_loopback() {
-        let line = "charmd (the charm daemon) cli@0.0.0 (abc1234) is listening on ws://0.0.0.0:8787/charm";
-        assert_eq!(
-            listening_url(line).as_deref(),
-            Some("ws://127.0.0.1:8787/charm")
-        );
-        assert_eq!(listening_url("charmd listening on ws://0.0.0.0:0/charm"), None);
-    }
-
-    #[test]
     fn a_board_is_given_this_computers_local_name() {
         assert_eq!(
             network_address("Mikes-MacBook-Air").as_deref(),
@@ -1146,7 +1127,7 @@ mod tests {
     }
 
     #[test]
-    fn charms_on_this_network_listen_everywhere_on_a_fixed_port() {
+    fn charms_on_this_network_get_a_listener_of_their_own() {
         let dir = momo("momo-network");
         let folder = inspect_folder(&dir.to_string_lossy());
         let (off, _) = build_config(&Settings::default(), &folder, Path::new("/d"));
@@ -1157,8 +1138,11 @@ mod tests {
             ..Settings::default()
         };
         let (on, _) = build_config(&network, &folder, Path::new("/d"));
-        assert_eq!(on["listen"]["host"], "0.0.0.0");
-        assert_eq!(on["listen"]["port"], 8787);
+        // The app's own charm stays on loopback at a port the system picks.
+        assert_eq!(on["listen"]["host"], "127.0.0.1");
+        assert_eq!(on["listen"]["port"], 0);
+        assert_eq!(on["network"]["host"], "0.0.0.0");
+        assert_eq!(on["network"]["port"], 8787);
         assert_eq!(on["allowInsecureRemote"], true);
     }
 

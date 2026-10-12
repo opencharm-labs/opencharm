@@ -1,5 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { type Server, createServer } from "node:http";
+import {
+  type IncomingMessage,
+  type Server,
+  type ServerResponse,
+  createServer,
+} from "node:http";
 import type { AddressInfo } from "node:net";
 
 import { LIMITS, TIMEOUTS } from "@opencharm-labs/protocol/constants";
@@ -117,16 +122,31 @@ async function startDaemon(
   const adminServer = await startAdminServer(config.adminSocket, admin);
 
   let websocketUrl = config.publicUrl ?? "";
-  const http: Server = createServer((req, res) => {
-    if (isOtaRequest(req)) {
-      handleOta(res, websocketUrl);
-      return;
-    }
-    res.writeHead(404).end();
-  });
+  const answerHttp =
+    (onNetwork: boolean) => (req: IncomingMessage, res: ServerResponse) => {
+      if (isOtaRequest(req)) {
+        // On the network listener (no publicUrl), the address the device reached us at: the
+        // loopback one would send a stock XiaoZhi device nowhere.
+        const host = req.headers.host ?? "";
+        const reached =
+          onNetwork &&
+          !config.publicUrl &&
+          /^[A-Za-z0-9.:[\]-]{1,255}$/.test(host)
+            ? `ws://${host}/charm`
+            : websocketUrl;
+        handleOta(res, reached);
+        return;
+      }
+      res.writeHead(404).end();
+    };
+  const http: Server = createServer(answerHttp(false));
+  // Charms on the home network (spec 002) get a listener of their own; the one above keeps its
+  // address, so the desktop app's own charm never shares a port someone else could take first.
+  const network: Server | undefined = config.network
+    ? createServer(answerHttp(true))
+    : undefined;
   const wss = new WebSocketServer({
-    server: http,
-    path: "/charm",
+    noServer: true,
     maxPayload: LIMITS.maxJsonBytes,
     // Answer "opencharm" when offered (the emulator must get it back or the browser drops the socket).
     handleProtocols: (protocols) =>
@@ -135,6 +155,18 @@ async function startDaemon(
 
   // ws re-emits the HTTP server's errors; the listen() below reports them, so don't crash here.
   wss.on("error", () => undefined);
+  // Both listeners hand /charm to the one WebSocket server; anything else is refused.
+  for (const server of [http, network]) {
+    server?.on("upgrade", (req, socket, head) => {
+      if ((req.url ?? "").split("?")[0] !== "/charm") {
+        socket.destroy();
+        return;
+      }
+      wss.handleUpgrade(req, socket, head, (ws) =>
+        wss.emit("connection", ws, req)
+      );
+    });
+  }
 
   const answered = new WeakSet<object>();
   const heartbeat = setInterval(() => {
@@ -198,12 +230,18 @@ async function startDaemon(
     ws.on("error", () => ws.terminate());
   });
 
-  try {
-    await new Promise<void>((resolve, reject) => {
-      http.once("error", reject);
-      http.listen(config.listen.port, config.listen.host, resolve);
+  const listen = (server: Server, port: number, host: string) =>
+    new Promise<void>((resolve, reject) => {
+      server.once("error", reject);
+      server.listen(port, host, resolve);
     });
+  try {
+    await listen(http, config.listen.port, config.listen.host);
+    if (network && config.network)
+      await listen(network, config.network.port, config.network.host);
   } catch (error) {
+    http.close();
+    network?.close();
     clearInterval(heartbeat);
     // Give the admin socket back, or the next start would think a charmd is already running.
     await new Promise<void>((resolve) => adminServer.close(() => resolve()));
@@ -214,10 +252,16 @@ async function startDaemon(
     ? `[${config.listen.host}]`
     : config.listen.host;
   const url = `ws://${host}:${port}/charm`;
-  // Beyond loopback, say so on the local network, so a board can find this charmd (spec 002).
+  // Beyond loopback, say so on the local network, so a board can find this charmd (spec 002): the
+  // network listener's port, else the main one's when that one faces the network itself.
+  const networkPort = network
+    ? (network.address() as AddressInfo).port
+    : undefined;
+  const announced =
+    networkPort ?? (isLoopback(config.listen.host) ? undefined : port);
   const stopAnnouncing =
-    config.discoverable && !isLoopback(config.listen.host)
-      ? (options.announce ?? announceOnNetwork)(port)
+    config.discoverable && announced !== undefined
+      ? (options.announce ?? announceOnNetwork)(announced)
       : undefined;
   websocketUrl = config.publicUrl ?? url;
   if (!options.quiet)
@@ -225,6 +269,10 @@ async function startDaemon(
       ["charmd", options.identity, "listening on", url]
         .filter(Boolean)
         .join(" ")
+    );
+  if (!options.quiet && networkPort !== undefined && config.network)
+    console.log(
+      `Charms on this network: ws://${config.network.host}:${networkPort}/charm`
     );
 
   return {
@@ -237,6 +285,8 @@ async function startDaemon(
       agent.dispose?.();
       await new Promise<void>((resolve) => wss.close(() => resolve()));
       await new Promise<void>((resolve) => http.close(() => resolve()));
+      if (network)
+        await new Promise<void>((resolve) => network.close(() => resolve()));
       await new Promise<void>((resolve) => adminServer.close(() => resolve()));
     },
   };

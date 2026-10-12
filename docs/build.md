@@ -104,7 +104,7 @@ _Later:_ a browser flasher for OpenCharm OS (nothing to install).
 
 **By hand** (a charmd you run, or on a server):
 
-1. On the agent's machine, install and start charmd (`npm i -g opencharm`, then `opencharm serve`). On a server, follow [deploy.md](deploy.md) (a system service behind Caddy for HTTPS). For a board on your home network, charmd must listen beyond the computer: `"listen": { "host": "0.0.0.0", "port": 8787 }` and `"allowInsecureRemote": true` in its config, and it then announces itself on the network.
+1. On the agent's machine, install and start charmd (`npm i -g opencharm`, then `opencharm serve`). On a server, follow [deploy.md](deploy.md) (a system service behind Caddy for HTTPS). For a board on your home network, give charmd a network listener: `"network": { "port": 8787 }` and `"allowInsecureRemote": true` in its config; it then announces itself on the network.
 2. Point charmd at your agent (config: [`packages/charmd/README.md`](../packages/charmd/README.md)). On your computer charmd starts Claude Code, Codex, Gemini CLI, Hermes, OpenClaw or another ACP agent itself. On a server it talks to the agent's OpenAI-compatible API on localhost only: Hermes `API_SERVER_ENABLED=true` ([docs](https://hermes-agent.nousresearch.com/docs/user-guide/features/api-server)), or OpenClaw's chat completions endpoint ([docs](https://docs.openclaw.ai/gateway/openai-http-api)).
 3. Wi-Fi as above. To give the address yourself (a server, or when the charm doesn't find charmd), put it under **Advanced** in **Custom OTA URL**:
    - charmd on a server behind Caddy: its domain, for example `charm.yourdomain.com`. The charm connects with TLS, checked against the public certificate authorities.

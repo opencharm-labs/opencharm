@@ -145,14 +145,14 @@ std::string discover() {
   if (!started) started = mdns_init() == ESP_OK;
   if (!started) return "";
   mdns_result_t* results = nullptr;
-  if (mdns_query_ptr("_opencharm", "_tcp", 3000, 4, &results) != ESP_OK || !results) return "";
+  if (mdns_query_ptr("_opencharm", "_tcp", 1500, 2, &results) != ESP_OK || !results) return "";
   std::string found;
   for (mdns_result_t* r = results; r && found.empty(); r = r->next) {
     if (r->hostname && r->port) {
       found = local_address(r->hostname, r->port);
     } else if (r->instance_name) {
       mdns_result_t* srv = nullptr;
-      if (mdns_query_srv(r->instance_name, "_opencharm", "_tcp", 2000, &srv) == ESP_OK && srv)
+      if (mdns_query_srv(r->instance_name, "_opencharm", "_tcp", 800, &srv) == ESP_OK && srv)
         found = local_address(srv->hostname, srv->port);
       if (srv) mdns_query_results_free(srv);
     }
@@ -343,7 +343,7 @@ void worker(void*) {
     if (discovering && wifi.IsConnected() && now >= discover_at) {
       std::string found = discover();
       if (found.empty()) {
-        discover_at = now_ms() + 2000;
+        discover_at = now_ms() + 3000;  // short asks, spaced out: the worker stays responsive
       } else {
         ESP_LOGI(kTag, "found charmd on the local network");
         discovering = false;

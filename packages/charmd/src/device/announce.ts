@@ -1,4 +1,5 @@
-import { hostname } from "node:os";
+import { execFileSync } from "node:child_process";
+import { hostname, platform } from "node:os";
 
 import { Bonjour } from "bonjour-service";
 
@@ -10,6 +11,26 @@ type Announce = (port: number) => StopAnnouncing;
 // mDNS service `_opencharm._tcp` (spec 002): a board set up with no address finds charmd by it, and
 // keeps the computer's `.local` name (spec 009), so its pairing survives a new IP. Its name says
 // which computer; a clash on the network is logged, never fatal.
+// The name a board can resolve: `<label>.local`. A board's mDNS only takes `.local` names, and a
+// Mac's hostname may be a DHCP one ("mikes-mbp.fritz.box"), so on a Mac its LocalHostName (what
+// macOS answers for), elsewhere the first label of the hostname.
+function localHost(): string {
+  let label = "";
+  if (platform() === "darwin") {
+    try {
+      label = execFileSync("scutil", ["--get", "LocalHostName"], {
+        encoding: "utf8",
+        timeout: 2000,
+      }).trim();
+    } catch {
+      label = "";
+    }
+  }
+  if (!/^[A-Za-z0-9-]{1,63}$/.test(label))
+    label = hostname().split(".")[0] ?? "";
+  return `${label}.local`;
+}
+
 const announceOnNetwork: Announce = (port) => {
   // The library throws on a network error by default (one interface that can't multicast, a VPN):
   // here it's logged once and charmd carries on.
@@ -22,6 +43,7 @@ const announceOnNetwork: Announce = (port) => {
   const computer = hostname().replace(/\.local$/, "");
   const service = bonjour.publish({
     name: `OpenCharm on ${computer}`,
+    host: localHost(),
     type: "opencharm",
     port,
     txt: { path: "/charm" },
