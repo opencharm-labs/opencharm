@@ -291,7 +291,9 @@ async fn voice_progress(app: AppHandle) -> Vec<String> {
 fn own_admin(app: &AppHandle) -> Result<PathBuf, String> {
     let managed = app.state::<Managed>();
     if !app.state::<Saved>().settings.lock().unwrap().managed {
-        return Err("Charms on this network need the app's own charmd (Settings → Advanced).".into());
+        return Err(
+            "Charms on this network need the app's own charmd (Settings → Advanced).".into(),
+        );
     }
     if managed.charmd.status().state != "running" {
         return Err("charmd isn't running yet.".into());
@@ -328,7 +330,12 @@ async fn charms_waiting(app: AppHandle) -> Result<Vec<String>, String> {
 /// Pairs the charm showing `code` (typed from its screen) as `name`, with the PIN chosen in the
 /// window; charmd checks all three.
 #[tauri::command]
-async fn pair_charm(app: AppHandle, code: String, name: String, pin: String) -> Result<String, String> {
+async fn pair_charm(
+    app: AppHandle,
+    code: String,
+    name: String,
+    pin: String,
+) -> Result<String, String> {
     let code: String = code.chars().filter(|c| !c.is_whitespace()).collect();
     tauri::async_runtime::spawn_blocking(move || {
         let answer = admin_blocking(
