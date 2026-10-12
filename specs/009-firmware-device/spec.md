@@ -55,7 +55,7 @@ IMU modes, desk charge limit, the 1.75 board, browser flasher (post-MVP).
 - [x] The battery indicator in the emulator: hidden at rest, shown on wake and on USB, marker below 15 % (UI snapshots in `npm run firmware:test`; `packages/cli/e2e/status.e2e.test.ts`).
 - [x] The status screen opens on touch and hold, closes on press, tap or 10 s, and shows values that match the serial log on the board (UI snapshots, `status.e2e.test.ts`, then a manual check on the board, 12 October 2026).
 - [ ] MVP definition of done (CONTRIBUTING, "Testing and definition of done") passes on the device, including a phone hotspot.
-- [ ] Echo cancellation confirmed running (talk over playback test).
+- [ ] Echo cancellation confirmed running (talk over playback test). Measured on the board without a person: the echo of a test tone drops by 33.5 dB while room sound passes unchanged (bench self-test, plan.md stage 3); talking over a reply waits for the maintainer.
 - [ ] "Key released → first audio" measured on the device and recorded in `OPENCHARM.md`.
 - [x] The charm reports its battery to a charmd that offers it, once unlocked and on change, and `opencharm status` shows it; a charmd that doesn't offer it gets nothing (core tests, `daemon.test.ts`, the CLI's status test, `status.e2e.test.ts`).
 - [x] CI builds the device firmware (`device` job in `ci.yml`, with a flashable image as an artifact).

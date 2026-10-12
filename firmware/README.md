@@ -1,6 +1,6 @@
 # firmware/ — the charm (ESP32-S3)
 
-Status: `core/` **built** (spec 005), `sim/` **built** (spec 006: the emulator, `opencharm sim`), `device/` **stages 1–2 of 4** (spec 009: face, key, touch, battery, status screen on the board; Wi-Fi setup and the connection to charmd built, waiting for an on-board Wi-Fi check; no voice yet).
+Status: `core/` **built** (spec 005), `sim/` **built** (spec 006: the emulator, `opencharm sim`), `device/` **stages 1–3 of 4** (spec 009: face, key, touch, battery, status screen on the board; Wi-Fi setup and the connection to charmd, and the voice with echo cancellation, built and self-tested on the board; the checks that need a person wait for the maintainer).
 
 ## Decision
 
@@ -115,6 +115,7 @@ npm run device:monitor   # its log: battery, temperatures, the key (Ctrl+] quits
 - One loop in the main task, as in the emulator: the key (debounced 20 ms), `App::tick`, `lv_timer_handler()`, every 16 ms; the battery and temperatures once a second. The screen takes partial renders from two 48-line buffers in internal DMA memory, swapped to big-endian and rounded to even pixels for the CO5300.
 - The power chip's rails and charge settings are left as the board ships them; the firmware only switches on its battery-voltage and temperature measurements.
 - Network (`device/main/network.cpp`): Wi-Fi and its setup hotspot from 78/esp-wifi-connect, the WebSocket from Espressif's `esp_websocket_client` (token as `Authorization: Bearer`, TLS checked with ESP-IDF's certificate bundle). Their events reach the core through a bounded queue drained by the main loop, so the core stays single-threaded. The token is stored with the origin that issued it (`token_origin`: scheme, host and port) and is sent only there: the open setup hotspot can't be used to redirect a paired charm and collect its token, not even by switching the same name from wss to plain ws.
+- Voice (`device/main/audio.cpp`, from xiaozhi-esp32's BoxAudioCodec): ES8311 speaker and ES7210 mics + echo reference on one I2S bus at 16 kHz, esp-sr's AEC, Opus both ways (charmd's 24 kHz decoded straight to 16 kHz). The mic task runs only while the core has the mic on; the speaker task plays a queue of up to 64 packets. Task stacks, TLS and LVGL live in PSRAM. `CONFIG_OPENCHARM_AUDIO_SELFTEST` (bench only) plays a tone and logs the reference, the mic, what echo cancellation leaves, and the mic path's frame count; on the reference board the echo dropped by 33.5 dB.
 - On the bench without a network: `CONFIG_OPENCHARM_BENCH_FACE` (`idf.py menuconfig`, OpenCharm; off by default) skips Wi-Fi and plays charmd's hello and "unlocked" to the core, so the face shows.
 - CI (`device` job in `.github/workflows/ci.yml`) builds it in Espressif's `espressif/idf:v6.1` image whenever `firmware/` changes, and keeps `opencharm-waveshare-2.16.bin` (one image for address `0x0`) as an artifact.
 - Back up before the first flash, and restore from that backup: [docs/build.md](../docs/build.md) section 5, and the `opencharm-device-flash` skill.

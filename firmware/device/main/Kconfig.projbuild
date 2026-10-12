@@ -8,4 +8,12 @@ config OPENCHARM_BENCH_FACE
         without a network: the board doesn't start Wi-Fi and plays charmd's hello and "unlocked"
         to the core itself. Never on a charm someone uses.
 
+config OPENCHARM_AUDIO_SELFTEST
+    bool "Speaker, mic and echo cancellation self-test at boot (bench only)"
+    default n
+    help
+        Plays a 1 kHz tone for a few seconds at boot and logs how loud the echo reference, the
+        microphone and the echo-cancelled signal were. For checking the audio with nobody at
+        the board. Never on a charm someone uses.
+
 endmenu
