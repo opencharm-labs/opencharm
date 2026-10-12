@@ -241,6 +241,17 @@ function showFolder() {
   showSaved();
 }
 
+// Each visit asks again what became of the saved folder (Choose its folder comes back here).
+async function enterFolder() {
+  try {
+    const fresh = await invoke("setup_state");
+    state.missing = fresh.missing;
+    state.refused = fresh.refused;
+  } finally {
+    showFolder();
+  }
+}
+
 // What happened to the folder the charm had: refused by macOS (still there), or gone. "Creates it
 // again" only while Continue really would.
 function showSaved() {
@@ -556,7 +567,7 @@ $("finish").addEventListener("click", () => {
 
 const ENTER = {
   2: enterAgent,
-  3: showFolder,
+  3: enterFolder,
   4: enterLook,
   5: enterVoice,
   6: enterTry,

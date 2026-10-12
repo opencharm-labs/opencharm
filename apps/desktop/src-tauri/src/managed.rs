@@ -255,6 +255,13 @@ fn agent_dir(folder: &Folder) -> PathBuf {
         .map_or(base.clone(), |cwd| base.join(cwd))
 }
 
+/// Whether saved settings start charmd again: when what it runs with changed, or when it's stopped
+/// for want of a folder or of `opencharm` (a folder made again at the same path, or a CLI installed
+/// since, changes no setting).
+pub fn restart_after_save(fields_changed: bool, state: &str) -> bool {
+    fields_changed || state == "folder" || state == "missing"
+}
+
 pub fn inspect_folder(path: &str) -> Folder {
     let dir = Path::new(path);
     let exists = dir.is_dir();
@@ -840,9 +847,12 @@ impl Charmd {
         self.0.lock().unwrap().status.clone()
     }
 
-    pub fn set_status(&self, status: Status) {
+    /// Replaces the status and stops the charmd of the last one; returns the new generation, read
+    /// under the same lock, so two starts at once never both take the later one's.
+    pub fn set_status(&self, status: Status) -> u64 {
         let mut inner = self.0.lock().unwrap();
         inner.generation += 1;
+        let generation = inner.generation;
         // The charm lets go of the address before charmd does: its port is anyone's once it's free.
         let gone = !inner.status.url.is_empty();
         inner.status = status;
@@ -858,6 +868,13 @@ impl Charmd {
         }
         #[cfg(windows)]
         drop(job);
+        generation
+    }
+
+    /// Says a start is under way without stopping anything (that's the start's own job, on its
+    /// thread), so a save right after doesn't begin a second one.
+    pub fn mark_starting(&self) {
+        self.0.lock().unwrap().status.state = "starting".into();
     }
 
     fn update(&self, generation: u64, change: impl FnOnce(&mut Status)) -> bool {
@@ -873,8 +890,7 @@ impl Charmd {
     pub fn start(&self, launch: Launch, mut status: Status, pid_file: PathBuf) {
         status.state = "starting".into();
         status.detail = String::new();
-        self.set_status(status);
-        let generation = self.0.lock().unwrap().generation;
+        let generation = self.set_status(status);
         let me = self.clone();
         std::thread::spawn(move || {
             let mut pause = 1;
@@ -883,7 +899,10 @@ impl Charmd {
                 if let Err(error) = me.run_once(&launch, generation, &pid_file) {
                     me.update(generation, |s| s.detail = error);
                 }
-                let _ = std::fs::remove_file(&pid_file);
+                // Only this start's file: a newer start writes its own charmd's pid at the same path.
+                if me.0.lock().unwrap().generation == generation {
+                    let _ = std::fs::remove_file(&pid_file);
+                }
                 if started.elapsed() > Duration::from_secs(30) {
                     pause = 1;
                 }
@@ -929,7 +948,6 @@ impl Charmd {
             .stderr(Stdio::piped())
             .spawn()
             .map_err(|e| format!("couldn't start {}: {e}", launch.cli.display()))?;
-        let _ = std::fs::write(pid_file, child.id().to_string());
         #[cfg(windows)]
         let job = job::Job::holding(&child);
         // charmd's output closes when it exits: that wakes this thread, so nothing polls meanwhile.
@@ -988,6 +1006,9 @@ impl Charmd {
                 terminate(&mut child);
                 return Ok(());
             }
+            // Written only once this start is the current one: a start it lost to never leaves a
+            // stopped charmd's pid where the live one's belongs.
+            let _ = std::fs::write(pid_file, child.id().to_string());
             inner.child = Some(child);
             #[cfg(windows)]
             {
@@ -1022,6 +1043,78 @@ impl Charmd {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Two starts at once (a workspace made, then the save right after) leave one charmd running,
+    /// the later one, and the pid file names it.
+    #[cfg(unix)]
+    #[test]
+    fn two_starts_at_once_leave_one_charmd() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = std::env::temp_dir().join(format!("oc-race-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let script = dir.join("fake-opencharm");
+        // Says it's ready the way charmd does, then waits; it takes half a second to stop, as a
+        // charmd stopping its agent does, which is when two starts overlap most.
+        std::fs::write(
+            &script,
+            format!(
+                "#!/bin/sh\necho $$ >> {}\ntrap 'sleep 0.5; exit 0' TERM\necho \"Admin socket: /tmp/x\"\nsleep 30 &\nwait\n",
+                dir.join("started").display()
+            ),
+        )
+        .unwrap();
+        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let charmd = Charmd::default();
+        let pid_file = dir.join("charmd.pid");
+        let launch = || Launch {
+            cli: Cli::executable(script.clone()),
+            config: dir.join("charmd.json"),
+            env: HashMap::from([("PATH".to_string(), "/usr/bin:/bin".to_string())]),
+        };
+        charmd.start(launch(), Status::default(), pid_file.clone());
+        std::thread::sleep(Duration::from_millis(500));
+        let starts: Vec<_> = (0..2)
+            .map(|_| {
+                let (charmd, launch, pid_file) = (charmd.clone(), launch(), pid_file.clone());
+                std::thread::spawn(move || charmd.start(launch, Status::default(), pid_file))
+            })
+            .collect();
+        for start in starts {
+            start.join().unwrap();
+        }
+        std::thread::sleep(Duration::from_millis(2500));
+        let running = |pid: u32| unsafe { libc::kill(pid as i32, 0) } == 0;
+        let tracked = charmd.0.lock().unwrap().child.as_ref().map(Child::id);
+        let recorded: Option<u32> = std::fs::read_to_string(&pid_file)
+            .ok()
+            .and_then(|t| t.trim().parse().ok());
+        let started: Vec<u32> = std::fs::read_to_string(dir.join("started"))
+            .unwrap_or_default()
+            .lines()
+            .filter_map(|l| l.trim().parse().ok())
+            .collect();
+        let alive = started.iter().filter(|&&pid| running(pid)).count();
+        charmd.set_status(Status::default());
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(charmd.status().state, "");
+        let tracked = tracked.expect("one charmd is tracked");
+        assert!(
+            started.contains(&tracked),
+            "the tracked one is one that started"
+        );
+        assert_eq!(recorded, Some(tracked), "the pid file names the live one");
+        assert_eq!(alive, 1, "exactly one charmd ran");
+    }
+
+    #[test]
+    fn a_save_starts_charmd_again_when_it_waits_for_a_folder() {
+        assert!(restart_after_save(true, "running"));
+        assert!(restart_after_save(false, "folder"));
+        assert!(restart_after_save(false, "missing"));
+        assert!(!restart_after_save(false, "running"));
+        assert!(!restart_after_save(false, "off"));
+    }
 
     fn temp(name: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!("oc-managed-{name}-{}", std::process::id()));

@@ -463,14 +463,39 @@ fn set_openai_key(app: AppHandle, key: String) -> Result<(), String> {
     Ok(())
 }
 
-/// A new workspace in an empty folder: `opencharm init`, which clones the starter.
+/// A new workspace in an empty folder: `opencharm init`, which clones the starter. charmd starts
+/// again, so it reads the workspace's opencharm.json (the folder's path may not have changed).
 #[tauri::command]
 async fn create_workspace(app: AppHandle, folder: String, agent: String) -> Result<(), String> {
+    let handle = app.clone();
+    let path = folder.clone();
     tauri::async_runtime::spawn_blocking(move || {
-        run_init(&app, std::path::Path::new(&folder), &agent)
+        run_init(&handle, std::path::Path::new(&path), &agent)
     })
     .await
-    .map_err(|e| e.to_string())?
+    .map_err(|e| e.to_string())??;
+    restart_if_saved(&app, std::path::Path::new(&folder));
+    Ok(())
+}
+
+/// After `opencharm init` in `folder`: when it's already the saved folder, nothing in the settings
+/// changes (a gone folder made again at its path, or an empty one turned into a workspace), so
+/// charmd starts again here to read it. Any other folder starts it when it's saved.
+fn restart_if_saved(app: &AppHandle, folder: &std::path::Path) {
+    let saved = app.state::<Saved>();
+    let same = saved
+        .settings
+        .lock()
+        .unwrap()
+        .folder
+        .as_deref()
+        .is_some_and(|f| std::path::Path::new(f) == folder);
+    if same {
+        // Starting from now, not once the thread gets there: the save that follows sees it under
+        // way and doesn't start a second one over it.
+        app.state::<Managed>().charmd.mark_starting();
+        apply_managed(app);
+    }
 }
 
 /// `opencharm init <folder>` with the app's charmd environment (its Node first), for an agent preset.
@@ -648,6 +673,7 @@ async fn create_new_workspace(
     settings.setup_location = Some(location);
     settings.save(&saved.path).map_err(|e| e.to_string())?;
     drop(settings);
+    restart_if_saved(&app, &target);
     let _ = app.emit_to("settings", "settings-changed", ());
     Ok(target.to_string_lossy().to_string())
 }
@@ -881,7 +907,8 @@ fn save_settings(app: AppHandle, saved: State<Saved>, next: Settings) -> Result<
         autolaunch.disable()
     };
     *saved.settings.lock().unwrap() = next.clone();
-    if charmd_fields(&next) != charmd_fields(&previous) {
+    let state = app.state::<Managed>().charmd.status().state;
+    if managed::restart_after_save(charmd_fields(&next) != charmd_fields(&previous), &state) {
         apply_managed(&app);
     } else if next.speak_replies != previous.speak_replies {
         apply_replies(&app, next.speak_replies);
