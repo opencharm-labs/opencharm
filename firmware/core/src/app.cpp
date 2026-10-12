@@ -217,6 +217,8 @@ void App::on_connected(uint32_t) { hal_.send_text(client_hello(options_.build));
 void App::on_disconnected(uint32_t now) { on_offline("Can't reach charmd", now); }
 
 void App::on_offline(std::string_view line, uint32_t) {
+  battery_reported_known_ = false;  // the next charmd hears it again
+  can_battery_ = false;             // if its hello offers it
   asking_ = false;
   can_type_ = false;  // the next charmd says again in its hello
   end_talk(false);
@@ -236,6 +238,7 @@ void App::handle(const ServerMessage& m, uint32_t now) {
     case ServerKind::Hello:
       session_id_ = m.session_id;
       can_type_ = m.accepts_text;
+      can_battery_ = m.accepts_battery;
       break;
     case ServerKind::PairCode:
       pair_code_ = m.code;
@@ -264,6 +267,8 @@ void App::handle(const ServerMessage& m, uint32_t now) {
       asleep_ = false;
       activity(now);
       go(Screen::Face);
+      battery_reported_known_ = false;
+      report_battery();
       react("happy", greeting_.c_str(), options_.greet_ms, now);
       break;
     case ServerKind::Look:
@@ -520,6 +525,7 @@ void App::stop_speech(bool tell_server) {
 void App::on_status(const Status& status, uint32_t now) {
   status_ = status;
   status_.build = options_.build;
+  report_battery();
   if (status_open_) view_.show_status(status_);
   update_battery(now);
 }
@@ -535,6 +541,18 @@ void App::on_touch_hold(uint32_t now) {
   status_until_ = now + options_.status_ms;
   update_battery(now);  // hidden first: the status screen shows it in large type
   view_.show_status(status_);
+}
+
+// charmd hears the battery once the face is unlocked and on every change (spec 009): before that
+// it would answer "locked". Only a charmd that offers it in its hello (an older one would close the
+// connection on a message it doesn't know); a charm without a battery says nothing.
+void App::report_battery() {
+  const Battery& b = status_.battery;
+  if (b.percent == kUnknown || screen_ != Screen::Face || !can_battery_) return;
+  if (battery_reported_known_ && b == battery_reported_) return;
+  battery_reported_ = b;
+  battery_reported_known_ = true;
+  hal_.send_text(client_battery(b.percent, b.charging, b.usb));
 }
 
 void App::close_status() {

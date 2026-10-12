@@ -253,6 +253,7 @@ bool parse_server_message(std::string_view json, ServerMessage& out) {
     out.kind = ServerKind::Hello;
     const cJSON* features = cJSON_GetObjectItemCaseSensitive(root, "features");
     out.accepts_text = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(features, "text"));
+    out.accepts_battery = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(features, "battery"));
     return is(str(root, "transport"), "websocket");
   }
   if (is(type, "stt")) {
@@ -343,6 +344,16 @@ std::string client_text(std::string_view text) {
   cJSON_AddStringToObject(m, "type", "charm");
   cJSON_AddStringToObject(m, "op", "text");
   cJSON_AddStringToObject(m, "text", std::string(text).c_str());
+  return print_and_free(m);
+}
+
+std::string client_battery(int percent, bool charging, bool usb) {
+  cJSON* m = cJSON_CreateObject();
+  cJSON_AddStringToObject(m, "type", "charm");
+  cJSON_AddStringToObject(m, "op", "battery");
+  cJSON_AddNumberToObject(m, "percent", percent < 0 ? 0 : percent > 100 ? 100 : percent);
+  cJSON_AddBoolToObject(m, "charging", charging);
+  cJSON_AddBoolToObject(m, "usb", usb);
   return print_and_free(m);
 }
 

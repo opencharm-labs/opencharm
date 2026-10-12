@@ -134,6 +134,8 @@ TEST_CASE("client messages match the shared fixtures") {
     if (f.name == "client-listen-start") CHECK(same_json(charm::client_listen(true, "s1"), f.raw));
     if (f.name == "client-listen-stop") CHECK(same_json(charm::client_listen(false, "s1"), f.raw));
     if (f.name == "client-abort") CHECK(same_json(charm::client_abort("s1", "key_pressed"), f.raw));
+    if (f.name == "client-charm-battery")
+      CHECK(same_json(charm::client_battery(62, true, true), f.raw));
     if (f.name == "client-charm-unlock") CHECK(same_json(charm::client_unlock("482913"), f.raw));
     if (f.name == "client-charm-answer-yes")
       CHECK(same_json(charm::client_answer("q1", true), f.raw));
@@ -226,4 +228,16 @@ TEST_CASE("an address the charm can't use is refused, never guessed at") {
         "https://user:pass@charm.example.com", "https://charm.example.com:port",
         "https://charm.example.com:99999", "https://:8787", "https://ex\nample.com"})
     CHECK_MESSAGE(charm::charm_url(bad).empty(), bad);
+}
+
+TEST_CASE("charmd's hello says whether it takes the battery") {
+  charm::ServerMessage m;
+  CHECK(charm::parse_server_message(
+      R"({"type":"hello","transport":"websocket","session_id":"s1","audio_params":{"format":"opus","sample_rate":24000,"channels":1,"frame_duration":60},"features":{"battery":true}})",
+      m));
+  CHECK(m.accepts_battery);
+  CHECK(charm::parse_server_message(
+      R"({"type":"hello","transport":"websocket","session_id":"s1","audio_params":{"format":"opus","sample_rate":24000,"channels":1,"frame_duration":60}})",
+      m));
+  CHECK_FALSE(m.accepts_battery);
 }

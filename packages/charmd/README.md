@@ -66,7 +66,7 @@ Keys: `apiKey` in the file, or `apiKeyEnv` naming an environment variable.
 
 ## What's running (spec 015)
 
-`opencharm serve` prints charmd's identity at start (`cli@<version> (<commit>)`, from the CLI that runs it) and keeps each charm's `build` from its `hello` (`emulator`, `desktop` or `board`, with the version of what ships it and the core's commit). `opencharm status` shows both, and the starter commit the workspace began from (read from git: the last commit shared with `upstream`).
+`opencharm serve` prints charmd's identity at start (`cli@<version> (<commit>)`, from the CLI that runs it) and keeps each charm's `build` from its `hello` (`emulator`, `desktop` or `board`, with the version of what ships it and the core's commit). It also keeps each charm's battery, as the charm last reported it (`charm battery`, spec 009). `opencharm status` shows them, and the starter commit the workspace began from (read from git: the last commit shared with `upstream`).
 
 ## The charm's look (spec 014)
 

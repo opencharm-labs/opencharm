@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 
 import { AUDIO_DOWN, LIMITS } from "@opencharm-labs/protocol/constants";
 import type {
+  CharmBattery,
   CharmBuild,
   ClientMessage,
   ServerMessage,
@@ -74,6 +75,9 @@ class Session {
   #charmId: string | undefined;
   // What the charm said it runs, in its hello (spec 015); undefined for firmware that doesn't say.
   #build: CharmBuild | undefined;
+  // The charm's battery as it last reported it (spec 009), once unlocked; undefined until then and
+  // for a charm without one.
+  #battery: CharmBattery | undefined;
   #queue: Promise<void> = Promise.resolve();
   #turn: TurnController | undefined;
   #asks: Promise<unknown> = Promise.resolve();
@@ -91,6 +95,10 @@ class Session {
 
   get build(): CharmBuild | undefined {
     return this.#build;
+  }
+
+  get battery(): CharmBattery | undefined {
+    return this.#battery;
   }
 
   get charmId(): string | undefined {
@@ -202,8 +210,12 @@ class Session {
       transport: "websocket",
       session_id: this.sessionId,
       audio_params: AUDIO_DOWN,
-      // Typed text (spec 013) is for the desktop charm only: a board has no keyboard.
-      ...(this.#build?.kind === "desktop" ? { features: { text: true } } : {}),
+      // The battery (spec 009) from any charm that has one; typed text (spec 013) for the desktop
+      // charm only: a board has no keyboard.
+      features: {
+        battery: true,
+        ...(this.#build?.kind === "desktop" ? { text: true } : {}),
+      },
     });
     const { token } = this.#deps;
     if (token === undefined) {
@@ -234,6 +246,11 @@ class Session {
     }
     if (this.#state !== "unlocked") {
       this.#sendLocked();
+      return;
+    }
+    if (message.type === "charm" && message.op === "battery") {
+      const { percent, charging, usb } = message;
+      this.#battery = { percent, charging, usb };
       return;
     }
     if (message.type === "charm" && message.op === "answer") {
@@ -388,6 +405,8 @@ class Session {
     this.#pendingAsk?.drop();
     this.#endTurn();
     this.#state = "locked";
+    // The charm reports only from its face, so a reading kept now would go stale while it's locked.
+    this.#battery = undefined;
     this.#send({ type: "charm", op: "locked", reason: "remote" });
   }
 

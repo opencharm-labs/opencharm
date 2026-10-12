@@ -53,7 +53,8 @@ struct ServerMessage {
   int tries_left = -1;  // -1 when absent
   LockReason reason = LockReason::Boot;
   Look look;
-  bool accepts_text = false;  // hello: charmd accepts typed text (spec 013)
+  bool accepts_text = false;     // hello: charmd accepts typed text (spec 013)
+  bool accepts_battery = false;  // hello: charmd accepts the charm's battery (spec 009)
 };
 
 // Returns false for anything that is not a valid message from charmd; never throws.
@@ -78,6 +79,8 @@ std::string client_answer(std::string_view id, bool yes);
 // Typed text from the desktop charm's field (spec 013), answered as text; only to a charmd whose
 // hello said `features.text`.
 std::string client_text(std::string_view text);
+// The charm's battery (spec 009), once unlocked and on change.
+std::string client_battery(int percent, bool charging, bool usb);
 
 // Where the board connects (spec 009): the charmd address typed at Wi-Fi setup, as a WebSocket URL.
 // Only the scheme, host and port count, so "charm.example.com", "https://charm.example.com" and

@@ -15,6 +15,7 @@ The charm, the emulator and charmd must agree on every message. One package hold
 - `fixtures/valid/*.json` and `fixtures/invalid/*.json`: one file per message case. The C++ core (005) reads the same folder in its tests.
 - Skill `opencharm-protocol`: how to add a message on both sides.
 - **Typed text** (approved by the maintainer, 4 October 2026, for the desktop app's typing in spec 013): `{"type":"charm","op":"text","text":"…"}` from the charm to charmd, treated like a transcript but answered as text (spec 003). At most 2,000 characters; before `unlocked` charmd ignores it and answers `locked`, as for `listen`. The message tables in `packages/protocol/README.md` and `OPENCHARM.md` "Protocol" list it.
+- **Battery** (spec 009, approved with it by the maintainer, 12 October 2026): `{"type":"charm","op":"battery","percent":0–100,"charging":bool,"usb":bool}` from a charm with a battery, once unlocked and on every change. charmd offers it in its hello (`features.battery`); an older charmd would close the connection on a message it doesn't know, so a charm sends it only when offered. charmd keeps the latest per charm for `opencharm status`.
 
 ## Not in scope
 

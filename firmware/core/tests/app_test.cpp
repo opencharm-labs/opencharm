@@ -1054,3 +1054,77 @@ TEST_CASE(
   s.at(s.now + 6000);
   CHECK(s.hal.events.empty());
 }
+
+const char* kHelloBattery =
+    R"({"type":"hello","transport":"websocket","session_id":"s1","audio_params":{"format":"opus","sample_rate":24000,"channels":1,"frame_duration":60},"features":{"battery":true}})";
+
+TEST_CASE("the battery goes to charmd once unlocked and on each change, never before") {
+  Rig r;
+  r.app.start(0);
+  r.at(1300);
+  r.app.on_connected(r.now);
+  r.server(kHelloBattery);
+  r.app.on_status(battery_at(80), r.now);
+  CHECK_FALSE(r.hal.sent_contains(R"("op":"battery")"));  // locked: charmd would answer "locked"
+  r.server(R"({"type":"charm","op":"locked","reason":"boot","tries_left":5})");
+  r.app.on_pin_entered("4829", r.now);
+  r.server(R"({"type":"charm","op":"unlocked"})");
+  CHECK(r.hal.sent.back() ==
+        R"({"type":"charm","op":"battery","percent":80,"charging":false,"usb":false})");
+  size_t sent = r.hal.sent.size();
+  r.app.on_status(battery_at(80), r.now + 1000);  // unchanged: nothing
+  CHECK(r.hal.sent.size() == sent);
+  r.app.on_status(battery_at(79, false, false), r.now + 2000);
+  CHECK(r.hal.sent.back().find(R"("percent":79)") != std::string::npos);
+  r.app.on_status(battery_at(79, true, true), r.now + 3000);
+  CHECK(r.hal.sent.back().find(R"("charging":true,"usb":true)") != std::string::npos);
+}
+
+TEST_CASE("a charm without a battery never sends one; a new connection sends it again") {
+  Rig r;
+  r.unlocked();
+  r.app.on_status(charm::Status{}, r.now);
+  CHECK_FALSE(r.hal.sent_contains(R"("op":"battery")"));
+
+  Rig b;
+  b.app.start(0);
+  b.at(1300);
+  b.app.on_connected(b.now);
+  b.server(kHelloBattery);
+  b.server(R"({"type":"charm","op":"unlocked"})");
+  b.app.on_status(battery_at(50), b.now);
+  CHECK(b.hal.sent_contains(R"("percent":50)"));
+  b.app.on_disconnected(b.now);
+  b.hal.sent.clear();
+  b.app.on_connected(b.now);
+  b.server(kHelloBattery);
+  b.server(R"({"type":"charm","op":"unlocked"})");
+  CHECK(b.hal.sent_contains(R"("percent":50)"));
+}
+
+TEST_CASE("after a charmd that took the battery, one that doesn't offer it never gets it") {
+  Rig r;
+  r.app.start(0);
+  r.at(1300);
+  r.app.on_connected(r.now);
+  r.server(kHelloBattery);
+  r.server(R"({"type":"charm","op":"unlocked"})");
+  r.app.on_status(battery_at(50), r.now);
+  CHECK(r.hal.sent_contains(R"("percent":50)"));
+  r.app.on_disconnected(r.now);
+  r.hal.sent.clear();
+  r.app.on_connected(r.now);
+  r.server(
+      R"({"type":"hello","transport":"websocket","session_id":"s2","audio_params":{"format":"opus","sample_rate":24000,"channels":1,"frame_duration":60}})");
+  r.server(R"({"type":"charm","op":"unlocked"})");
+  r.app.on_status(battery_at(49), r.now + 1000);
+  CHECK_FALSE(r.hal.sent_contains(R"("op":"battery")"));
+}
+
+TEST_CASE("an older charmd that doesn't offer it never gets the battery") {
+  Rig r;
+  r.unlocked();  // its hello has no features
+  r.app.on_status(battery_at(50), r.now);
+  r.app.on_status(battery_at(40), r.now + 1000);
+  CHECK_FALSE(r.hal.sent_contains(R"("op":"battery")"));
+}
