@@ -878,7 +878,7 @@ TEST_CASE("the battery shows only on the face") {
 
 TEST_CASE("touch and hold opens the status screen with the latest readings and the build") {
   charm::AppOptions options;
-  options.build = {"device", "0.0.0", "abc1234"};
+  options.build = {"board", "firmware@0.0.0", "abc1234"};
   FakeHal hal;
   FakeView view;
   charm::App app(hal, view, options);

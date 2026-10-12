@@ -20,3 +20,7 @@ firmware/sim/THIRD_PARTY_NOTICES.md
 # Rust build output and Tauri-generated schemas (ignored by apps/desktop/src-tauri/.gitignore)
 apps/desktop/src-tauri/target/
 apps/desktop/src-tauri/gen/
+
+# ESP-IDF build output and downloaded components (ignored by firmware/device/.gitignore)
+firmware/device/build/
+firmware/device/managed_components/

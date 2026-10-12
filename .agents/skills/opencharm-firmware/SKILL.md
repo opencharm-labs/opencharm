@@ -11,7 +11,8 @@ One behaviour, three platforms: `firmware/core` (portable C++17) runs on the cha
 
 - `include/charm/hal.h` is everything the core needs from a platform: send text/audio, mic start/stop, play/stop audio, brightness, key-value store, reconnect. Time is passed into calls, never read.
 - `include/charm/view.h` is what the state machine asks the screen to show; `src/ui/lvgl_view.*` draws it with LVGL; tests use a recording fake.
-- Life (spec 005): reactions go through `App::react` (a face and a line for a while, optionally a second face). Nothing covers a question, speech or the PIN; any agent state from charmd except idle cancels a reaction. Motion tests use `Headless::press`/`release` to hold the eyes still.
+- Life (spec 005): reactions go through `App::react` (a face and a line for a while, optionally a second face). Nothing covers a question, speech or the PIN; any agent state from charmd except idle cancels a reaction. Motion tests use `Headless::press`/`release` to hold the eyes still, with `s.holds = false` (a finger held 1 s otherwise opens the status screen).
+- Battery and status (spec 009): the platform calls `App::on_status` about once a second; `App` decides when the indicator shows (`View::set_battery`: hidden, level, low) and opens the read-only status screen on `on_touch_hold` (`View::show_status`). Never orange; only on the face. Board build and flashing: skill `opencharm-device-flash`.
 - Questions (`ask`): the decision layout (speech layout + orange ring + `HOLD · ALLOW    PRESS · NO`, two lines on round screens). A hold answers yes at 200 ms and never opens the mic; a press answers no; the question is capped at three lines.
 - `include/charm/app.h` is the state machine. The platform feeds it events (`on_text`, `on_key`, `on_mic_frame`, …) and calls `tick(now)` every frame (~16 ms) plus `lv_timer_handler()`.
 

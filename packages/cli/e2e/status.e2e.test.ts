@@ -19,17 +19,31 @@ let emulator: Emulator;
 // Lit pixels in a band of the charm's screen (the canvas), to see the indicator without reading text.
 async function litIn(page: Page, y0: number, y1: number): Promise<number> {
   return page.evaluate(
-    ([top, bottom]) => {
-      const canvas = document.getElementById("screen") as HTMLCanvasElement;
-      const data = canvas
-        .getContext("2d")!
+    ({ top, bottom }) => {
+      // The page's canvas, typed by hand: this package has no browser types.
+      type Canvas = {
+        getContext: (kind: "2d") => {
+          getImageData: (
+            x: number,
+            y: number,
+            w: number,
+            h: number
+          ) => { data: ArrayLike<number> };
+        };
+      };
+      const page = globalThis as unknown as {
+        document: { getElementById: (id: string) => Canvas };
+      };
+      const data = page.document
+        .getElementById("screen")
+        .getContext("2d")
         .getImageData(120, top, 240, bottom - top).data;
       let lit = 0;
       for (let i = 0; i < data.length; i += 4)
         if (data[i]! + data[i + 1]! + data[i + 2]! > 240) lit += 1;
       return lit;
     },
-    [y0, y1]
+    { top: y0, bottom: y1 }
   );
 }
 

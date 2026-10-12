@@ -57,9 +57,11 @@ extern "C" void app_main() {
   static DeviceHal hal(b);
   static charm::LvglView view(b.display, charm::ViewOptions{});
   charm::AppOptions options;
-  options.build = {"device",
-                   std::string("device@") + esp_app_get_description()->version,
-                   charm::kBuildCommit};
+  // Spec 015: the board's kind is "board" and its release unit
+  // "firmware@x.y.z".
+  options.build = {
+      "board", std::string("firmware@") + esp_app_get_description()->version,
+      charm::kBuildCommit};
   static charm::App app(hal, view, options);
   view.on_face_tap([](void *) { app.on_touch_face(now_ms()); }, nullptr);
   view.on_face_hold([](void *) { app.on_touch_hold(now_ms()); }, nullptr);

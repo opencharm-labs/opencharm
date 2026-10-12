@@ -2,7 +2,7 @@
 
 What to buy, what to check when it arrives, and how to flash it. The design decisions behind it are in [OPENCHARM.md](../OPENCHARM.md); this page is the practical guide.
 
-Status: **charmd (the charm daemon) and the [desktop charm](../apps/desktop/README.md) work today; firmware for the board (OpenCharm OS, spec 009) isn't written yet.** Today you can buy the parts, check the board, run Waveshare's own XiaoZhi firmware, and use the desktop charm with your agent until the firmware lands. The steps marked _later_ land with the firmware.
+Status: **charmd (the charm daemon) and the [desktop charm](../apps/desktop/README.md) work today. OpenCharm OS runs on the board as stage 1 of 4 (spec 009): the face, the key, touch, the battery and the status screen, without Wi-Fi or voice yet.** Until stage 2 connects it to charmd, use the desktop charm with your agent. The steps marked _later_ land with the next stages.
 
 **No warranty: you build and use this at your own risk**, especially the lithium battery. Read the [disclaimer](../README.md#no-warranty) first.
 
@@ -10,13 +10,12 @@ Prices and stock were checked on 29 September 2026. Shipping and taxes are extra
 
 ## 1. What to buy
 
-| #   | Item                                                                                                                                                           | Qty         | Price          | Link                                                                      | Notes                                                                                                                                                                                                                                                                                                                                     |
-| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | -------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Waveshare ESP32-S3-Touch-AMOLED-2.16, **version with battery** (the reference board; if it's slow to reach you, see the easy-to-find alternative in section 8) | 1–2         | $31.99 each    | [waveshare.com](https://www.waveshare.com/esp32-s3-touch-amoled-2.16.htm) | Choose the option _with_ the battery (the `-EN` option at $29.99 has none), and make sure it's the **ESP32-S3** board, not the ESP32-C6 one with the same screen. Box: board in its case, 3.7 V **1000 mAh** battery (MX1.25), insulating sheet. Two boards are better: one stays sealed for firmware work, one gets opened and measured. |
-| 2   | Small speaker, **8 Ω, 1–2 W**, with a 2-pin lead                                                                                                               | 1 per board | ~$2 (estimate) | any electronics shop; search "8 ohm 2W speaker MX1.25"                    | **Not in the box.** The board has the amplifier and a 2-pin speaker header (P10 on the schematic), but no speaker. Waveshare's sister boards use an 8 Ω 2 W speaker on an MX1.25 2-pin plug; that the 2.16 uses the same plug is _unverified_, so check P10 before buying, or plan to solder the two wires.                               |
-| 3   | USB-C cable that carries data                                                                                                                                  | 1           | —              | —                                                                         | Charge-only cables won't flash.                                                                                                                                                                                                                                                                                                           |
-| 4   | _Later:_ phone-charm strap                                                                                                                                     | 1           | ~$2 (estimate) | —                                                                         | For the printed shell.                                                                                                                                                                                                                                                                                                                    |
-| 5   | _Later:_ matte PLA or PETG                                                                                                                                     | ~20 g       | ~$1 (estimate) | —                                                                         | Charm colour + a little contrast colour for the key.                                                                                                                                                                                                                                                                                      |
+| #   | Item                                                                                                                                                           | Qty   | Price          | Link                                                                      | Notes                                                                                                                                                                                                                                                                                                                                                               |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- | -------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Waveshare ESP32-S3-Touch-AMOLED-2.16, **version with battery** (the reference board; if it's slow to reach you, see the easy-to-find alternative in section 8) | 1–2   | $31.99 each    | [waveshare.com](https://www.waveshare.com/esp32-s3-touch-amoled-2.16.htm) | Choose the option _with_ the battery (the `-EN` option at $29.99 has none), and make sure it's the **ESP32-S3** board, not the ESP32-C6 one with the same screen. Box: board in its case with the speaker built in, 3.7 V **1000 mAh** battery (MX1.25), insulating sheet. Two boards are better: one stays sealed for firmware work, one gets opened and measured. |
+| 2   | USB-C cable that carries data                                                                                                                                  | 1     | —              | —                                                                         | Charge-only cables won't flash.                                                                                                                                                                                                                                                                                                                                     |
+| 3   | _Later:_ phone-charm strap                                                                                                                                     | 1     | ~$2 (estimate) | —                                                                         | For the printed shell.                                                                                                                                                                                                                                                                                                                                              |
+| 4   | _Later:_ matte PLA or PETG                                                                                                                                     | ~20 g | ~$1 (estimate) | —                                                                         | Charm colour + a little contrast colour for the key.                                                                                                                                                                                                                                                                                                                |
 
 You also need a computer (macOS, Linux or Windows). The agent side runs on your computer or on a server. On a server (for example a DigitalOcean droplet running Hermes Agent, see [deploy.md](deploy.md)) you also need a domain name you control for the charm's secure address (for example `charm.yourdomain.com`).
 
@@ -24,12 +23,12 @@ You also need a computer (macOS, Linux or Windows). The agent side runs on your 
 
 From Waveshare's [product page](https://www.waveshare.com/esp32-s3-touch-amoled-2.16.htm) and [schematic](https://github.com/waveshareteam/ESP32-S3-Touch-AMOLED-2.16/tree/main/schematic):
 
-|         |                                                                                                       |
-| ------- | ----------------------------------------------------------------------------------------------------- |
-| Battery | 3.7 V 1000 mAh, MX1.25 connector (product page)                                                       |
-| Speaker | not included; NS4150B amplifier drives header P10 (2-pin); amplifier enable on **GPIO46** (schematic) |
-| Buttons | PWR, BOOT (GPIO0), user button GPIO18: which side button is which is _unverified_                     |
-| Mics    | two, into an ES7210, with a hardware echo reference                                                   |
+|         |                                                                                                                                                                                                                     |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Battery | 3.7 V 1000 mAh, MX1.25 connector (product page)                                                                                                                                                                     |
+| Speaker | built in, soldered behind the grille in the case (bench, 12 October 2026); NS4150B amplifier, enable on **GPIO46** (schematic)                                                                                      |
+| Buttons | three, labelled on the back `+/KEY`, `PWR`, `BOOT/-`. **`+/KEY` is the key**: GPIO18, 10 kΩ pull-up, low while pressed. PWR also reaches GPIO16 through an inverter (high while pressed); BOOT is GPIO0 (schematic) |
+| Mics    | two, into an ES7210, with a hardware echo reference                                                                                                                                                                 |
 
 ## 3. Battery: choose, fit, stay safe
 
@@ -66,28 +65,41 @@ The battery version ships a 3.7 V 1000 mAh LiPo with an MX1.25 plug. Waveshare d
 
 ## 4. When it arrives (bench check)
 
-1. Charge it over USB-C and power it on with the factory firmware. Check the screen and touch.
-2. Plug in the speaker on P10 (note the plug type in [hardware/README.md](../hardware/README.md)).
-3. Flash Waveshare's XiaoZhi build ([tutorial](https://docs.waveshare.com/ESP32-S3-Touch-AMOLED-2.16/XiaoZhi_AI)) and try a voice conversation end to end: both mics, speaker, wake word.
-4. Find which side button is GPIO18 (the one key).
-5. On the board you're allowed to open: photograph the inside, measure the stack depth (board + battery) and the battery itself, and look for its protection board.
-6. Battery life by the clock: charge to full, leave it running (face on; then again with the screen off) and note how long it lasts; note the charge time from empty and whether the battery gets more than warm.
-7. Write every answer into [hardware/README.md](../hardware/README.md) (the board facts, and the enclosure's "Before the first print").
+1. Fit the battery (section 3): insulating sheet between board and battery, check the polarity against the board's marking before plugging in. Charge over USB-C and power it on (PWR) with the factory firmware. Check the screen, touch and the speaker.
+2. Back up what it shipped with, before you flash anything (section 5).
+3. Flash OpenCharm OS (section 5) and check stage 1: the face blinks; a press of `+/KEY` squishes it and shows the battery level for 3 s (it stays while on USB); a tap makes it react; touching and holding the face for a second opens the status screen (percent, charging, voltage, temperatures), and a tap or a press closes it; unplugged, the level hides after 3 s.
+4. On the board you're allowed to open: photograph the inside, measure the stack depth (board + battery) and the battery itself, and look for its protection board.
+5. Battery life by the clock: charge to full, leave it running (face on; then again with the screen off) and note how long it lasts; note the charge time from empty and whether the battery gets more than warm.
+6. Write every answer into [hardware/README.md](../hardware/README.md) (the board facts, and the enclosure's "Before the first print").
 
 ## 5. Flashing and restoring
 
-- **Download mode:** hold **BOOT** while connecting USB-C (or while power-cycling).
-- **Tool:** Espressif's Flash Download Tool, chip ESP32-S3, USB, address `0x00` ([Waveshare's flashing guide](https://docs.waveshare.com/ESP32-S3-Touch-AMOLED-2.16/Firmware-Flashing)).
-- **Restore:** the factory firmware `.bin` is in the `firmware` folder of [Waveshare's repo](https://github.com/waveshareteam/ESP32-S3-Touch-AMOLED-2.16). Flashing it puts the board back the way it shipped.
-- _Later:_ a browser flasher for OpenCharm OS (nothing to install).
+Everything here uses Espressif's `esptool` from a terminal, the same on macOS, Linux and Windows. The step-by-step version, with checks after each step, is the `opencharm-device-flash` skill in [`.agents/skills/`](../.agents/skills/opencharm-device-flash/SKILL.md).
+
+1. **Install esptool:** `brew install esptool` (macOS) or `pipx install esptool` (any system with Python).
+2. **Connect:** plug the board in with a data cable. It shows up as `/dev/cu.usbmodem…` (macOS), `/dev/ttyACM0` (Linux) or a `COM` port (Windows). If esptool can't connect, hold **BOOT** while plugging it in (download mode; the screen stays dark).
+3. **Back up first** (16 MB, about a minute):
+
+   ```bash
+   esptool --chip esp32s3 --port PORT read-flash 0 0x1000000 shipped-flash-backup.bin
+   ```
+
+   Keep this file: writing it back restores the board exactly as it shipped. The one on the reference board matched Waveshare's published factory image apart from its settings area.
+
+4. **Build and flash OpenCharm OS** (needs [ESP-IDF 6.1](https://docs.espressif.com/projects/esp-idf/en/v6.1/esp32s3/get-started/)): `. $IDF_PATH/export.sh`, then `npm run device:build` and `npm run device:flash` from the repo; `npm run device:monitor` shows its log (battery, temperatures, the key). A ready-made image comes with the CI build (spec 009, stage 4).
+5. **Restore:** `esptool --chip esp32s3 --port PORT write-flash 0x0 shipped-flash-backup.bin`. Without a backup, the factory image is in the `firmware` folder of [Waveshare's repo](https://github.com/waveshareteam/ESP32-S3-Touch-AMOLED-2.16).
+
+Waveshare's [XiaoZhi firmware](https://github.com/78/xiaozhi-esp32/releases) (v2.5.2 has a prebuilt image for the 2.16, written at `0x0`) is a quick way to hear the mics and speaker work, but it talks to XiaoZhi's cloud; OpenCharm doesn't need it. Waveshare's own guide uses the Flash Download Tool, which is Windows only.
+
+_Later:_ a browser flasher for OpenCharm OS (nothing to install).
 
 ## 6. Connect it to your agent
 
-Steps 1, 2 and 4 work today with the [desktop charm](../apps/desktop/README.md); step 3 is _later_.
+Steps 1, 2 and 4 work today with the [desktop charm](../apps/desktop/README.md); step 3 is _later_ (spec 009, stage 2).
 
 1. On the agent's machine, install and start charmd (`npm i -g opencharm`, then `opencharm serve`). On your own computer that's all; on a server, follow [deploy.md](deploy.md) (a system service behind Caddy for HTTPS).
 2. Point charmd at your agent (config: [`packages/charmd/README.md`](../packages/charmd/README.md)). On your computer charmd starts Claude Code, Codex, Gemini CLI, Hermes, OpenClaw or another ACP agent itself. On a server it talks to the agent's OpenAI-compatible API on localhost only: Hermes `API_SERVER_ENABLED=true` ([docs](https://hermes-agent.nousresearch.com/docs/user-guide/features/api-server)), or OpenClaw's chat completions endpoint ([docs](https://docs.openclaw.ai/gateway/openai-http-api)).
-3. _Later:_ flash OpenCharm OS, join Wi-Fi from the charm's setup screen, enter the charmd address.
+3. _Later:_ join Wi-Fi from the charm's setup screen and enter the charmd address.
 4. The charm shows a 6-digit code; run `opencharm pair <code>` on the agent's machine, then choose the charm's PIN.
 
 ## 7. Print a shell (optional, _later_)
@@ -96,7 +108,7 @@ STL files are in [`hardware/stl/print`](../hardware/stl/print); settings and ass
 
 ## 8. Building on other hardware
 
-OpenCharm OS is a fork of [xiaozhi-esp32](https://github.com/78/xiaozhi-esp32), which keeps every board's wiring in its own folder (`main/boards/<board>/`). So:
+OpenCharm OS takes its board support from [xiaozhi-esp32](https://github.com/78/xiaozhi-esp32), which keeps every board's wiring in its own folder (`main/boards/<board>/`). So:
 
 1. **Reference charm:** the Waveshare 2.16 above. Planned (spec 009); the printed shell fits it.
 2. **Easy to find: Waveshare ESP32-S3-Touch-AMOLED-1.75** ([product page](https://www.waveshare.com/esp32-s3-touch-amoled-1.75.htm)). On Amazon in several countries and at resellers such as The Pi Hut. Speaker built in, two mics with echo reference, round 466×466 AMOLED. **Battery not included**: add a 3.7 V LiPo with an MX1.25 plug and check the polarity (section 3). The BOOT button is the key. Planned for OpenCharm OS (spec 009) alongside the reference board.

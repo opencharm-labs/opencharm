@@ -849,7 +849,7 @@ TEST_CASE("low battery keeps a small marker on the face") {
 
 TEST_CASE("touch and hold for a second opens the status screen; a tap closes it") {
   for (auto [size, round] : {std::pair{480, false}, std::pair{466, true}}) {
-    Screen s(size, size, round, {"device", "device@0.0.0", "abc1234"});
+    Screen s(size, size, round, {"board", "firmware@0.0.0", "abc1234"});
     s.unlocked();
     charm::Status st = board_status(87, true, true);
     st.wifi = "Workshop";
@@ -872,7 +872,7 @@ TEST_CASE("touch and hold for a second opens the status screen; a tap closes it"
     CHECK(text.find("\nBoard 34\u00B0C \u00B7 Chip 41\u00B0C\n") != std::string::npos);
     CHECK(text.find("\nWi-Fi Workshop \u00B7 -61 dBm\n") != std::string::npos);
     CHECK(text.find("\ncharmd studio.local\n") != std::string::npos);
-    CHECK(text.find("\ndevice@0.0.0 \u00B7 abc1234") != std::string::npos);
+    CHECK(text.find("\nfirmware@0.0.0 \u00B7 abc1234") != std::string::npos);
     s.screen.save_png(round ? "status-466" : "status-480");
     if (round) {  // nothing in the corners of a round screen
       CHECK(s.screen.count_lit(0, 0, 60, 60) == 0);
