@@ -1,6 +1,6 @@
 # 009 plan: stage 1, the face on the board
 
-Stage 1 is done (12 October 2026): tasks 1–8 below, checked on the board by the maintainer. Next: stage 2 (Wi-Fi and charmd), planned here before it starts; it turns `CONFIG_OPENCHARM_BENCH_FACE` off and sends `charm` `battery` to charmd (protocol spec 001).
+Stage 1 is done (12 October 2026): tasks 1–8 below, checked on the board by the maintainer. Stage 2 is below them.
 
 Goal of this stage: flash the 2.16 and see the OpenCharm face, reacting to the key and to taps, with the battery indicator and the status screen. No network yet. Stages 2 to 4 get their own section here when stage 1 is on the board.
 
@@ -39,3 +39,12 @@ npm run firmware:sim && npm run sim   # the emulator, after task 3
 . $IDF_PATH/export.sh && npm run device:build   # after task 4
 npm run device:flash         # after task 5, board in download mode
 ```
+
+# Stage 2: Wi-Fi and charmd
+
+1. **Core** (test first): `charm_url(address)` in `protocol.cpp` turns the address typed at setup into the WebSocket URL (https or none → wss, http → ws, path `/charm`, anything odd refused); `App::on_offline(line)` shows "Join Wi-Fi OpenCharm-XXXX" or "No Wi-Fi" on the connecting screen and ends a talk, speech or question like a dropped connection.
+2. **`firmware/device/main/network.cpp`:** `78/esp-wifi-connect` 3.3 for Wi-Fi and the setup hotspot (English, the address in its "Custom OTA URL" field); Espressif's `esp_websocket_client` 1.8 with `Authorization: Bearer <token>` and `Protocol-Version: 1`, TLS checked with the ESP-IDF certificate bundle. Its events and Wi-Fi's go through a bounded queue (32) to the main loop: connected, disconnected, offline line, text, binary. Messages arriving in pieces are joined, up to 16 KB.
+3. **HAL:** `send_text` and `reconnect` go to the network; the log keeps only the type and op. The status screen shows the Wi-Fi name and signal, charmd's host and whether it's connected.
+4. `CONFIG_OPENCHARM_BENCH_FACE` becomes opt-in (default off).
+5. **On the board:** with no saved network it opens the hotspot (checked from its log, 12 October 2026). Joining Wi-Fi, pairing and the PIN need a person at the board: the maintainer's check before this stage is called done.
+6. Next in stage 2: the charm reports its battery to charmd (`charm` `battery`, protocol spec 001), so the agent can know it.

@@ -948,3 +948,14 @@ TEST_CASE("the battery level over the decision and speech layouts, on both shape
     s.screen.save_png(round ? "battery-speech-466" : "battery-speech-480");
   }
 }
+
+TEST_CASE("Wi-Fi setup and no Wi-Fi read on the connecting screen, on both shapes") {
+  for (auto [size, round] : {std::pair{480, false}, std::pair{466, true}}) {
+    Screen s(size, size, round);
+    s.app.on_offline("Join Wi-Fi OpenCharm-7F3A", s.now);
+    s.at(s.now + 400);
+    s.screen.save_png(round ? "join-wifi-466" : "join-wifi-480");
+    CHECK(s.screen.count_lit(0, size / 2, size, size) > 500);  // the line is drawn
+    if (round) CHECK(s.screen.count_lit(0, size - 60, 60, size) == 0);
+  }
+}

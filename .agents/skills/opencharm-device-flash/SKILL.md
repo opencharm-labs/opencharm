@@ -82,8 +82,9 @@ The battery line repeats on every change and every 10 s; `key down` / `key up` o
 1. The face blinks and glances; picture upright.
 2. `+/KEY` (the end button labelled so on the back, not the middle PWR): the face squishes and the battery level shows at the top for 3 s, and stays while on USB. Log: `key down`, `key up`.
 3. Tap the face: a reaction.
-4. Touch and hold the face 1 s: the status screen (percent, state, voltage, temperatures, "No Wi-Fi", "No charmd set" in stage 1, build). A tap or a press closes it.
-5. Unplug USB: the level hides after 3 s; the log shows `not charging` without `on USB`.
+4. Touch and hold the face 1 s: the status screen (percent, state, voltage, temperatures, Wi-Fi, charmd, build). A tap or a press closes it.
+
+A fresh board (no saved Wi-Fi) shows "Join Wi-Fi OpenCharm-XXXX" and logs `Access Point started with SSID OpenCharm-…`; Wi-Fi setup and pairing need the person (docs/build.md section 6). To see the face without a network, build with `CONFIG_OPENCHARM_BENCH_FACE=y` (`idf.py menuconfig` → OpenCharm). Don't write MAC-derived hotspot names into the repo. 5. Unplug USB: the level hides after 3 s; the log shows `not charging` without `on USB`.
 
 Temperatures are chip readings (power chip die, ESP32-S3 sensor), not the room: 40–55 °C while charging is normal. Record results in `hardware/README.md` ("Bench results"), without personal details.
 

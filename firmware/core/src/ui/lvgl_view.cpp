@@ -85,11 +85,7 @@ float ink_shift(const lv_font_t* font, const char* text) {
 
 // Only a real change touches LVGL: every flag or style write schedules a redraw.
 void hide(lv_obj_t* obj, bool hidden) {
-  if (lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN) == hidden) return;
-  if (hidden)
-    lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
-  else
-    lv_obj_remove_flag(obj, LV_OBJ_FLAG_HIDDEN);
+  if (lv_obj_is_hidden(obj) != hidden) lv_obj_set_hidden(obj, hidden);
 }
 
 lv_obj_t* make_label(lv_obj_t* parent, const lv_font_t* font, uint32_t colour) {
@@ -98,7 +94,7 @@ lv_obj_t* make_label(lv_obj_t* parent, const lv_font_t* font, uint32_t colour) {
   lv_obj_set_style_text_color(label, lv_color_hex(colour), 0);
   lv_obj_set_style_transform_pivot_x(label, lv_pct(50), 0);
   lv_obj_set_style_transform_pivot_y(label, lv_pct(50), 0);
-  lv_obj_remove_flag(label, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_set_clickable(label, false);
   lv_label_set_text(label, "");
   return label;
 }
@@ -126,7 +122,7 @@ void LvglView::build() {
   lv_obj_set_style_bg_color(root_, lv_color_black(), 0);
   lv_obj_set_style_bg_opa(root_, LV_OPA_COVER, 0);
   lv_obj_set_style_pad_all(root_, 0, 0);
-  lv_obj_remove_flag(root_, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_scrollable(root_, false);
   lv_obj_add_event_cb(root_, on_screen_click, LV_EVENT_CLICKED, this);
   lv_obj_add_event_cb(root_, on_screen_touch, LV_EVENT_PRESSED, this);
   lv_obj_add_event_cb(root_, on_screen_touch, LV_EVENT_PRESSING, this);
@@ -146,8 +142,8 @@ void LvglView::build() {
   // captions.
   line_box_ = lv_obj_create(root_);
   lv_obj_remove_style_all(line_box_);
-  lv_obj_remove_flag(line_box_, LV_OBJ_FLAG_SCROLLABLE);
-  lv_obj_remove_flag(line_box_, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_set_scrollable(line_box_, false);
+  lv_obj_set_clickable(line_box_, false);
   lv_obj_set_width(line_box_, int(w_ * (options_.round ? 0.72f : 0.82f)));
   lv_obj_align(line_box_, LV_ALIGN_TOP_MID, 0, int(h_ * 0.50f));
   line_ = make_label(line_box_, &charm_text_35, ink);
@@ -207,8 +203,8 @@ void LvglView::build() {
                           : options_.notch ? kNotchPanelRadius
                                            : int(u_ * 0.108f),
                           0);
-  lv_obj_remove_flag(ring_, LV_OBJ_FLAG_CLICKABLE);
-  lv_obj_remove_flag(ring_, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_clickable(ring_, false);
+  lv_obj_set_scrollable(ring_, false);
   hide(ring_, true);
 
   build_battery();
@@ -223,8 +219,8 @@ void LvglView::build_battery() {
   const int line = std::max(2, int(u_ * 0.005f));
   battery_ = lv_obj_create(root_);
   lv_obj_remove_style_all(battery_);
-  lv_obj_remove_flag(battery_, LV_OBJ_FLAG_CLICKABLE);
-  lv_obj_remove_flag(battery_, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_clickable(battery_, false);
+  lv_obj_set_scrollable(battery_, false);
   lv_obj_set_size(battery_, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
   lv_obj_set_flex_flow(battery_, LV_FLEX_FLOW_ROW);
   lv_obj_set_flex_align(battery_, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
@@ -239,7 +235,7 @@ void LvglView::build_battery() {
   lv_obj_set_style_border_opa(battery_body_, LV_OPA_COVER, 0);
   lv_obj_set_style_radius(battery_body_, line * 2, 0);
   lv_obj_set_style_pad_all(battery_body_, line, 0);
-  lv_obj_remove_flag(battery_body_, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_scrollable(battery_body_, false);
   battery_fill_ = lv_obj_create(battery_body_);
   lv_obj_remove_style_all(battery_fill_);
   lv_obj_set_style_bg_color(battery_fill_, lv_color_hex(glyph_), 0);
@@ -278,13 +274,13 @@ void LvglView::build_status() {
 // screen, the circle's width there.
 void LvglView::place_status() {
   int y = int(h_ * (options_.round ? 0.15f : 0.14f));
-  if (!lv_obj_has_flag(status_percent_, LV_OBJ_FLAG_HIDDEN)) {
+  if (!lv_obj_is_hidden(status_percent_)) {
     lv_obj_align(status_percent_, LV_ALIGN_TOP_MID, 0, y);
     y += lv_font_get_line_height(&charm_digits_80);
   }
   for (int i = 0; i < kStatusLines; ++i) {
     lv_obj_t* label = status_lines_[i];
-    if (lv_obj_has_flag(label, LV_OBJ_FLAG_HIDDEN)) continue;
+    if (lv_obj_is_hidden(label)) continue;
     const int line = lv_font_get_line_height(i == 0 ? &charm_text_35 : &charm_text_24);
     if (i == kStatusLines - 1) y += int(u_ * 0.03f);  // the build sits a little apart
     int width = int(w_ * 0.88f);
@@ -683,8 +679,8 @@ void LvglView::set_battery(const Battery& battery, BatteryShow show) {
 }
 
 std::string LvglView::battery_text() const {
-  if (lv_obj_has_flag(battery_, LV_OBJ_FLAG_HIDDEN)) return "";
-  if (lv_obj_has_flag(battery_text_, LV_OBJ_FLAG_HIDDEN)) return "[low]";
+  if (lv_obj_is_hidden(battery_)) return "";
+  if (lv_obj_is_hidden(battery_text_)) return "[low]";
   return lv_label_get_text(battery_text_);
 }
 
@@ -707,7 +703,7 @@ void LvglView::show_status(const Status& s) {
   }
   const Battery& b = s.battery;
   bool known = b.percent != kUnknown;
-  bool relayout = known == lv_obj_has_flag(status_percent_, LV_OBJ_FLAG_HIDDEN);
+  bool relayout = known == lv_obj_is_hidden(status_percent_);
   if (known) {
     char percent[8];
     std::snprintf(percent, sizeof percent, "%d%%", std::clamp(b.percent, 0, 100));
@@ -743,7 +739,7 @@ void LvglView::show_status(const Status& s) {
   for (int i = 0; i < kStatusLines; ++i) {
     if (lines[i] != lv_label_get_text(status_lines_[i]))
       lv_label_set_text(status_lines_[i], lines[i].c_str());
-    if (lines[i].empty() != lv_obj_has_flag(status_lines_[i], LV_OBJ_FLAG_HIDDEN)) relayout = true;
+    if (lines[i].empty() != lv_obj_is_hidden(status_lines_[i])) relayout = true;
     hide(status_lines_[i], lines[i].empty());
   }
   if (relayout || !status_placed_) place_status();
@@ -754,11 +750,9 @@ void LvglView::show_status(const Status& s) {
 std::string LvglView::status_text() const {
   if (mode_ != Mode::Status) return "";
   std::string out;
-  if (!lv_obj_has_flag(status_percent_, LV_OBJ_FLAG_HIDDEN))
-    out += lv_label_get_text(status_percent_);
+  if (!lv_obj_is_hidden(status_percent_)) out += lv_label_get_text(status_percent_);
   for (lv_obj_t* label : status_lines_)
-    if (!lv_obj_has_flag(label, LV_OBJ_FLAG_HIDDEN))
-      out += std::string("\n") + lv_label_get_text(label);
+    if (!lv_obj_is_hidden(label)) out += std::string("\n") + lv_label_get_text(label);
   return out;
 }
 

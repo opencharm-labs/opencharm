@@ -1,4 +1,20 @@
 dependencies:
+  78/esp-wifi-connect:
+    component_hash: 24232dc15ebb239212dab37bdc8f5553e37edf8806268a05c28a7aa42dcd9422
+    dependencies:
+    - matches:
+      - if: idf_version >=6.0
+      name: espressif/cjson
+      registry_url: https://components.espressif.com
+      require: private
+      version: ^1.7.19
+    - name: idf
+      require: private
+      version: '>=5.3'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 3.3.1
   espressif/cjson:
     component_hash: 9372811fb197926f522c467627cf4a8e72b681e0366e17879631da801103aef3
     dependencies:
@@ -43,6 +59,16 @@ dependencies:
       registry_url: https://components.espressif.com
       type: service
     version: 1.2.1
+  espressif/esp_websocket_client:
+    component_hash: dc00233af846f3a744ada283a300e0d586040aadc3ee67361645ecdce4523672
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=5.0'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 1.8.0
   idf:
     source:
       type: idf
@@ -93,11 +119,13 @@ dependencies:
       type: service
     version: 1.0.4
 direct_dependencies:
+- 78/esp-wifi-connect
 - espressif/cjson
 - espressif/esp_lcd_co5300
+- espressif/esp_websocket_client
 - idf
 - lvgl/lvgl
 - waveshare/esp_lcd_touch_cst9217
-manifest_hash: 20f22f77a1f97aba88580210ea391b14309d9c10018c27b31f941663ee1ea07f
+manifest_hash: 39327026fe2f429f26f566e5d10765134d3efc014b02cfbf7d3f3535f1b5afb3
 target: esp32s3
 version: 3.0.0

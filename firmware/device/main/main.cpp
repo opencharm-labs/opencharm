@@ -11,6 +11,7 @@
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "network.h"
 #include "nvs_flash.h"
 #include "power.h"
 #include "sdkconfig.h"
@@ -67,13 +68,15 @@ extern "C" void app_main() {
   ESP_LOGI(kTag, "OpenCharm OS %s (core %s)", options.build.version.c_str(), charm::kBuildCommit);
 
 #if CONFIG_OPENCHARM_BENCH_FACE
-  // Stage 1 bench: what charmd says when a paired charm unlocks, so the face
-  // shows offline.
+  // Bench only: what charmd says when a paired charm unlocks, so the face shows without a
+  // network.
   app.on_connected(now_ms());
   app.on_text(
       R"({"type":"hello","transport":"websocket","session_id":"bench","audio_params":{"format":"opus","sample_rate":24000,"channels":1,"frame_duration":60}})",
       now_ms());
   app.on_text(R"({"type":"charm","op":"unlocked"})", now_ms());
+#else
+  network::start([] { return hal.store_get("token"); });
 #endif
 
   bool key = false;
@@ -90,6 +93,29 @@ extern "C" void app_main() {
       key_raw = raw;
       key_changed = now;
     }
+    network::Event event;
+    while (network::poll(event)) {
+      switch (event.kind) {
+        case network::Event::Kind::Connected:
+          ESP_LOGI(kTag, "connected to charmd");
+          app.on_connected(now);
+          break;
+        case network::Event::Kind::Disconnected:
+          ESP_LOGI(kTag, "charmd disconnected");
+          app.on_disconnected(now);
+          break;
+        case network::Event::Kind::Offline:
+          ESP_LOGI(kTag, "screen: %s", event.data.c_str());
+          app.on_offline(event.data, now);
+          break;
+        case network::Event::Kind::Text:
+          app.on_text(event.data, now);
+          break;
+        case network::Event::Kind::Binary:
+          app.on_audio(reinterpret_cast<const uint8_t*>(event.data.data()), event.data.size());
+          break;
+      }
+    }
     if (key_raw != key && now - key_changed >= kDebounceMs) {
       key = key_raw;
       ESP_LOGI(kTag, "key %s", key ? "down" : "up");
@@ -102,6 +128,10 @@ extern "C" void app_main() {
       status.millivolts = r.millivolts;
       status.board_c = r.board_c;
       status.chip_c = r.chip_c;
+      status.wifi = network::wifi_name();
+      status.wifi_rssi = network::wifi_rssi();
+      status.charmd = network::charmd_host();
+      status.connected = network::connected();
       app.on_status(status, now);
       // For the bench: on any battery change, and every 10 s for the
       // temperatures.

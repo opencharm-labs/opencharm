@@ -3,9 +3,8 @@
 #include "board.h"
 #include "charm/hal.h"
 
-// The core's HAL on the board. Stage 1 (spec 009): brightness and storage are
-// real; the network and audio calls do nothing until stages 2 and 3 bring
-// Wi-Fi, charmd and the codecs.
+// The core's HAL on the board (spec 009): brightness, storage and the connection to charmd are
+// real; the audio calls do nothing until stage 3 brings the codecs.
 class DeviceHal : public charm::Hal {
  public:
   explicit DeviceHal(const board::Board& board) : board_(board) {}
@@ -19,7 +18,7 @@ class DeviceHal : public charm::Hal {
   std::string store_get(const std::string& key) override;
   void store_set(const std::string& key, const std::string& value) override;
   void store_erase(const std::string& key) override;
-  void reconnect() override {}
+  void reconnect() override;
 
  private:
   const board::Board& board_;

@@ -208,13 +208,15 @@ void App::end_ask() {
 
 void App::on_connected(uint32_t) { hal_.send_text(client_hello(options_.build)); }
 
-void App::on_disconnected(uint32_t) {
+void App::on_disconnected(uint32_t now) { on_offline("Can't reach charmd", now); }
+
+void App::on_offline(std::string_view line, uint32_t) {
   asking_ = false;
   can_type_ = false;  // the next charmd says again in its hello
   end_talk(false);
   if (speaking_) stop_speech(false);
   set_needs_you(false);
-  connecting_line_ = "Can't reach charmd";
+  connecting_line_ = std::string(line);
   go(Screen::Connecting);
 }
 

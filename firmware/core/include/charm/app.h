@@ -37,6 +37,9 @@ class App {
 
   void on_connected(uint32_t now);
   void on_disconnected(uint32_t now);
+  // Not connected, and why, on the connecting screen: "Join Wi-Fi OpenCharm-7F3A" at Wi-Fi setup,
+  // "No Wi-Fi" (spec 009). Like a dropped connection, it ends a talk, speech and a question.
+  void on_offline(std::string_view line, uint32_t now);
   void on_text(std::string_view json, uint32_t now);
   void on_audio(const uint8_t* data, size_t size);
   void on_mic_frame(const uint8_t* data, size_t size);

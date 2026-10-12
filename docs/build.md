@@ -95,11 +95,16 @@ _Later:_ a browser flasher for OpenCharm OS (nothing to install).
 
 ## 6. Connect it to your agent
 
-Steps 1, 2 and 4 work today with the [desktop charm](../apps/desktop/README.md); step 3 is _later_ (spec 009, stage 2).
+Steps 1, 2 and 4 work today with the [desktop charm](../apps/desktop/README.md); step 3 is for the board (spec 009, stage 2).
 
 1. On the agent's machine, install and start charmd (`npm i -g opencharm`, then `opencharm serve`). On your own computer that's all; on a server, follow [deploy.md](deploy.md) (a system service behind Caddy for HTTPS).
 2. Point charmd at your agent (config: [`packages/charmd/README.md`](../packages/charmd/README.md)). On your computer charmd starts Claude Code, Codex, Gemini CLI, Hermes, OpenClaw or another ACP agent itself. On a server it talks to the agent's OpenAI-compatible API on localhost only: Hermes `API_SERVER_ENABLED=true` ([docs](https://hermes-agent.nousresearch.com/docs/user-guide/features/api-server)), or OpenClaw's chat completions endpoint ([docs](https://docs.openclaw.ai/gateway/openai-http-api)).
-3. _Later:_ join Wi-Fi from the charm's setup screen and enter the charmd address.
+3. **The board:** its screen says "Join Wi-Fi OpenCharm-XXXX". Join that network from your phone; a setup page opens (or go to `http://192.168.4.1`). Pick your Wi-Fi (2.4 GHz; an iPhone hotspot needs "Maximize Compatibility"), type its password, and under **Advanced**, put charmd's address in **Custom OTA URL**:
+   - charmd on a server behind Caddy ([deploy.md](deploy.md)): its domain, for example `charm.yourdomain.com`. The charm connects with TLS, checked against the public certificate authorities.
+   - charmd on your own computer: `http://` and the computer's address on your network, for example `http://192.168.1.20:8787`. charmd listens only on the computer itself unless told otherwise, so set `"listen": { "host": "0.0.0.0", "port": 8787 }` and `"allowInsecureRemote": true` in its config (`packages/charmd/README.md`) and restart it. Without TLS the charm's token crosses your network unencrypted: fine at home, not on shared Wi-Fi. The desktop app's built-in charmd stays on the computer and isn't reachable from the board.
+
+   Only the address's scheme, host and port count; the charm connects to `/charm` there. If the charm can't find a saved network for a minute, or the address is missing or unusable, it opens the setup hotspot again.
+
 4. The charm shows a 6-digit code; run `opencharm pair <code>` on the agent's machine, then choose the charm's PIN.
 
 ## 7. Print a shell (optional, _later_)

@@ -3,6 +3,7 @@
 #include <cJSON.h>
 
 #include <cstring>
+#include <utility>
 
 #include "generated/faces.h"
 
@@ -343,6 +344,73 @@ std::string client_text(std::string_view text) {
   cJSON_AddStringToObject(m, "op", "text");
   cJSON_AddStringToObject(m, "text", std::string(text).c_str());
   return print_and_free(m);
+}
+
+namespace {
+
+bool starts_with_nocase(std::string_view s, std::string_view prefix) {
+  if (s.size() < prefix.size()) return false;
+  for (size_t i = 0; i < prefix.size(); ++i) {
+    char c = s[i];
+    if (c >= 'A' && c <= 'Z') c = char(c - 'A' + 'a');
+    if (c != prefix[i]) return false;
+  }
+  return true;
+}
+
+bool host_char(char c) {
+  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '.' ||
+         c == '-';
+}
+
+// host[:port], where host is a name, an IPv4 address or [IPv6]; the port is 1..65535.
+bool valid_authority(std::string_view a) {
+  if (a.empty()) return false;
+  size_t host_end = 0;
+  if (a[0] == '[') {
+    size_t close = a.find(']');
+    if (close == std::string_view::npos || close < 2) return false;
+    for (size_t i = 1; i < close; ++i) {
+      char c = a[i];
+      bool hex = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+      if (!hex && c != ':' && c != '.') return false;
+    }
+    host_end = close + 1;
+  } else {
+    while (host_end < a.size() && host_char(a[host_end])) ++host_end;
+    if (host_end == 0) return false;
+  }
+  if (host_end == a.size()) return true;
+  if (a[host_end] != ':' || host_end + 1 == a.size()) return false;
+  long port = 0;
+  for (size_t i = host_end + 1; i < a.size(); ++i) {
+    if (a[i] < '0' || a[i] > '9' || i - host_end > 5) return false;
+    port = port * 10 + (a[i] - '0');
+  }
+  return port >= 1 && port <= 65535;
+}
+
+}  // namespace
+
+std::string charm_url(std::string_view address) {
+  while (!address.empty() && (address.front() == ' ' || address.front() == '\t'))
+    address.remove_prefix(1);
+  while (!address.empty() && (address.back() == ' ' || address.back() == '\t'))
+    address.remove_suffix(1);
+  const char* scheme = "wss://";
+  for (auto [prefix, ws] : {std::pair{"https://", "wss://"}, std::pair{"wss://", "wss://"},
+                            std::pair{"http://", "ws://"}, std::pair{"ws://", "ws://"}}) {
+    if (starts_with_nocase(address, prefix)) {
+      scheme = ws;
+      address.remove_prefix(std::string_view(prefix).size());
+      break;
+    }
+  }
+  // No other scheme: "ftp://…" would otherwise read as a host named "ftp".
+  if (address.find("://") != std::string_view::npos) return "";
+  std::string_view authority = address.substr(0, address.find_first_of("/?#"));
+  if (!valid_authority(authority)) return "";
+  return std::string(scheme) + std::string(authority) + "/charm";
 }
 
 }  // namespace charm

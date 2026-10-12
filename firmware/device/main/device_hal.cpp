@@ -2,6 +2,7 @@
 
 #include "cJSON.h"
 #include "esp_log.h"
+#include "network.h"
 #include "nvs.h"
 
 namespace {
@@ -11,16 +12,19 @@ constexpr const char* kNamespace = "charm";
 
 }  // namespace
 
-// Nowhere to send it yet (stage 2). The bench log gets the message's type and op only: never the
-// payload, which can hold the PIN (`unlock`) or typed text.
+// To charmd. The log gets the message's type and op only: never the payload, which can hold the PIN
+// (`unlock`) or typed text.
 void DeviceHal::send_text(const std::string& json) {
   cJSON* message = cJSON_Parse(json.c_str());
   const cJSON* type = cJSON_GetObjectItemCaseSensitive(message, "type");
   const cJSON* op = cJSON_GetObjectItemCaseSensitive(message, "op");
-  ESP_LOGI(kTag, "would send %s%s%s", cJSON_IsString(type) ? type->valuestring : "?",
+  ESP_LOGI(kTag, "send %s%s%s", cJSON_IsString(type) ? type->valuestring : "?",
            cJSON_IsString(op) ? " " : "", cJSON_IsString(op) ? op->valuestring : "");
   cJSON_Delete(message);
+  network::send_text(json);
 }
+
+void DeviceHal::reconnect() { network::reconnect(); }
 
 std::string DeviceHal::store_get(const std::string& key) {
   nvs_handle_t nvs;

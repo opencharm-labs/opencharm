@@ -17,7 +17,7 @@ Licence of this document: CC BY-SA 4.0 (see README). Prices and specs were check
 | Repo foundation (workspaces, checks, agents, CI) | Done                                                                                                                             |
 | Enclosure v0.1                                   | STL files generated, **not yet printed or fitted**                                                                               |
 | Hardware                                         | Reference board: Waveshare ESP32-S3-Touch-AMOLED-2.16                                                                            |
-| Firmware, OpenCharm OS (`firmware/`)             | Core and emulator built (specs 005, 006); on the board, stage 1 of 4 runs (009: face, key, touch, battery, status screen)        |
+| Firmware, OpenCharm OS (`firmware/`)             | Core and emulator built (specs 005, 006); on the board, stages 1–2 of 4 built (009: face, key, battery, status; Wi-Fi + charmd)  |
 | charmd, the charm daemon                         | Built (specs 002, 003, 010, 011, 012); the droplet deploy waits for a droplet (007)                                              |
 | Desktop charm (`apps/desktop`)                   | macOS app built (spec 013); Windows builds in CI, untested on a real machine                                                     |
 | Build guide                                      | `docs/build.md`                                                                                                                  |
@@ -203,7 +203,7 @@ The device always dials out to one address. There is no separate LAN mode; a loc
 
 ### 7.1 OpenCharm OS and the emulator
 
-`firmware/core` is portable C++17 (LVGL screens, glyph face, state machine, charm protocol) that talks only to a small HAL. `firmware/device` (spec 009, stage 1 of 4 on the board) is an ESP-IDF 6.1 project that builds the same core and implements the HAL with the board's drivers, taking audio, Wi-Fi and WebSocket code from [xiaozhi-esp32](https://github.com/78/xiaozhi-esp32) (MIT) as later stages need it. `firmware/sim` builds the same core to WebAssembly: `npx opencharm sim` opens the charm in any browser on localhost (Space is the key, the mouse taps and types the PIN, a side panel sets the battery and USB, drops Wi-Fi, switches square/round and forgets the pairing). The core enforces the mic rule and draws only when something moved. Detail: [firmware/README.md](firmware/README.md).
+`firmware/core` is portable C++17 (LVGL screens, glyph face, state machine, charm protocol) that talks only to a small HAL. `firmware/device` (spec 009, stages 1–2 of 4) is an ESP-IDF 6.1 project that builds the same core and implements the HAL with the board's drivers, taking audio, Wi-Fi and WebSocket code from [xiaozhi-esp32](https://github.com/78/xiaozhi-esp32) (MIT) as later stages need it. `firmware/sim` builds the same core to WebAssembly: `npx opencharm sim` opens the charm in any browser on localhost (Space is the key, the mouse taps and types the PIN, a side panel sets the battery and USB, drops Wi-Fi, switches square/round and forgets the pairing). The core enforces the mic rule and draws only when something moved. Detail: [firmware/README.md](firmware/README.md).
 
 ### 7.2 charmd, the charm daemon
 
