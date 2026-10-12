@@ -347,7 +347,6 @@ std::string client_text(std::string_view text) {
   return print_and_free(m);
 }
 
-<<<<<<< HEAD
 std::string client_battery(int percent, bool charging, bool usb) {
   cJSON* m = cJSON_CreateObject();
   cJSON_AddStringToObject(m, "type", "charm");
@@ -358,8 +357,6 @@ std::string client_battery(int percent, bool charging, bool usb) {
   return print_and_free(m);
 }
 
-=======
->>>>>>> origin/main
 namespace {
 
 bool starts_with_nocase(std::string_view s, std::string_view prefix) {

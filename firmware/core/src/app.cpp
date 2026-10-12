@@ -217,11 +217,8 @@ void App::on_connected(uint32_t) { hal_.send_text(client_hello(options_.build));
 void App::on_disconnected(uint32_t now) { on_offline("Can't reach charmd", now); }
 
 void App::on_offline(std::string_view line, uint32_t) {
-<<<<<<< HEAD
   battery_reported_known_ = false;  // the next charmd hears it again
   can_battery_ = false;             // if its hello offers it
-=======
->>>>>>> origin/main
   asking_ = false;
   can_type_ = false;  // the next charmd says again in its hello
   end_talk(false);
@@ -528,10 +525,7 @@ void App::stop_speech(bool tell_server) {
 void App::on_status(const Status& status, uint32_t now) {
   status_ = status;
   status_.build = options_.build;
-<<<<<<< HEAD
   report_battery();
-=======
->>>>>>> origin/main
   if (status_open_) view_.show_status(status_);
   update_battery(now);
 }
@@ -549,7 +543,6 @@ void App::on_touch_hold(uint32_t now) {
   view_.show_status(status_);
 }
 
-<<<<<<< HEAD
 // charmd hears the battery once the face is unlocked and on every change (spec 009): before that
 // it would answer "locked". Only a charmd that offers it in its hello (an older one would close the
 // connection on a message it doesn't know); a charm without a battery says nothing.
@@ -562,8 +555,6 @@ void App::report_battery() {
   hal_.send_text(client_battery(b.percent, b.charging, b.usb));
 }
 
-=======
->>>>>>> origin/main
 void App::close_status() {
   if (!status_open_) return;
   status_open_ = false;

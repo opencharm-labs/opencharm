@@ -48,8 +48,4 @@ npm run device:flash         # after task 5, board in download mode
 4. `CONFIG_OPENCHARM_BENCH_FACE` becomes opt-in (default off).
 5. **Recovery:** no Wi-Fi for a minute (at boot or later) opens the hotspot; charmd silent for 30 s on working Wi-Fi shows how to open it by hand: the key held 5 s on the connecting screen (`Hal::open_setup`, a no-op off the board).
 6. **On the board:** with no saved network it opens the hotspot (checked from its log, 12 October 2026). Joining Wi-Fi, pairing and the PIN need a person at the board: the maintainer's check before this stage is called done.
-<<<<<<< HEAD
 7. **Battery to charmd** (its own pull request): `charm battery {percent, charging, usb}` (spec 001), sent by the core once unlocked and on every change, only to a charmd whose hello offers `features.battery`. charmd keeps the latest per charm; `opencharm status` shows it. An agent tool for it is proposed in spec 012's Next.
-=======
-7. Next in stage 2: the charm reports its battery to charmd (`charm` `battery`, protocol spec 001), so the agent can know it.
->>>>>>> origin/main
