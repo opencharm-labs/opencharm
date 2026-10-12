@@ -1054,6 +1054,7 @@ TEST_CASE(
   s.at(s.now + 6000);
   CHECK(s.hal.events.empty());
 }
+<<<<<<< HEAD
 
 const char* kHelloBattery =
     R"({"type":"hello","transport":"websocket","session_id":"s1","audio_params":{"format":"opus","sample_rate":24000,"channels":1,"frame_duration":60},"features":{"battery":true}})";
@@ -1128,3 +1129,5 @@ TEST_CASE("an older charmd that doesn't offer it never gets the battery") {
   r.app.on_status(battery_at(40), r.now + 1000);
   CHECK_FALSE(r.hal.sent_contains(R"("op":"battery")"));
 }
+=======
+>>>>>>> origin/main

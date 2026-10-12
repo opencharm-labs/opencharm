@@ -229,6 +229,7 @@ TEST_CASE("an address the charm can't use is refused, never guessed at") {
         "https://charm.example.com:99999", "https://:8787", "https://ex\nample.com"})
     CHECK_MESSAGE(charm::charm_url(bad).empty(), bad);
 }
+<<<<<<< HEAD
 
 TEST_CASE("charmd's hello says whether it takes the battery") {
   charm::ServerMessage m;
@@ -241,3 +242,5 @@ TEST_CASE("charmd's hello says whether it takes the battery") {
       m));
   CHECK_FALSE(m.accepts_battery);
 }
+=======
+>>>>>>> origin/main

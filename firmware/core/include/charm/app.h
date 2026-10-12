@@ -93,7 +93,10 @@ class App {
   void show_battery_for_a_moment(uint32_t now) { battery_until_ = now + options_.battery_ms; }
   void update_battery(uint32_t now);
   void close_status();
+<<<<<<< HEAD
   void report_battery();
+=======
+>>>>>>> origin/main
 
   Hal& hal_;
   View& view_;
@@ -145,8 +148,11 @@ class App {
   bool status_open_ = false;
   uint32_t status_until_ = 0;
   uint32_t setup_key_at_ = 0;  // the key went down on the connecting screen (0 = it isn't down)
+<<<<<<< HEAD
   Battery battery_reported_;   // what charmd last heard on this connection
   bool battery_reported_known_ = false;
+=======
+>>>>>>> origin/main
   std::string pair_code_;
   int pin_tries_ = -1;
   bool pin_wrong_ = false;

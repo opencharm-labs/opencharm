@@ -89,4 +89,11 @@ std::string client_battery(int percent, bool charging, bool usb);
 // gives an empty string: the charm asks again rather than guessing.
 std::string charm_url(std::string_view address);
 
+// Where the board connects (spec 009): the charmd address typed at Wi-Fi setup, as a WebSocket URL.
+// Only the scheme, host and port count, so "charm.example.com", "https://charm.example.com" and
+// "http://192.168.1.20:8787/ota/" all work: https or no scheme gives wss, http gives ws, and the
+// path is always /charm. Anything else (another scheme, a user and password, spaces, a bad port)
+// gives an empty string: the charm asks again rather than guessing.
+std::string charm_url(std::string_view address);
+
 }  // namespace charm
