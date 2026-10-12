@@ -3,7 +3,7 @@
 #ifndef LV_CONF_H
 #define LV_CONF_H
 
-#define LV_COLOR_DEPTH 16            /* the charm's AMOLED is RGB565 */
+#define LV_COLOR_FORMAT_DEFAULT LV_COLOR_FORMAT_RGB565 /* the charm's AMOLED is RGB565 */
 #define LV_USE_OS LV_OS_NONE          /* the platform calls lv_timer_handler() from one loop */
 #define LV_USE_STDLIB_MALLOC LV_STDLIB_BUILTIN
 #define LV_MEM_SIZE (512U * 1024U)
