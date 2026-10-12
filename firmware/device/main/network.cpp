@@ -1,6 +1,7 @@
 #include "network.h"
 
 #include <atomic>
+#include <cstring>
 #include <mutex>
 
 #include "charm/protocol.h"
@@ -119,6 +120,26 @@ void save_address(const std::string& address) {
 // announces it when it listens beyond its computer, spec 002) and take the first answer as
 // `http://<computer>.local:<port>`. The `.local` name, not the IP, so the pairing stays valid when
 // the computer gets a new address; lwIP resolves `.local` names by mDNS.
+// What a network answer may name: one label of letters, digits and hyphens (a computer's
+// LocalHostName), and a real port. Anything else is ignored: a name like "evil.com/x" glued into
+// "http://…local:port" would otherwise be read as another host.
+bool plain_host(const char* name) {
+  size_t n = name ? std::strlen(name) : 0;
+  if (n == 0 || n > 63) return false;
+  for (size_t i = 0; i < n; ++i) {
+    char c = name[i];
+    bool ok =
+        (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-';
+    if (!ok) return false;
+  }
+  return true;
+}
+
+std::string local_address(const char* hostname, uint16_t port) {
+  if (!plain_host(hostname) || port == 0) return "";
+  return "http://" + std::string(hostname) + ".local:" + std::to_string(port);
+}
+
 std::string discover() {
   static bool started = false;
   if (!started) started = mdns_init() == ESP_OK;
@@ -128,12 +149,11 @@ std::string discover() {
   std::string found;
   for (mdns_result_t* r = results; r && found.empty(); r = r->next) {
     if (r->hostname && r->port) {
-      found = "http://" + std::string(r->hostname) + ".local:" + std::to_string(r->port);
+      found = local_address(r->hostname, r->port);
     } else if (r->instance_name) {
       mdns_result_t* srv = nullptr;
-      if (mdns_query_srv(r->instance_name, "_opencharm", "_tcp", 2000, &srv) == ESP_OK && srv &&
-          srv->hostname && srv->port)
-        found = "http://" + std::string(srv->hostname) + ".local:" + std::to_string(srv->port);
+      if (mdns_query_srv(r->instance_name, "_opencharm", "_tcp", 2000, &srv) == ESP_OK && srv)
+        found = local_address(srv->hostname, srv->port);
       if (srv) mdns_query_results_free(srv);
     }
   }
