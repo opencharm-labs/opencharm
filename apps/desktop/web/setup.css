@@ -1,5 +1,5 @@
 /* The setup window (spec 013): Settings' brand rules (settings.css), one step at a time in a fixed
-   480 x 600 window, with Back, the step dots and Continue at the bottom. */
+   580 x 760 window (lib.rs SETUP_SIZE), with Back, the step dots and Continue at the bottom. */
 body.setup {
   height: 100vh;
   min-height: 0;

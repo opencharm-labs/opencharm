@@ -42,6 +42,9 @@ const LABELS: [(&str, &str); 6] = [
 pub struct Folder {
     pub path: String,
     pub exists: bool,
+    /// There, but this app may not open it (macOS asks before an app uses Desktop or Documents):
+    /// never taken for gone, so nobody recreates a workspace they still have.
+    pub refused: bool,
     pub empty: bool,
     /// The folder's `opencharm.json`, when it is an OpenCharm workspace.
     #[serde(skip)]
@@ -255,6 +258,8 @@ fn agent_dir(folder: &Folder) -> PathBuf {
 pub fn inspect_folder(path: &str) -> Folder {
     let dir = Path::new(path);
     let exists = dir.is_dir();
+    let refused = !exists
+        && std::fs::metadata(dir).is_err_and(|e| e.kind() == std::io::ErrorKind::PermissionDenied);
     let empty = exists
         && std::fs::read_dir(dir)
             .map(|mut entries| {
@@ -268,6 +273,7 @@ pub fn inspect_folder(path: &str) -> Folder {
     let mut folder = Folder {
         path: path.to_string(),
         exists,
+        refused,
         empty,
         is_workspace: workspace.is_some(),
         workspace,

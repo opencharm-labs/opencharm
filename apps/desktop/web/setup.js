@@ -208,6 +208,11 @@ async function saveAgent() {
 // Step 3: the folder, as an IDE's New Project (a name and a location), or one you have.
 let location = state.location;
 let existing = null;
+// The saved folder is gone (deleted, moved, renamed): offered again by its name and place, so
+// Continue creates it again, a fresh copy of the starter.
+const missingName = state.missing?.split(/[\\/]/).filter(Boolean).pop() ?? "";
+if (missingName && !folderNameProblem(missingName))
+  $("ws-name").value = missingName;
 const folderMode = () =>
   document.querySelector('input[name="folder-mode"]:checked').value;
 function showFolder() {
@@ -233,6 +238,26 @@ function showFolder() {
       : "No folder chosen yet.";
     $("next").disabled = busy || !existing;
   }
+  showSaved();
+}
+
+// What happened to the folder the charm had: refused by macOS (still there), or gone. "Creates it
+// again" only while Continue really would.
+function showSaved() {
+  const again =
+    state.missing &&
+    folderMode() === "create" &&
+    location &&
+    joined(location, $("ws-name").value.trim()) === state.missing;
+  note(
+    "saved-note",
+    state.refused
+      ? `macOS isn't letting OpenCharm open ${shown(state.refused)}. Allow it in System Settings → Privacy & Security → Files and Folders, then open the setup again; or choose another folder.`
+      : state.missing
+        ? `${shown(state.missing)} isn't there any more.${again ? " Continue creates it again, a fresh copy of the starter." : ""}`
+        : "",
+    state.refused ? "bad" : ""
+  );
 }
 for (const input of document.querySelectorAll('input[name="folder-mode"]'))
   input.addEventListener("change", () => {
@@ -258,11 +283,13 @@ $("choose").addEventListener("click", async () => {
   existing = await invoke("inspect_folder", { path });
   note(
     "folder-note",
-    existing.isWorkspace
-      ? `An OpenCharm workspace: ${existing.name}, as its opencharm.json says.`
-      : existing.empty
-        ? "An empty folder: a workspace will be created in it."
-        : "Your agent works in this folder, as it is."
+    existing.refused
+      ? "macOS isn't letting OpenCharm open it. Allow it in System Settings → Privacy & Security → Files and Folders, or choose another."
+      : existing.isWorkspace
+        ? `An OpenCharm workspace: ${existing.name}, as its opencharm.json says.`
+        : existing.empty
+          ? "An empty folder: a workspace will be created in it."
+          : "Your agent works in this folder, as it is."
   );
   showFolder();
 });
@@ -285,8 +312,13 @@ async function saveFolder() {
   react("thinking", 60000);
   try {
     const target = joined(location, $("ws-name").value.trim());
-    if (folderMode() === "create" && settings.folder === target) {
-      // Back from a later step: this workspace was already created.
+    // Back from a later step: this workspace was already created, and it's still there. A saved
+    // folder that's gone is created again, never taken as done.
+    const made =
+      folderMode() === "create" &&
+      settings.folder === target &&
+      (await invoke("inspect_folder", { path: target })).isWorkspace;
+    if (made) {
       folder = target;
     } else if (folderMode() === "create") {
       folder = await invoke("create_new_workspace", {
@@ -294,6 +326,14 @@ async function saveFolder() {
         name: $("ws-name").value.trim(),
         agent: initAgent,
       });
+    } else if (
+      !(existing = await invoke("inspect_folder", { path: existing.path }))
+        .exists
+    ) {
+      // Chosen earlier, gone or refused since (Back from the last step, say).
+      throw existing.refused
+        ? "macOS isn't letting OpenCharm open that folder. Allow it in System Settings → Privacy & Security → Files and Folders, or choose another."
+        : "That folder isn't there any more: choose another.";
     } else if (existing.empty) {
       await invoke("create_workspace", {
         folder: existing.path,
@@ -310,7 +350,10 @@ async function saveFolder() {
     const next = { ...settings, ...chosen, folder };
     await invoke("save_settings", { next });
     settings = next;
+    state.missing = null;
+    state.refused = null;
     note("folder-note", "");
+    showSaved();
     return true;
   } catch (error) {
     note("folder-note", String(error), "bad");
@@ -432,6 +475,7 @@ function mark(id, on) {
 let polled = false;
 let turnFailed = false;
 let showingModels = false;
+let lastState = "";
 async function pollStatus() {
   // One at a time, and never over what a turn just said (failed, or answered).
   if (polled) return;
@@ -439,9 +483,25 @@ async function pollStatus() {
   try {
     const s = await invoke("charmd_status");
     mark("check-awake", s.state === "running");
+    // A new state replaces what the last one said (a turn's own words stay).
+    if (s.state !== lastState && !answered && !turnFailed) {
+      note("try-note", "");
+      showingModels = false;
+    }
+    lastState = s.state;
     const stuck = s.state !== "running" && s.state !== "starting";
-    $("retry").hidden = !stuck && !turnFailed;
-    if (stuck && s.detail) note("try-note", s.detail, "bad");
+    // Without a folder there's nothing to start or finish: the way on is choosing one.
+    const noFolder = s.state === "folder";
+    $("refolder").hidden = !noFolder;
+    $("finish").hidden = noFolder || answered;
+    $("retry").hidden = noFolder || (!stuck && !turnFailed);
+    if (noFolder)
+      note(
+        "try-note",
+        s.detail || "Your charm has no folder to work in: choose one.",
+        "bad"
+      );
+    else if (stuck && s.detail) note("try-note", s.detail, "bad");
     else if (answered || turnFailed) return;
     else if (s.state === "starting") note("try-note", "Waking it up…");
     else if (s.state === "running") {
@@ -485,6 +545,9 @@ $("retry").addEventListener("click", async () => {
   await invoke("restart_charmd");
   note("try-note", "Starting it again…");
   react("thinking", 2000);
+});
+$("refolder").addEventListener("click", () => {
+  if (!busy) show(3).catch(() => react("oops", 2200));
 });
 $("finish").addEventListener("click", () => {
   localStorage.removeItem(PENDING);
