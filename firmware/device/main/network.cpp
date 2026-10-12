@@ -55,8 +55,9 @@ bool hinted = false;
 
 // Shared with the main loop and the WebSocket task.
 std::mutex send_lock;  // guards `client` for sends; the worker holds it only to swap it
-std::mutex info_lock;  // guards `host`
+std::mutex info_lock;  // guards `host` and `origin`
 std::string host;
+std::string origin;
 std::atomic<bool> is_connected{false};
 std::atomic<uint32_t> live_generation{0};
 
@@ -93,8 +94,16 @@ std::string read_nvs(const char* space, const char* key) {
 // charmd's address as typed at Wi-Fi setup (the page saves it as "ota_url" in the "wifi"
 // namespace).
 std::string saved_address() { return read_nvs("wifi", "ota_url"); }
-// The host a saved token was issued by (DeviceHal records it with the token).
-std::string token_host() { return read_nvs("charm", "token_host"); }
+// Where a saved token was issued: scheme, host and port (DeviceHal records it with the token).
+std::string token_origin() { return read_nvs("charm", "token_origin"); }
+
+// "wss://charm.example.com:443/charm" → "wss://charm.example.com:443": what a token is bound to.
+// The scheme counts too: a token paired over wss must never go out over plain ws to the same name,
+// which whoever runs the Wi-Fi could resolve to their own machine.
+std::string origin_of(const std::string& ws_url) {
+  size_t from = ws_url.find("://") + 3;
+  return ws_url.substr(0, ws_url.find('/', from));
+}
 
 std::string host_of(const std::string& ws_url) {
   size_t from = ws_url.find("://") + 3;
@@ -177,15 +186,17 @@ void start_socket() {
   }
   url = next;
   std::string to = host_of(url);
+  std::string at = origin_of(url);
   {
     std::lock_guard<std::mutex> guard(info_lock);
     host = to;
+    origin = at;
   }
   // The token goes only to the charmd that issued it. The setup hotspot is open and comes back when
   // the saved network can't be found, so anyone nearby could change the address: a charm pointed
   // somewhere new pairs again instead of handing its token over.
   std::string token = token_of ? token_of() : "";
-  if (!token.empty() && token_host() != to) {
+  if (!token.empty() && token_origin() != at) {
     ESP_LOGW(kTag, "the saved pairing belongs to another charmd; pairing again here");
     token.clear();
   }
@@ -378,10 +389,10 @@ std::string charmd_host() {
 
 bool connected() { return is_connected; }
 
-std::string connected_host() {
+std::string connected_origin() {
   if (!is_connected) return "";
   std::lock_guard<std::mutex> guard(info_lock);
-  return host;
+  return origin;
 }
 
 }  // namespace network

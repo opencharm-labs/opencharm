@@ -37,9 +37,10 @@ void reconnect();
 // Opens the setup hotspot now (the key held on the connecting screen).
 void open_wifi_setup();
 
-// The charmd host this charm is connected to now ("" when not connected): a token charmd issues is
-// bound to it (DeviceHal), and never sent to any other host.
-std::string connected_host();
+// Where this charm is connected now, as scheme, host and port ("wss://charm.example.com"; "" when
+// not connected): a token charmd issues is bound to it (DeviceHal) and never sent anywhere else,
+// not even to the same host without TLS.
+std::string connected_origin();
 
 // For the status screen.
 std::string wifi_name();  // empty when not on Wi-Fi

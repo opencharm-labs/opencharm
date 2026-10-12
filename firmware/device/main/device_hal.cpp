@@ -10,7 +10,7 @@ namespace {
 constexpr const char* kTag = "hal";
 constexpr const char* kNamespace = "charm";
 constexpr const char* kToken = "token";
-constexpr const char* kTokenHost = "token_host";
+constexpr const char* kTokenOrigin = "token_origin";
 
 }  // namespace
 
@@ -50,7 +50,7 @@ void DeviceHal::store_set(const std::string& key, const std::string& value) {
   bool ok = nvs_set_str(nvs, key.c_str(), value.c_str()) == ESP_OK;
   // A pairing token is bound to the charmd it came from, on this connection (network.cpp).
   if (ok && key == kToken)
-    ok = nvs_set_str(nvs, kTokenHost, network::connected_host().c_str()) == ESP_OK;
+    ok = nvs_set_str(nvs, kTokenOrigin, network::connected_origin().c_str()) == ESP_OK;
   if (ok) nvs_commit(nvs);
   nvs_close(nvs);
   // Just paired: connect again, so this and every later connection carries the token.
@@ -63,7 +63,7 @@ void DeviceHal::store_erase(const std::string& key) {
   nvs_handle_t nvs;
   if (nvs_open(kNamespace, NVS_READWRITE, &nvs) != ESP_OK) return;
   bool ok = nvs_erase_key(nvs, key.c_str()) == ESP_OK;
-  if (key == kToken) nvs_erase_key(nvs, kTokenHost);
+  if (key == kToken) nvs_erase_key(nvs, kTokenOrigin);
   if (ok) nvs_commit(nvs);
   nvs_close(nvs);
 }
