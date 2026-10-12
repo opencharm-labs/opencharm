@@ -79,12 +79,17 @@ The battery line repeats on every change and every 10 s; `key down` / `key up` o
 
 ## 5. Bench check (the person looks, the log confirms)
 
+With no saved Wi-Fi the board opens its setup hotspot: the screen says "Join Wi-Fi OpenCharm-XXXX" and the log shows `screen: Join Wi-Fi OpenCharm-…`. Don't write MAC-derived hotspot names into the repo. To check the face without a network, build with `CONFIG_OPENCHARM_BENCH_FACE=y` (`idf.py menuconfig` → OpenCharm); never ship that.
+
 1. The face blinks and glances; picture upright.
 2. `+/KEY` (the end button labelled so on the back, not the middle PWR): the face squishes and the battery level shows at the top for 3 s, and stays while on USB. Log: `key down`, `key up`.
 3. Tap the face: a reaction.
 4. Touch and hold the face 1 s: the status screen (percent, state, voltage, temperatures, Wi-Fi, charmd, build). A tap or a press closes it.
+5. Unplug USB: the level hides after 3 s; the log shows `not charging` without `on USB`.
+6. Wi-Fi and charmd (the person, docs/build.md section 6): join the hotspot, type the network and charmd's address; the log shows `connected to charmd`, the screen a pairing code; pair, type the PIN.
+7. Voice: hold the key and ask something; the reply plays. Talk over a reply to check echo cancellation by ear.
 
-A fresh board (no saved Wi-Fi) shows "Join Wi-Fi OpenCharm-XXXX" and logs `Access Point started with SSID OpenCharm-…`; Wi-Fi setup and pairing need the person (docs/build.md section 6). To see the face without a network, build with `CONFIG_OPENCHARM_BENCH_FACE=y` (`idf.py menuconfig` → OpenCharm). Don't write MAC-derived hotspot names into the repo. 5. Unplug USB: the level hides after 3 s; the log shows `not charging` without `on USB`.
+Without anyone at the board, the audio can still be measured: build with `CONFIG_OPENCHARM_AUDIO_SELFTEST=y`, flash, and read the `audio: self-test:` lines (a tone through the speaker read back by the mic and the echo reference, the echo reduction in dB, the mic path's frame count, a 24 kHz Opus decode). On the reference board: about 34 dB less echo, 20 frames in 1.2 s. Rebuild without it afterwards. `power: mic power (ALDO1) on` must be in the boot log, or the mics are unpowered.
 
 Temperatures are chip readings (power chip die, ESP32-S3 sensor), not the room: 40–55 °C while charging is normal. Record results in `hardware/README.md` ("Bench results"), without personal details.
 
