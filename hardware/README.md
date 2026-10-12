@@ -34,27 +34,34 @@ The 2.16 and 1.75 are sister boards (same maker, ESP32-S3R8, ES8311 + ES7210 aud
 
 ## The reference board: Waveshare ESP32-S3-Touch-AMOLED-2.16
 
-It's a finished device: screen, microphones, speaker amplifier, battery and a case. The MVP needs no hardware work; it's firmware and software.
+It's a finished device: screen, microphones, speaker, battery and a case. The MVP needs no hardware work; it's firmware and software.
 
-|                         |                                                                                                                                                                                                               |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Price (Waveshare store) | $29.99 without battery, **$31.99 with battery** (buy this one)                                                                                                                                                |
-| SoC                     | ESP32-S3R8, 8 MB PSRAM, 16 MB flash, Wi-Fi 2.4 GHz, BLE 5                                                                                                                                                     |
-| Screen                  | 2.16″ AMOLED, 480 × 480, CO5300 driver, CST9220 touch                                                                                                                                                         |
-| Audio                   | ES8311 codec, ES7210 ADC, two mics with hardware echo reference; NS4150B amp (enable GPIO46) to a 2-pin speaker header (P10). **No speaker in the box**                                                       |
-| Sensors                 | QMI8658 IMU, PCF85063 RTC                                                                                                                                                                                     |
-| Power                   | AXP2101 PMIC; battery version ships a 3.7 V **1000 mAh** battery (MX1.25)                                                                                                                                     |
-| Buttons                 | PWR, BOOT, user button (GPIO18)                                                                                                                                                                               |
-| Case                    | 46 × 46 × 22.5 mm, official 2D drawing available                                                                                                                                                              |
-| Software                | **Supported upstream in xiaozhi-esp32** (`main/boards/waveshare/esp32-s3-touch-amoled-2.16/`, 480×480, hardware echo reference on, amp on GPIO46); XiaoZhi tutorial by Waveshare; factory firmware restorable |
+|                         |                                                                                                                                                                                                                                          |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Price (Waveshare store) | $29.99 without battery, **$31.99 with battery** (buy this one)                                                                                                                                                                           |
+| SoC                     | ESP32-S3R8, 8 MB PSRAM, 16 MB flash, Wi-Fi 2.4 GHz, BLE 5                                                                                                                                                                                |
+| Screen                  | 2.16″ AMOLED, 480 × 480, CO5300 driver, CST9220 touch                                                                                                                                                                                    |
+| Audio                   | ES8311 codec, ES7210 ADC, two mics with hardware echo reference; NS4150B amp (enable GPIO46); **speaker built in**, soldered behind the grille (bench, 12 October 2026)                                                                  |
+| Sensors                 | QMI8658 IMU, PCF85063 RTC                                                                                                                                                                                                                |
+| Power                   | AXP2101 PMIC; battery version ships a 3.7 V **1000 mAh** battery (MX1.25)                                                                                                                                                                |
+| Buttons                 | three, labelled on the back `+/KEY`, `PWR`, `BOOT/-` (in that order, PWR in the middle). `+/KEY` is GPIO18 (10 kΩ pull-up, low while pressed) and is the key; PWR also reaches GPIO16 through an inverter; BOOT is GPIO0 (schematic)     |
+| Case                    | 46 × 46 × 22.5 mm, official 2D drawing available                                                                                                                                                                                         |
+| Software                | **OpenCharm OS runs on it** (spec 009, stage 1: face, key, touch, battery, status screen). Supported upstream in xiaozhi-esp32 (v2.5.2 ships a prebuilt image; on-device echo cancellation on in its build); factory firmware restorable |
 
 Why it wins: the biggest, sharpest true-black face canvas of the options (the face is the product), two mics with a hardware echo reference (talking over it should work once echo cancellation is enabled, see below), official drawings (the printed shell is based on real numbers), $32 fully assembled.
 
-Weak spots: no plug-in expansion (solder pads only), no vibration motor, 22.5 mm thick, no camera, speaker bought separately.
+Weak spots: no plug-in expansion (solder pads only), no vibration motor, 22.5 mm thick, no camera.
 
-Checked on 29 September 2026: the product page's packing list is board, optional 1000 mAh battery and an insulating sheet, and says no speaker is included; the schematic has the amp and a 2-pin speaker header, so a small 8 Ω 1–2 W speaker is part of the buy list ([docs/build.md](../docs/build.md) section 1).
+The product page's packing list doesn't name a speaker, but its comparison table ticks one, and the reference board arrived with it soldered in (12 October 2026): nothing extra to buy.
 
-Flashing: hold BOOT while connecting USB-C; Waveshare documents flashing and restoring the factory firmware (address `0x00`, Espressif Flash Download Tool). A browser flasher is planned for users.
+Flashing: `esptool` on any system, backup first ([docs/build.md](../docs/build.md) section 5). A browser flasher is planned for users.
+
+### Bench results (reference board, 12 October 2026)
+
+- The board as it shipped matched Waveshare's published factory image (`FactoryOnly-260318`) apart from its 4 KB settings area: that image restores it.
+- Chip: ESP32-S3 (QFN56) revision v0.2, 8 MB embedded PSRAM, 16 MB flash; USB is the chip's own USB-Serial/JTAG (no serial chip).
+- OpenCharm OS stage 1 ran with the power chip's rails left as shipped. Readings on USB, charging: 90–92 %, 4.10 V; the power chip's die settled at about 43 °C and the ESP32-S3's sensor at about 40 °C (chip temperatures, not the room's).
+- Still to measure: stack depth, the battery's size and protection board, battery life and charge time (docs/build.md section 4).
 
 ### Power and battery life
 
@@ -67,8 +74,7 @@ Power banks work, but many switch off below about 50–100 mA, which an idle cha
 
 ### Not confirmed until a board is on the bench
 
-- **Speaker plug type** on P10: Waveshare's sister boards use MX1.25 2-pin; unverified for the 2.16.
-- **XiaoZhi echo cancellation**: the upstream board config turns the hardware echo reference on; whether on-device AEC actually runs needs a build (see [firmware/README.md](../firmware/README.md)).
+- **Echo cancellation**: XiaoZhi v2.5.2's build for this board turns on-device echo cancellation on with the hardware echo reference; it's confirmed by the talk-over-playback test in OpenCharm OS stage 3 (spec 009).
 - Buy the **ESP32-S3** version: an ESP32-C6 board with the same screen exists and can't run the voice pipeline.
 
 What to check when it arrives: [docs/build.md](../docs/build.md) section 4. Write the answers into this file (board facts here, enclosure checks under "Before the first print").
@@ -122,7 +128,7 @@ The outline is the display glass outline offset outward by 1.75 mm, and the corn
 
 ### Features
 
-- **One key** on the right side over the middle button: Ø5.3 cap, 0.8 mm proud, captive flange, printed in a contrast colour. The other two buttons (power, boot) are behind Ø1.6 pinholes, 10 mm above and below, pressed with a SIM tool. Which physical button is GPIO18 must be checked.
+- **One key** on the right side over the middle button: Ø5.3 cap, 0.8 mm proud, captive flange, printed in a contrast colour. The other two buttons (power, boot) are behind Ø1.6 pinholes, 10 mm above and below, pressed with a SIM tool. **Wrong in v0.1:** the middle button is PWR; the key (`+/KEY`, GPIO18) is an end button, so the cap has to move in `gen.py` before printing.
 - **USB-C** on the left: 11.2 × 5.8 mm opening centred 8.6 mm behind the front.
 - **Top**: strap notch at the centre, mic pinhole 10 mm right of centre; the microSD slot is covered.
 - **Bottom**: five speaker slots between two 0.6 mm desk rails (it stands and the speaker breathes), second mic pinhole 8 mm right of centre.
@@ -144,7 +150,7 @@ Assembly: key in from inside → board glass-first into the pocket → battery o
 ### Before the first print
 
 - Stack depth: the inside is 17.4 mm deep behind the lip, and the back cover is a 4.0 mm solid plate. If the board and battery don't fit, thin the plate first, then grow `D`/`T` in `gen.py` (Waveshare's own case is 22.5 mm overall).
-- Which side button is GPIO18 (move the key if it isn't the middle one).
+- Move the key cap from the middle button (PWR) to the `+/KEY` button (GPIO18), checked on the board (12 October 2026).
 - Key stem length (1.2 mm to start).
 - What holds the board from behind (v0.1 relies on the battery and the back plug; add ribs or screws once the PCB is measured).
 - Back cover fit (`FIT` in `gen.py`, printer-dependent).

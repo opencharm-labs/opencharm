@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <cstring>
 
 LV_FONT_DECLARE(charm_eyes_163);
@@ -84,11 +85,7 @@ float ink_shift(const lv_font_t* font, const char* text) {
 
 // Only a real change touches LVGL: every flag or style write schedules a redraw.
 void hide(lv_obj_t* obj, bool hidden) {
-  if (lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN) == hidden) return;
-  if (hidden)
-    lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
-  else
-    lv_obj_remove_flag(obj, LV_OBJ_FLAG_HIDDEN);
+  if (lv_obj_is_hidden(obj) != hidden) lv_obj_set_hidden(obj, hidden);
 }
 
 lv_obj_t* make_label(lv_obj_t* parent, const lv_font_t* font, uint32_t colour) {
@@ -97,7 +94,7 @@ lv_obj_t* make_label(lv_obj_t* parent, const lv_font_t* font, uint32_t colour) {
   lv_obj_set_style_text_color(label, lv_color_hex(colour), 0);
   lv_obj_set_style_transform_pivot_x(label, lv_pct(50), 0);
   lv_obj_set_style_transform_pivot_y(label, lv_pct(50), 0);
-  lv_obj_remove_flag(label, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_set_clickable(label, false);
   lv_label_set_text(label, "");
   return label;
 }
@@ -125,8 +122,9 @@ void LvglView::build() {
   lv_obj_set_style_bg_color(root_, lv_color_black(), 0);
   lv_obj_set_style_bg_opa(root_, LV_OPA_COVER, 0);
   lv_obj_set_style_pad_all(root_, 0, 0);
-  lv_obj_remove_flag(root_, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_scrollable(root_, false);
   lv_obj_add_event_cb(root_, on_screen_click, LV_EVENT_CLICKED, this);
+  lv_obj_add_event_cb(root_, on_screen_touch, LV_EVENT_PRESSED, this);
   lv_obj_add_event_cb(root_, on_screen_touch, LV_EVENT_PRESSING, this);
   lv_obj_add_event_cb(root_, on_screen_touch, LV_EVENT_RELEASED, this);
   lv_obj_add_event_cb(root_, on_screen_touch, LV_EVENT_PRESS_LOST, this);
@@ -144,8 +142,8 @@ void LvglView::build() {
   // captions.
   line_box_ = lv_obj_create(root_);
   lv_obj_remove_style_all(line_box_);
-  lv_obj_remove_flag(line_box_, LV_OBJ_FLAG_SCROLLABLE);
-  lv_obj_remove_flag(line_box_, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_set_scrollable(line_box_, false);
+  lv_obj_set_clickable(line_box_, false);
   lv_obj_set_width(line_box_, int(w_ * (options_.round ? 0.72f : 0.82f)));
   lv_obj_align(line_box_, LV_ALIGN_TOP_MID, 0, int(h_ * 0.50f));
   line_ = make_label(line_box_, &charm_text_35, ink);
@@ -205,11 +203,98 @@ void LvglView::build() {
                           : options_.notch ? kNotchPanelRadius
                                            : int(u_ * 0.108f),
                           0);
-  lv_obj_remove_flag(ring_, LV_OBJ_FLAG_CLICKABLE);
-  lv_obj_remove_flag(ring_, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_clickable(ring_, false);
+  lv_obj_set_scrollable(ring_, false);
   hide(ring_, true);
 
+  build_battery();
+  build_status();
   face_ = find_face("neutral");
+}
+
+// Top centre, small, in the identity colour: an outline with its fill and nub, then the percent.
+void LvglView::build_battery() {
+  const int bw = std::max(24, int(u_ * 0.075f));
+  const int bh = std::max(12, int(u_ * 0.036f));
+  const int line = std::max(2, int(u_ * 0.005f));
+  battery_ = lv_obj_create(root_);
+  lv_obj_remove_style_all(battery_);
+  lv_obj_set_clickable(battery_, false);
+  lv_obj_set_scrollable(battery_, false);
+  lv_obj_set_size(battery_, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+  lv_obj_set_flex_flow(battery_, LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(battery_, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  lv_obj_set_style_pad_column(battery_, line, 0);
+  lv_obj_align(battery_, LV_ALIGN_TOP_MID, 0, int(h_ * (options_.round ? 0.09f : 0.04f)));
+
+  battery_body_ = lv_obj_create(battery_);
+  lv_obj_remove_style_all(battery_body_);
+  lv_obj_set_size(battery_body_, bw, bh);
+  lv_obj_set_style_border_width(battery_body_, line, 0);
+  lv_obj_set_style_border_color(battery_body_, lv_color_hex(glyph_), 0);
+  lv_obj_set_style_border_opa(battery_body_, LV_OPA_COVER, 0);
+  lv_obj_set_style_radius(battery_body_, line * 2, 0);
+  lv_obj_set_style_pad_all(battery_body_, line, 0);
+  lv_obj_set_scrollable(battery_body_, false);
+  battery_fill_ = lv_obj_create(battery_body_);
+  lv_obj_remove_style_all(battery_fill_);
+  lv_obj_set_style_bg_color(battery_fill_, lv_color_hex(glyph_), 0);
+  lv_obj_set_style_bg_opa(battery_fill_, LV_OPA_COVER, 0);
+  lv_obj_set_style_radius(battery_fill_, std::max(1, line / 2), 0);
+  lv_obj_set_height(battery_fill_, lv_pct(100));
+  lv_obj_align(battery_fill_, LV_ALIGN_LEFT_MID, 0, 0);
+  battery_nub_ = lv_obj_create(battery_);
+  lv_obj_remove_style_all(battery_nub_);
+  lv_obj_set_size(battery_nub_, line, bh / 2);
+  lv_obj_set_style_bg_color(battery_nub_, lv_color_hex(glyph_), 0);
+  lv_obj_set_style_bg_opa(battery_nub_, LV_OPA_COVER, 0);
+  battery_text_ = make_label(battery_, &charm_text_24, glyph_);
+  lv_obj_set_style_pad_left(battery_text_, line * 3, 0);
+  hide(battery_, true);
+}
+
+// The read-only status screen: the percent large, the state under it, then one short reading per
+// line, centred; show_status places them.
+void LvglView::build_status() {
+  status_percent_ = make_label(root_, &charm_digits_80, glyph_);
+  for (int i = 0; i < kStatusLines; ++i) {
+    // The state in the larger text; the readings smaller; the build, last, dim.
+    lv_obj_t* label = make_label(root_, i == 0 ? &charm_text_35 : &charm_text_24, glyph_);
+    lv_label_set_long_mode(label, LV_LABEL_LONG_MODE_DOTS);
+    lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
+    if (i == kStatusLines - 1) lv_obj_set_style_text_opa(label, LV_OPA_60, 0);
+    status_lines_[i] = label;
+  }
+  hide(status_percent_, true);
+  for (lv_obj_t* label : status_lines_) hide(label, true);
+}
+
+// Lines that have something to say, one under the other with no gaps for the ones that don't. Each
+// is one line (longer text ends in "…"), as wide as the screen allows at its height: on a round
+// screen, the circle's width there.
+void LvglView::place_status() {
+  int y = int(h_ * (options_.round ? 0.15f : 0.14f));
+  if (!lv_obj_is_hidden(status_percent_)) {
+    lv_obj_align(status_percent_, LV_ALIGN_TOP_MID, 0, y);
+    y += lv_font_get_line_height(&charm_digits_80);
+  }
+  for (int i = 0; i < kStatusLines; ++i) {
+    lv_obj_t* label = status_lines_[i];
+    if (lv_obj_is_hidden(label)) continue;
+    const int line = lv_font_get_line_height(i == 0 ? &charm_text_35 : &charm_text_24);
+    if (i == kStatusLines - 1) y += int(u_ * 0.03f);  // the build sits a little apart
+    int width = int(w_ * 0.88f);
+    if (options_.round) {
+      float r = float(u_) / 2;
+      float dy =
+          std::max(std::fabs(float(y) - float(h_) / 2), std::fabs(float(y + line) - float(h_) / 2));
+      float chord = dy < r ? 2 * std::sqrt(r * r - dy * dy) : 0;
+      width = std::min(width, int(chord - u_ * 0.08f));
+    }
+    lv_obj_set_size(label, std::max(0, width), line);
+    lv_obj_align(label, LV_ALIGN_TOP_MID, 0, y);
+    y += line + int(u_ * (i == 0 ? 0.035f : 0.012f));
+  }
 }
 
 void LvglView::on_pin(void (*callback)(void*, const char*), void* ctx) {
@@ -220,6 +305,11 @@ void LvglView::on_pin(void (*callback)(void*, const char*), void* ctx) {
 void LvglView::on_face_tap(void (*callback)(void*), void* ctx) {
   tap_callback_ = callback;
   tap_ctx_ = ctx;
+}
+
+void LvglView::on_face_hold(void (*callback)(void*), void* ctx) {
+  hold_callback_ = callback;
+  hold_ctx_ = ctx;
 }
 
 uint32_t LvglView::random(uint32_t lo, uint32_t hi) {
@@ -237,6 +327,14 @@ void LvglView::set_mode(Mode mode) {
   bool pin = mode == Mode::Pin;
   bool pairing = mode == Mode::Pairing;
   bool decision = mode == Mode::Decision;
+  bool status = mode == Mode::Status;
+  hide(status_percent_, !status);
+  for (lv_obj_t* label : status_lines_) hide(label, !status);
+  if (status) {
+    hide(battery_, true);
+  } else if (battery_show_ != BatteryShow::Hidden) {
+    set_battery(last_battery_, battery_show_);  // back from the status screen
+  }
   hide(pad_, !pin || options_.notch);  // a notch has no room for a pad: the PIN is typed
   hide(title_, !pin);
   hide(dots_, !pin);
@@ -378,7 +476,7 @@ void LvglView::show_face(std::string_view face_id, std::string_view line) {
 }
 
 void LvglView::speech_start() {
-  if (mode_ == Mode::Decision) set_mode(Mode::Face);
+  if (mode_ == Mode::Decision || mode_ == Mode::Status) set_mode(Mode::Face);
   speaking_ = true;
   layout_target_ = 1;
   set_line("", false);
@@ -513,8 +611,15 @@ void LvglView::on_panel(void (*callback)(void* ctx, bool open, int height), void
 // While a finger is on the screen, the eyes look at it.
 void LvglView::on_screen_touch(lv_event_t* e) {
   auto* self = static_cast<LvglView*>(lv_event_get_user_data(e));
-  if (lv_event_get_code(e) != LV_EVENT_PRESSING) {
+  lv_event_code_t code = lv_event_get_code(e);
+  if (code == LV_EVENT_PRESSED) {
+    self->press_start_ = self->now_ == 0 ? 1 : self->now_;
+    self->hold_fired_ = false;
+    return;
+  }
+  if (code != LV_EVENT_PRESSING) {
     self->touching_ = false;
+    self->press_start_ = 0;
     return;
   }
   lv_point_t point;
@@ -538,16 +643,127 @@ void LvglView::set_look(uint32_t glyph, bool calm) {
   if (glyph == glyph_) return;  // a style write redraws, even with the same colour
   glyph_ = glyph;
   lv_color_t ink = lv_color_hex(glyph);
-  for (lv_obj_t* label : {eye_l_, eye_r_, mouth_, zzz_, line_, code_, hint_, title_, dots_})
+  for (lv_obj_t* label : {eye_l_, eye_r_, mouth_, zzz_, line_, code_, hint_, title_, dots_,
+                          battery_text_, status_percent_})
     lv_obj_set_style_text_color(label, ink, 0);
+  for (lv_obj_t* label : status_lines_) lv_obj_set_style_text_color(label, ink, 0);
+  lv_obj_set_style_border_color(battery_body_, ink, 0);
+  lv_obj_set_style_bg_color(battery_fill_, ink, 0);
+  lv_obj_set_style_bg_color(battery_nub_, ink, 0);
   lv_obj_set_style_text_color(pad_, ink, LV_PART_ITEMS);
   lv_obj_set_style_border_color(pad_, ink, LV_PART_ITEMS);
   lv_obj_set_style_bg_color(pad_, ink, LV_PART_ITEMS | LV_STATE_PRESSED);
 }
 
+void LvglView::set_battery(const Battery& battery, BatteryShow show) {
+  last_battery_ = battery;
+  battery_show_ = show;
+  if (show == BatteryShow::Hidden || mode_ == Mode::Status) {
+    hide(battery_, true);
+    return;
+  }
+  int percent = std::clamp(battery.percent, 0, 100);
+  // The fill never vanishes entirely: an empty outline would read as "no battery".
+  lv_obj_update_layout(battery_body_);
+  int inner = lv_obj_get_content_width(battery_body_);
+  lv_obj_set_width(battery_fill_, std::max(2, inner * percent / 100));
+  if (show == BatteryShow::Low) {
+    lv_label_set_text(battery_text_, "");
+    hide(battery_text_, true);
+  } else {
+    lv_label_set_text_fmt(battery_text_, battery.charging ? "%d%% \u00B7 charging" : "%d%%",
+                          percent);
+    hide(battery_text_, false);
+  }
+  hide(battery_, false);
+}
+
+std::string LvglView::battery_text() const {
+  if (lv_obj_is_hidden(battery_)) return "";
+  if (lv_obj_is_hidden(battery_text_)) return "[low]";
+  return lv_label_get_text(battery_text_);
+}
+
+namespace {
+
+std::string degrees(const char* name, int c) {
+  return std::string(name) + " " +
+         (c == kUnknown ? std::string("\u2014") : std::to_string(c) + "\u00B0C");
+}
+
+}  // namespace
+
+void LvglView::show_status(const Status& s) {
+  // Called about once a second while open: only what changed touches LVGL (a write redraws).
+  if (mode_ != Mode::Status) {
+    boot_phase_ = -1;
+    speaking_ = false;
+    set_line("", false);
+    set_mode(Mode::Status);
+  }
+  const Battery& b = s.battery;
+  bool known = b.percent != kUnknown;
+  bool relayout = known == lv_obj_is_hidden(status_percent_);
+  if (known) {
+    char percent[8];
+    std::snprintf(percent, sizeof percent, "%d%%", std::clamp(b.percent, 0, 100));
+    if (std::strcmp(percent, lv_label_get_text(status_percent_)) != 0)
+      lv_label_set_text(status_percent_, percent);
+  }
+  hide(status_percent_, !known);
+  std::string state = !known       ? "No battery"
+                      : b.charging ? "Charging"
+                      : b.usb      ? (b.percent >= 100 ? "Full, on USB" : "On USB")
+                                   : "On battery";
+  std::string cell;
+  if (s.millivolts != kUnknown) {
+    char volts[16];
+    std::snprintf(volts, sizeof volts, "%d.%02d V", s.millivolts / 1000,
+                  (s.millivolts % 1000) / 10);
+    cell = volts;
+  }
+  if (s.battery_c != kUnknown)
+    cell += (cell.empty() ? "" : " \u00B7 ") + degrees("Battery", s.battery_c);
+  std::string temps = degrees("Board", s.board_c) + " \u00B7 " + degrees("Chip", s.chip_c);
+  std::string wifi = s.wifi.empty() ? "No Wi-Fi"
+                     : s.wifi_rssi != kUnknown
+                         ? "Wi-Fi " + s.wifi + " \u00B7 " + std::to_string(s.wifi_rssi) + " dBm"
+                         : "Wi-Fi " + s.wifi;
+  std::string charmd = s.charmd.empty() ? "No charmd set"
+                       : s.connected    ? "charmd " + s.charmd
+                                        : "charmd " + s.charmd + " \u00B7 offline";
+  // The release identity (it already says what ships it, e.g. "cli@0.2.0") and the core's commit.
+  std::string build = s.build.version.empty() ? s.build.kind : s.build.version;
+  if (!s.build.commit.empty()) build += (build.empty() ? "" : " \u00B7 ") + s.build.commit;
+  const std::string lines[kStatusLines] = {state, cell, temps, wifi, charmd, build};
+  for (int i = 0; i < kStatusLines; ++i) {
+    if (lines[i] != lv_label_get_text(status_lines_[i]))
+      lv_label_set_text(status_lines_[i], lines[i].c_str());
+    if (lines[i].empty() != lv_obj_is_hidden(status_lines_[i])) relayout = true;
+    hide(status_lines_[i], lines[i].empty());
+  }
+  if (relayout || !status_placed_) place_status();
+  status_placed_ = true;
+  apply();
+}
+
+std::string LvglView::status_text() const {
+  if (mode_ != Mode::Status) return "";
+  std::string out;
+  if (!lv_obj_is_hidden(status_percent_)) out += lv_label_get_text(status_percent_);
+  for (lv_obj_t* label : status_lines_)
+    if (!lv_obj_is_hidden(label)) out += std::string("\n") + lv_label_get_text(label);
+  return out;
+}
+
 void LvglView::on_screen_click(lv_event_t* e) {
   auto* self = static_cast<LvglView*>(lv_event_get_user_data(e));
-  if (self->mode_ == Mode::Face && self->tap_callback_) self->tap_callback_(self->tap_ctx_);
+  if (self->hold_fired_) {
+    self->hold_fired_ = false;  // the release of a hold isn't a tap
+    return;
+  }
+  bool tappable = self->mode_ == Mode::Face || self->mode_ == Mode::Status;
+  if (tappable && self->tap_callback_) self->tap_callback_(self->tap_ctx_);
 }
 
 void LvglView::tick(uint32_t now) {
@@ -559,6 +775,12 @@ void LvglView::tick(uint32_t now) {
     next_glance_ = now + random(1100, 3300);
   }
   now_ = now;
+  if (press_start_ != 0 && !hold_fired_ && mode_ == Mode::Face && !options_.notch &&
+      now - press_start_ >= kHoldMs) {
+    hold_fired_ = true;
+    press_start_ = 0;
+    if (hold_callback_) hold_callback_(hold_ctx_);
+  }
   float dt = float(std::min<uint32_t>(64, now - last_tick_));
   last_tick_ = now;
 
@@ -685,7 +907,7 @@ void LvglView::place_zzz(int x, int y, float phase) {
 }
 
 void LvglView::apply() {
-  bool face_visible = mode_ != Mode::Pin || options_.notch;
+  bool face_visible = (mode_ != Mode::Pin || options_.notch) && mode_ != Mode::Status;
   hide(eye_l_, !face_visible);
   hide(eye_r_, !face_visible);
   if (!face_visible) {

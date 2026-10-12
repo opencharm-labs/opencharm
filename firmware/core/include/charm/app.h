@@ -21,6 +21,10 @@ struct AppOptions {
   uint32_t pleased_ms = 1200;        // a happy moment after speaking
   uint32_t sleep_after_ms = 240000;  // nothing for this long = asleep
   uint32_t seed = 1;                 // reactions vary; tests fix the order
+  uint32_t battery_ms = 3000;        // the battery level shows this long on wake and a key press
+  uint32_t status_ms = 10000;        // the status screen closes after this long without touch
+  int battery_low = 15;              // below this percent a marker stays on the face
+  uint32_t setup_hold_ms = 5000;     // the key held this long while not connected: Wi-Fi setup
   Build build;                       // what this charm runs, sent in hello (spec 015)
 };
 
@@ -34,6 +38,9 @@ class App {
 
   void on_connected(uint32_t now);
   void on_disconnected(uint32_t now);
+  // Not connected, and why, on the connecting screen: "Join Wi-Fi OpenCharm-7F3A" at Wi-Fi setup,
+  // "No Wi-Fi" (spec 009). Like a dropped connection, it ends a talk, speech and a question.
+  void on_offline(std::string_view line, uint32_t now);
   void on_text(std::string_view json, uint32_t now);
   void on_audio(const uint8_t* data, size_t size);
   void on_mic_frame(const uint8_t* data, size_t size);
@@ -46,6 +53,12 @@ class App {
   Typed on_typed(std::string_view text, uint32_t now);
   // How loud the voice is right now (0..1), from the platform's microphone; used while talking.
   void on_mic_level(float level);
+  // What the platform reads about itself (battery, temperatures, Wi-Fi, charmd), about once a
+  // second. Drives the battery indicator and the status screen (spec 009).
+  void on_status(const Status& status, uint32_t now);
+  // A finger held on the face (1 s): opens the status screen.
+  void on_touch_hold(uint32_t now);
+  bool status_open() const { return status_open_; }
 
   // The platform connects with "Authorization: Bearer <token>" when this is not empty.
   std::string token() const;
@@ -77,6 +90,10 @@ class App {
   void show_current();
   bool wake(uint32_t now);
   uint32_t next_random();
+  void show_battery_for_a_moment(uint32_t now) { battery_until_ = now + options_.battery_ms; }
+  void update_battery(uint32_t now);
+  void close_status();
+  void report_battery();
 
   Hal& hal_;
   View& view_;
@@ -111,7 +128,8 @@ class App {
   bool calm_ = false;
   // A question from charmd (decision layout): hold = yes, press = no.
   bool asking_ = false;
-  bool can_type_ = false;  // charmd's hello said it accepts typed text
+  bool can_type_ = false;     // charmd's hello said it accepts typed text
+  bool can_battery_ = false;  // charmd's hello said it accepts the battery
   std::string ask_id_;
   std::string ask_text_;
   std::string ask_yes_;
@@ -119,6 +137,16 @@ class App {
   bool key_answered_ = false;  // this key hold already answered; its release does nothing
   std::string speech_line_;    // to bring the speech layout back after a question
   std::string connecting_line_;
+  // Battery and status (spec 009).
+  Status status_;
+  uint32_t battery_until_ = 0;
+  Battery battery_shown_;
+  BatteryShow battery_show_ = BatteryShow::Hidden;
+  bool status_open_ = false;
+  uint32_t status_until_ = 0;
+  uint32_t setup_key_at_ = 0;  // the key went down on the connecting screen (0 = it isn't down)
+  Battery battery_reported_;   // what charmd last heard on this connection
+  bool battery_reported_known_ = false;
   std::string pair_code_;
   int pin_tries_ = -1;
   bool pin_wrong_ = false;

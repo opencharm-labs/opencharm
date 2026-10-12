@@ -52,6 +52,7 @@ const trace = {
   micReady: false, // the microphone is open right now (only while the key is held)
   micOpens: 0, // how many times it was opened
   micLatencyMs: null, // key-down to the first mic frame the core took, last hold (includes a 60 ms frame)
+  statusOpen: false, // the status screen is up (spec 009)
 };
 window.__charm = trace;
 
@@ -204,6 +205,7 @@ async function connect() {
     trace.connected = true;
     statusEl.textContent = "CONNECTED";
     M._sim_connected();
+    sendStatus();
   };
   ws.onmessage = (event) => {
     if (typeof event.data === "string") {
@@ -224,6 +226,7 @@ async function connect() {
     trace.connected = false;
     statusEl.textContent = wifiOn ? "RECONNECTING" : "WI-FI OFF";
     M._sim_disconnected();
+    sendStatus();
     setTimeout(connect, 1500);
   };
 }
@@ -414,6 +417,50 @@ document.getElementById("forget").addEventListener("click", () => {
   ws?.close();
 });
 
+// The battery and status screen (spec 009): the board reads its own once a second; here the side
+// panel stands in for it. The desktop charm (notch) has no battery, so it sends none.
+const batteryEl = document.getElementById("battery");
+const batteryValueEl = document.getElementById("battery-value");
+const usbEl = document.getElementById("usb");
+let usb = false;
+function charmdHost() {
+  try {
+    return new URL(ws?.url || baseUrl).host;
+  } catch {
+    return "";
+  }
+}
+// Sent only when something changed: at rest the emulator (and the desktop charm, which runs this
+// page) must stay at its slow tick.
+let lastStatus = "";
+function sendStatus() {
+  const percent = notch ? -1 : Number(batteryEl.value);
+  const host = charmdHost();
+  const now = [percent, usb, wifiOn, host, trace.connected].join("|");
+  if (now === lastStatus) return;
+  lastStatus = now;
+  withString(host, (ptr) =>
+    M._sim_status(
+      percent,
+      usb ? 1 : 0,
+      wifiOn ? 1 : 0,
+      ptr,
+      trace.connected ? 1 : 0
+    )
+  );
+  wake(400);
+}
+batteryEl.addEventListener("input", () => {
+  batteryValueEl.textContent = `${batteryEl.value}%`;
+  sendStatus();
+});
+usbEl.addEventListener("click", () => {
+  usb = !usb;
+  usbEl.classList.toggle("on", usb);
+  usbEl.textContent = usb ? "On USB" : "Plug in USB";
+  sendStatus();
+});
+
 // The charm is always on screen, so it must cost next to nothing at rest. The core only redraws what
 // moved; this loop copies only that box, ticks at 60 Hz while something animates and at 10 Hz at
 // rest (a breath step or a blink now and then), and wakes at once for input or a message.
@@ -442,6 +489,7 @@ function loop() {
   const now = performance.now();
   M._sim_tick(Math.floor(now));
   const drew = M._sim_frame_dirty() === 1;
+  trace.statusOpen = M._sim_status_open() === 1;
   if (drew) blit();
   // Two frames in a row means an animation is running: keep up with it.
   const animating = drew && drewLast;

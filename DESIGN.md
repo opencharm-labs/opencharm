@@ -296,7 +296,7 @@ None. Depth is drawn, not lit: 1.5px ink outlines, dashed rules and hatching sep
 - **Chip:** a 1px ink outline with mono 10px text; the solid variant marks the current item.
 - **Card (box):** white with a 1.5px ink border, square corners; the solid variant is ink with white text.
 - **Code block:** night ground, onNight Geist Mono 12.5px, 14px corners inside a 1.5px ink frame, a mono title bar and a blinking block caret.
-- **The charm:** the device drawn from the front: shell in the identity colour, true black screen, glyph face centred. Three screen layouts: face (eyes and optional mouth), speech (eyes shrink up, one line types out) and decision (speech plus an orange ring and a hint line such as `HOLD · SEND    PRESS · NO`). The ring is the only orange on the screen.
+- **The charm:** the device drawn from the front: shell in the identity colour, true black screen, glyph face centred. Three screen layouts: face (eyes and optional mouth), speech (eyes shrink up, one line types out) and decision (speech plus an orange ring and a hint line such as `HOLD · SEND    PRESS · NO`). The ring is the only orange on the screen. Two read-outs sit outside the layouts (spec 009): the **battery indicator**, small at the top centre in the identity colour (an outline with its fill and the percent, `62% · charging` on USB; hidden at rest, shown for 3 s on wake or a press, a lone outline when below 15 %), and the **status screen**, opened by touching and holding the face: the percent in Geist Mono 80 px, the state at 35 px, then one short reading per line at 24 px, the build line dimmed, centred and inside the circle on round screens. Neither is ever orange.
 
 ## Do's and Don'ts
 

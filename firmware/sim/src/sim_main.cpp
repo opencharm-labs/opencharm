@@ -120,6 +120,7 @@ EMSCRIPTEN_KEEPALIVE uint8_t* sim_init(int width, int height, int round, uint32_
   sim.app = std::make_unique<charm::App>(*sim.platform, *sim.view, app_options);
   sim.view->on_pin([](void*, const char* pin) { sim.app->on_pin_entered(pin, sim.now); }, nullptr);
   sim.view->on_face_tap([](void*) { sim.app->on_touch_face(sim.now); }, nullptr);
+  sim.view->on_face_hold([](void*) { sim.app->on_touch_hold(sim.now); }, nullptr);
   sim.view->on_panel([](void*, bool open, int height) { js_panel(open ? 1 : 0, height); },
                      nullptr);
   sim.app->start(0);
@@ -191,5 +192,21 @@ EMSCRIPTEN_KEEPALIVE const char* sim_token() {
 }
 
 EMSCRIPTEN_KEEPALIVE void sim_forget() { sim.platform->store_erase("token"); }
+
+// What the status screen and the battery indicator know (spec 009), from the side panel: the
+// battery it's set to (percent < 0: none, as on the desktop charm), Wi-Fi on or off, charmd's
+// host and whether it's connected. No temperatures or voltage: the emulator has none to read.
+// For tests and the trace: whether the status screen is up.
+EMSCRIPTEN_KEEPALIVE int sim_status_open() { return sim.app->status_open() ? 1 : 0; }
+
+EMSCRIPTEN_KEEPALIVE void sim_status(int percent, int usb, int wifi, const char* charmd,
+                                     int connected) {
+  charm::Status status;
+  if (percent >= 0) status.battery = {percent, usb != 0 && percent < 100, usb != 0};
+  if (wifi) status.wifi = "Emulator";
+  status.charmd = charmd;
+  status.connected = connected != 0;
+  sim.app->on_status(status, sim.now);
+}
 
 }  // extern "C"

@@ -566,9 +566,41 @@ describe("typed text over a real socket (spec 013)", () => {
     charm.send({ type: "charm", op: "unlock", pin: "482913" });
     await charm.next(isOp("unlocked"));
     expect(charm.received.find((m) => m.type === "hello")).not.toHaveProperty(
-      "features"
+      "features.text"
     );
     charm.send({ type: "charm", op: "text", text: "hello?" });
     await expect(charm.next((m) => m.type === "tts", 1500)).rejects.toThrow();
+  });
+});
+
+describe("the charm's battery (spec 009)", () => {
+  it("is offered in every hello, kept once unlocked, and shown in status", async () => {
+    const { daemon: d } = await start();
+    const charm = await connectFakeCharm(d.url, undefined, {
+      build: { kind: "board", version: "firmware@0.0.0", commit: "abc1234" },
+    });
+    const code = await charm.next(isOp("pair_code"));
+    const hello = charm.received.find((m) => m.type === "hello");
+    expect(hello).toMatchObject({ features: { battery: true } });
+    if (code.type !== "charm" || code.op !== "pair_code")
+      throw new Error("no code");
+    await d.admin.pair({ code: code.code, pin: "482913", name: "board" });
+    await charm.next(isOp("locked"));
+    charm.send({ type: "charm", op: "unlock", pin: "482913" });
+    await charm.next(isOp("unlocked"));
+    charm.send({
+      type: "charm",
+      op: "battery",
+      percent: 62,
+      charging: true,
+      usb: true,
+    });
+    await expect
+      .poll(() => d.admin.status().charms[0]?.battery)
+      .toEqual({ percent: 62, charging: true, usb: true });
+    // Locked from the computer: the charm stops reporting, so status shows no frozen reading.
+    await d.admin.lock({ charm: "board" });
+    await charm.next((m) => m.type === "charm" && m.op === "locked");
+    expect(d.admin.status().charms[0]?.battery).toBeUndefined();
   });
 });

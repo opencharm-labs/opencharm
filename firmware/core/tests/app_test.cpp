@@ -1,5 +1,6 @@
 #include "charm/app.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <map>
 #include <string>
@@ -35,6 +36,7 @@ struct FakeHal : charm::Hal {
   void store_set(const std::string& k, const std::string& v) override { store[k] = v; }
   void store_erase(const std::string& k) override { store.erase(k); }
   void reconnect() override { events.push_back("reconnect"); }
+  void open_setup() override { events.push_back("open_setup"); }
   bool sent_contains(const std::string& part) const {
     for (const auto& s : sent)
       if (s.find(part) != std::string::npos) return true;
@@ -73,6 +75,22 @@ struct FakeView : charm::View {
     calls.push_back("decision " + std::string(t) + " | " + std::string(yes) + " / " +
                     std::string(no));
   }
+  void set_battery(const charm::Battery& b, charm::BatteryShow show) override {
+    const char* how = show == charm::BatteryShow::Level ? "level"
+                      : show == charm::BatteryShow::Low ? "low"
+                                                        : "hidden";
+    battery = std::string("battery ") + how;
+    if (show != charm::BatteryShow::Hidden)
+      battery +=
+          " " + std::to_string(b.percent) + (b.charging ? " charging" : "") + (b.usb ? " usb" : "");
+    calls.push_back(battery);
+  }
+  std::string battery = "battery hidden";
+  void show_status(const charm::Status& s) override {
+    status = s;
+    calls.push_back("status " + std::to_string(s.battery.percent));
+  }
+  charm::Status status;
   bool saw(const std::string& call) const {
     for (const auto& c : calls)
       if (c == call) return true;
@@ -80,6 +98,15 @@ struct FakeView : charm::View {
   }
   void tick(uint32_t) override {}
 };
+
+charm::Status battery_at(int percent, bool charging = false, bool usb = false) {
+  charm::Status s;
+  s.battery = {percent, charging, usb};
+  s.millivolts = 3900;
+  s.board_c = 34;
+  s.chip_c = 41;
+  return s;
+}
 
 struct Rig {
   FakeHal hal;
@@ -765,4 +792,339 @@ TEST_CASE("typed text that charmd would refuse is never sent, and a new connecti
   r.app.on_disconnected(r.now);
   r.unlocked();  // this charmd's hello doesn't offer typing
   CHECK(r.app.on_typed("hi", r.now) == charm::App::Typed::Unsupported);
+}
+
+// Battery and status screen (spec 009).
+
+TEST_CASE("the battery stays hidden at rest and where there is no battery") {
+  Rig r;
+  r.unlocked();
+  r.at(5000);
+  CHECK(r.view.battery == "battery hidden");
+  r.app.on_status(battery_at(80), r.now);
+  r.at(5100);
+  CHECK(r.view.battery == "battery hidden");
+  r.app.on_status(charm::Status{}, r.now);  // the desktop charm: no battery at all
+  r.app.on_key(true, r.now);
+  r.app.on_key(false, r.now + 50);
+  CHECK(r.view.battery == "battery hidden");
+}
+
+TEST_CASE("a key press shows the battery level for three seconds") {
+  Rig r;
+  r.unlocked();
+  r.at(5000);
+  r.app.on_status(battery_at(80), r.now);
+  r.app.on_key(true, r.now);
+  CHECK(r.view.battery == "battery level 80");
+  r.at(5050);
+  r.app.on_key(false, r.now);
+  r.at(7900);
+  CHECK(r.view.battery == "battery level 80");
+  r.at(8100);
+  CHECK(r.view.battery == "battery hidden");
+}
+
+TEST_CASE("waking from sleep or dim shows the battery level") {
+  Rig r;
+  r.unlocked();
+  r.app.on_status(battery_at(55), r.now);
+  r.at(300000);  // asleep and dimmed
+  CHECK(r.app.asleep());
+  CHECK(r.view.battery == "battery hidden");
+  r.app.on_touch_face(r.now);
+  r.at(300016);
+  CHECK(r.view.battery == "battery level 55");
+}
+
+TEST_CASE("on USB the level stays, charging or full") {
+  Rig r;
+  r.unlocked();
+  r.at(5000);
+  r.app.on_status(battery_at(62, true, true), r.now);
+  r.at(20000);
+  CHECK(r.view.battery == "battery level 62 charging usb");
+  r.app.on_status(battery_at(100, false, true), r.now);
+  CHECK(r.view.battery == "battery level 100 usb");
+  r.app.on_status(battery_at(100), r.now);  // unplugged
+  CHECK(r.view.battery == "battery hidden");
+}
+
+TEST_CASE("below the low mark a marker stays, and the level shows over it on a press") {
+  Rig r;
+  r.unlocked();
+  r.at(5000);
+  r.app.on_status(battery_at(14), r.now);
+  CHECK(r.view.battery == "battery low 14");
+  r.app.on_key(true, r.now);
+  CHECK(r.view.battery == "battery level 14");
+  r.app.on_key(false, r.now + 50);
+  r.at(9000);
+  CHECK(r.view.battery == "battery low 14");
+  r.app.on_status(battery_at(15), r.now);
+  CHECK(r.view.battery == "battery hidden");
+}
+
+TEST_CASE("the battery shows only on the face") {
+  Rig r;
+  r.app.start(0);
+  r.at(1300);
+  r.app.on_status(battery_at(10), r.now);
+  CHECK(r.view.battery == "battery hidden");  // connecting
+  r.unlocked();
+  r.app.on_status(battery_at(10), r.now);
+  CHECK(r.view.battery == "battery low 10");
+  r.server(R"({"type":"charm","op":"locked","reason":"boot"})");
+  CHECK(r.view.battery == "battery hidden");
+}
+
+TEST_CASE("touch and hold opens the status screen with the latest readings and the build") {
+  charm::AppOptions options;
+  options.build = {"board", "firmware@0.0.0", "abc1234"};
+  FakeHal hal;
+  FakeView view;
+  charm::App app(hal, view, options);
+  app.start(0);
+  app.tick(1300);
+  app.on_connected(1300);
+  app.on_text(R"({"type":"charm","op":"unlocked"})", 1300);
+  app.on_status(battery_at(87, true, true), 2000);
+  app.on_touch_hold(2100);
+  CHECK(app.status_open());
+  CHECK(view.last() == "status 87");
+  CHECK(view.status.millivolts == 3900);
+  CHECK(view.status.build.commit == "abc1234");
+  CHECK(view.battery == "battery hidden");  // the status screen shows it in large type
+  app.on_status(battery_at(88, true, true), 3000);
+  CHECK(view.last() == "status 88");  // live while open
+}
+
+TEST_CASE("the status screen closes on a press, a tap or after ten seconds") {
+  Rig r;
+  r.unlocked();
+  r.at(5000);
+  r.app.on_touch_hold(r.now);
+  CHECK(r.app.status_open());
+  r.app.on_touch_face(r.now + 100);
+  CHECK_FALSE(r.app.status_open());
+  CHECK(r.view.last().rfind("face ", 0) == 0);
+
+  r.at(6000);
+  r.app.on_touch_hold(r.now);
+  r.at(15900);
+  CHECK(r.app.status_open());
+  r.at(16100);
+  CHECK_FALSE(r.app.status_open());
+
+  r.at(20000);
+  r.app.on_touch_hold(r.now);
+  r.hal.events.clear();
+  r.app.on_key(true, r.now);
+  CHECK_FALSE(r.app.status_open());
+  r.at(20500);  // held past the talk threshold: still not a talk, the press only closed it
+  r.app.on_key(false, r.now);
+  CHECK_FALSE(r.app.talking());
+  CHECK(r.hal.events.empty());  // no mic, nothing sent
+  CHECK_FALSE(r.hal.sent_contains(R"("state":"start")"));
+}
+
+TEST_CASE("the status screen doesn't open over a talk, speech, a question or another screen") {
+  Rig r;
+  r.app.start(0);
+  r.at(1300);
+  r.app.on_touch_hold(r.now);
+  CHECK_FALSE(r.app.status_open());  // connecting
+  r.unlocked();
+  r.server(R"({"type":"tts","state":"start","session_id":"s1"})");
+  r.app.on_touch_hold(r.now);
+  CHECK_FALSE(r.app.status_open());
+  r.server(R"({"type":"tts","state":"stop","session_id":"s1"})");
+  r.server(kAskEarly);
+  r.app.on_touch_hold(r.now);
+  CHECK_FALSE(r.app.status_open());
+}
+
+TEST_CASE("a question or speech takes over from the status screen; a face change waits") {
+  Rig r;
+  r.unlocked();
+  r.at(5000);
+  r.app.on_touch_hold(r.now);
+  r.server(R"({"type":"charm","op":"face","state":"thinking"})");
+  CHECK(r.app.status_open());
+  CHECK(r.view.last().rfind("status", 0) == 0);
+  r.app.on_touch_face(r.now);
+  CHECK(r.view.last() == "face thinking");
+
+  r.app.on_touch_hold(r.now);
+  r.server(kAskEarly);
+  CHECK_FALSE(r.app.status_open());
+  CHECK(r.view.last() == "decision Allow? | ALLOW / NO");
+
+  r.server(R"({"type":"charm","op":"ask_end","id":"q0"})");
+  r.app.on_touch_hold(r.now);
+  r.server(R"({"type":"tts","state":"start","session_id":"s1"})");
+  CHECK_FALSE(r.app.status_open());
+  CHECK(r.view.last() == "speech_start");
+}
+
+TEST_CASE("'needs you' closes the status screen, so the orange ring comes with its face") {
+  Rig r;
+  r.unlocked();
+  r.at(5000);
+  r.app.on_touch_hold(r.now);
+  r.server(R"({"type":"charm","op":"face","state":"needs_you","text":"Approve the deploy?"})");
+  CHECK_FALSE(r.app.status_open());
+  CHECK(r.view.last() == "face ask | Approve the deploy?");
+}
+
+TEST_CASE("charmd waking a dimmed charm doesn't show the battery: only a person does") {
+  Rig r;
+  r.unlocked();
+  r.app.on_status(battery_at(80), r.now);
+  r.at(70000);  // dimmed
+  CHECK(r.app.dimmed());
+  r.server(R"({"type":"tts","state":"start","session_id":"s1"})");
+  r.at(70100);
+  CHECK(r.view.battery == "battery hidden");
+  r.server(R"({"type":"tts","state":"stop","session_id":"s1"})");
+  r.at(140000);  // dimmed again
+  r.app.on_touch_face(r.now);
+  r.at(140016);
+  CHECK(r.view.battery == "battery level 80");
+}
+
+TEST_CASE("offline lines: Wi-Fi setup and no Wi-Fi show on the connecting screen and end a talk") {
+  Rig r;
+  r.unlocked();
+  r.hold(5000, 5600);
+  r.app.on_key(true, r.now);
+  r.at(r.now + 300);
+  CHECK(r.app.talking());
+  r.app.on_offline("No Wi-Fi", r.now);
+  CHECK_FALSE(r.app.talking());
+  CHECK(r.app.screen() == charm::Screen::Connecting);
+  CHECK(r.view.last() == "connecting No Wi-Fi");
+  r.app.on_offline("Join Wi-Fi OpenCharm-7F3A", r.now);
+  CHECK(r.view.last() == "connecting Join Wi-Fi OpenCharm-7F3A");
+}
+
+TEST_CASE("an offline line during boot waits for the boot face to finish") {
+  Rig r;
+  r.app.start(0);
+  r.app.on_offline("Join Wi-Fi OpenCharm-7F3A", 100);
+  CHECK(r.view.last() == "boot");
+  r.at(1300);
+  CHECK(r.view.last() == "connecting Join Wi-Fi OpenCharm-7F3A");
+}
+
+TEST_CASE("holding the key 5 s while not connected opens Wi-Fi setup; a shorter hold doesn't") {
+  Rig r;
+  r.app.start(0);
+  r.at(1300);
+  r.app.on_offline("Can't reach charmd", r.now);
+  r.app.on_key(true, r.now);
+  r.at(r.now + 4900);
+  r.app.on_key(false, r.now);
+  r.at(r.now + 1000);
+  CHECK(r.hal.events.empty());
+  r.app.on_key(true, r.now);
+  r.at(r.now + 5000);
+  CHECK(r.hal.events == std::vector<std::string>{"open_setup"});
+  r.at(r.now + 6000);  // once per hold
+  CHECK(r.hal.events.size() == 1);
+  r.app.on_key(false, r.now);
+}
+
+TEST_CASE(
+    "on the face a long hold is a talk, never Wi-Fi setup; leaving the screen forgets the hold") {
+  Rig r;
+  r.unlocked();
+  r.app.on_key(true, r.now);
+  r.at(r.now + 6000);
+  CHECK(r.app.talking());
+  CHECK(std::count(r.hal.events.begin(), r.hal.events.end(), "open_setup") == 0);
+  r.app.on_key(false, r.now);
+
+  Rig s;
+  s.app.start(0);
+  s.at(1300);
+  s.app.on_key(true, s.now);
+  s.at(s.now + 1000);
+  s.server(R"({"type":"charm","op":"pair_code","code":"482913","expires_in":300})");
+  s.at(s.now + 6000);
+  CHECK(s.hal.events.empty());
+}
+
+const char* kHelloBattery =
+    R"({"type":"hello","transport":"websocket","session_id":"s1","audio_params":{"format":"opus","sample_rate":24000,"channels":1,"frame_duration":60},"features":{"battery":true}})";
+
+TEST_CASE("the battery goes to charmd once unlocked and on each change, never before") {
+  Rig r;
+  r.app.start(0);
+  r.at(1300);
+  r.app.on_connected(r.now);
+  r.server(kHelloBattery);
+  r.app.on_status(battery_at(80), r.now);
+  CHECK_FALSE(r.hal.sent_contains(R"("op":"battery")"));  // locked: charmd would answer "locked"
+  r.server(R"({"type":"charm","op":"locked","reason":"boot","tries_left":5})");
+  r.app.on_pin_entered("4829", r.now);
+  r.server(R"({"type":"charm","op":"unlocked"})");
+  CHECK(r.hal.sent.back() ==
+        R"({"type":"charm","op":"battery","percent":80,"charging":false,"usb":false})");
+  size_t sent = r.hal.sent.size();
+  r.app.on_status(battery_at(80), r.now + 1000);  // unchanged: nothing
+  CHECK(r.hal.sent.size() == sent);
+  r.app.on_status(battery_at(79, false, false), r.now + 2000);
+  CHECK(r.hal.sent.back().find(R"("percent":79)") != std::string::npos);
+  r.app.on_status(battery_at(79, true, true), r.now + 3000);
+  CHECK(r.hal.sent.back().find(R"("charging":true,"usb":true)") != std::string::npos);
+}
+
+TEST_CASE("a charm without a battery never sends one; a new connection sends it again") {
+  Rig r;
+  r.unlocked();
+  r.app.on_status(charm::Status{}, r.now);
+  CHECK_FALSE(r.hal.sent_contains(R"("op":"battery")"));
+
+  Rig b;
+  b.app.start(0);
+  b.at(1300);
+  b.app.on_connected(b.now);
+  b.server(kHelloBattery);
+  b.server(R"({"type":"charm","op":"unlocked"})");
+  b.app.on_status(battery_at(50), b.now);
+  CHECK(b.hal.sent_contains(R"("percent":50)"));
+  b.app.on_disconnected(b.now);
+  b.hal.sent.clear();
+  b.app.on_connected(b.now);
+  b.server(kHelloBattery);
+  b.server(R"({"type":"charm","op":"unlocked"})");
+  CHECK(b.hal.sent_contains(R"("percent":50)"));
+}
+
+TEST_CASE("after a charmd that took the battery, one that doesn't offer it never gets it") {
+  Rig r;
+  r.app.start(0);
+  r.at(1300);
+  r.app.on_connected(r.now);
+  r.server(kHelloBattery);
+  r.server(R"({"type":"charm","op":"unlocked"})");
+  r.app.on_status(battery_at(50), r.now);
+  CHECK(r.hal.sent_contains(R"("percent":50)"));
+  r.app.on_disconnected(r.now);
+  r.hal.sent.clear();
+  r.app.on_connected(r.now);
+  r.server(
+      R"({"type":"hello","transport":"websocket","session_id":"s2","audio_params":{"format":"opus","sample_rate":24000,"channels":1,"frame_duration":60}})");
+  r.server(R"({"type":"charm","op":"unlocked"})");
+  r.app.on_status(battery_at(49), r.now + 1000);
+  CHECK_FALSE(r.hal.sent_contains(R"("op":"battery")"));
+}
+
+TEST_CASE("an older charmd that doesn't offer it never gets the battery") {
+  Rig r;
+  r.unlocked();  // its hello has no features
+  r.app.on_status(battery_at(50), r.now);
+  r.app.on_status(battery_at(40), r.now + 1000);
+  CHECK_FALSE(r.hal.sent_contains(R"("op":"battery")"));
 }

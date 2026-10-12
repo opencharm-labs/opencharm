@@ -134,6 +134,8 @@ TEST_CASE("client messages match the shared fixtures") {
     if (f.name == "client-listen-start") CHECK(same_json(charm::client_listen(true, "s1"), f.raw));
     if (f.name == "client-listen-stop") CHECK(same_json(charm::client_listen(false, "s1"), f.raw));
     if (f.name == "client-abort") CHECK(same_json(charm::client_abort("s1", "key_pressed"), f.raw));
+    if (f.name == "client-charm-battery")
+      CHECK(same_json(charm::client_battery(62, true, true), f.raw));
     if (f.name == "client-charm-unlock") CHECK(same_json(charm::client_unlock("482913"), f.raw));
     if (f.name == "client-charm-answer-yes")
       CHECK(same_json(charm::client_answer("q1", true), f.raw));
@@ -206,4 +208,36 @@ TEST_CASE("a look outside the limits is refused") {
 
 TEST_CASE("the core knows the commit it was built from") {
   CHECK(!std::string(charm::kBuildCommit).empty());
+}
+
+TEST_CASE("the charmd address typed at Wi-Fi setup becomes the charm's WebSocket address") {
+  // https or no scheme: TLS; http: plain (a computer on the same network); only the host counts.
+  CHECK(charm::charm_url("charm.example.com") == "wss://charm.example.com/charm");
+  CHECK(charm::charm_url("https://charm.example.com") == "wss://charm.example.com/charm");
+  CHECK(charm::charm_url("  HTTPS://Charm.Example.com/  ") == "wss://Charm.Example.com/charm");
+  CHECK(charm::charm_url("http://192.168.1.20:8787") == "ws://192.168.1.20:8787/charm");
+  CHECK(charm::charm_url("http://192.168.1.20:8787/ota/") == "ws://192.168.1.20:8787/charm");
+  CHECK(charm::charm_url("ws://studio.local:8787/charm") == "ws://studio.local:8787/charm");
+  CHECK(charm::charm_url("wss://charm.example.com/charm?x=1") == "wss://charm.example.com/charm");
+  CHECK(charm::charm_url("http://[fd00::5]:8787") == "ws://[fd00::5]:8787/charm");
+}
+
+TEST_CASE("an address the charm can't use is refused, never guessed at") {
+  for (const char* bad :
+       {"", "   ", "https://", "ftp://charm.example.com", "http://a b.example.com",
+        "https://user:pass@charm.example.com", "https://charm.example.com:port",
+        "https://charm.example.com:99999", "https://:8787", "https://ex\nample.com"})
+    CHECK_MESSAGE(charm::charm_url(bad).empty(), bad);
+}
+
+TEST_CASE("charmd's hello says whether it takes the battery") {
+  charm::ServerMessage m;
+  CHECK(charm::parse_server_message(
+      R"({"type":"hello","transport":"websocket","session_id":"s1","audio_params":{"format":"opus","sample_rate":24000,"channels":1,"frame_duration":60},"features":{"battery":true}})",
+      m));
+  CHECK(m.accepts_battery);
+  CHECK(charm::parse_server_message(
+      R"({"type":"hello","transport":"websocket","session_id":"s1","audio_params":{"format":"opus","sample_rate":24000,"channels":1,"frame_duration":60}})",
+      m));
+  CHECK_FALSE(m.accepts_battery);
 }

@@ -16,7 +16,7 @@ npm run cli -- sim              # opens http://127.0.0.1:5174 (--url <charmd ws 
 npm run cli -- pair <code>      # the code on the emulator's screen; then type the PIN on the canvas
 ```
 
-Hold **Space** (or the key on the right) to talk; a short press stops speech; click the face to tap it. Side panel: drop Wi-Fi, square/round, forget pairing.
+Hold **Space** (or the key on the right) to talk; a short press stops speech; click the face to tap it. Touch and hold the face (mouse down 1 s) for the status screen. Side panel: battery slider and USB switch (spec 009; the notch shape sends no battery), drop Wi-Fi, square/round, forget pairing. `__charm.statusOpen` says whether the status screen is up.
 
 ## How it fits
 

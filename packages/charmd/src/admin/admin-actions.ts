@@ -5,7 +5,10 @@ import type { PairingRegistry } from "../auth/pairing";
 import type { Session } from "../device/session";
 import { type CharmLook, type Look, lookFields } from "../look";
 import type { StateStore } from "../store/state-store";
-import type { CharmBuild } from "@opencharm-labs/protocol/messages";
+import type {
+  CharmBattery,
+  CharmBuild,
+} from "@opencharm-labs/protocol/messages";
 
 type CharmStatus = {
   id: string;
@@ -15,6 +18,7 @@ type CharmStatus = {
   connected: boolean;
   state: string;
   build: CharmBuild | undefined;
+  battery: CharmBattery | undefined;
 };
 type AdminActions = {
   pair: (input: unknown) => Promise<{ id: string; name: string }>;
@@ -257,6 +261,7 @@ function createAdminActions({
             connected: live !== undefined,
             state: live?.state ?? "offline",
             build: live?.build,
+            battery: live?.battery,
           };
         }),
       };

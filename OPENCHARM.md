@@ -6,21 +6,21 @@ Licence of this document: CC BY-SA 4.0 (see README). Prices and specs were check
 
 ## 1. Status
 
-| Area                                             | State                                                                                                                            |
-| ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
-| Product definition, UX, face system              | Decided (this file)                                                                                                              |
-| Face engine, browser reference                   | Done: `packages/design/src/charm-face.js`                                                                                        |
-| Landing page                                     | Live at opencharm.dev: `apps/web` (spec 008), on Vercel                                                                          |
-| Device + face prototype page                     | Done: `hardware/prototype/PROTOTYPE.html` (3D from the real STL files)                                                           |
-| Brand: page look, app icon                       | Done: white and black pages; icon set in `brand/icon/`                                                                           |
-| npm CLI (`packages/cli`)                         | TypeScript, tested, bundled; on npm with provenance (0.1.0, 3 October 2026), released from `main` on every merged fix or feature |
-| Repo foundation (workspaces, checks, agents, CI) | Done                                                                                                                             |
-| Enclosure v0.1                                   | STL files generated, **not yet printed or fitted**                                                                               |
-| Hardware                                         | Reference board: Waveshare ESP32-S3-Touch-AMOLED-2.16                                                                            |
-| Firmware, OpenCharm OS (`firmware/`)             | Core and emulator built (specs 005, 006); the board port (009) not started                                                       |
-| charmd, the charm daemon                         | Built (specs 002, 003, 010, 011, 012); the droplet deploy waits for a droplet (007)                                              |
-| Desktop charm (`apps/desktop`)                   | macOS app built (spec 013); Windows builds in CI, untested on a real machine                                                     |
-| Build guide                                      | `docs/build.md`                                                                                                                  |
+| Area                                             | State                                                                                                                             |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| Product definition, UX, face system              | Decided (this file)                                                                                                               |
+| Face engine, browser reference                   | Done: `packages/design/src/charm-face.js`                                                                                         |
+| Landing page                                     | Live at opencharm.dev: `apps/web` (spec 008), on Vercel                                                                           |
+| Device + face prototype page                     | Done: `hardware/prototype/PROTOTYPE.html` (3D from the real STL files)                                                            |
+| Brand: page look, app icon                       | Done: white and black pages; icon set in `brand/icon/`                                                                            |
+| npm CLI (`packages/cli`)                         | TypeScript, tested, bundled; on npm with provenance (0.1.0, 3 October 2026), released from `main` on every merged fix or feature  |
+| Repo foundation (workspaces, checks, agents, CI) | Done                                                                                                                              |
+| Enclosure v0.1                                   | STL files generated, **not yet printed or fitted**                                                                                |
+| Hardware                                         | Reference board: Waveshare ESP32-S3-Touch-AMOLED-2.16                                                                             |
+| Firmware, OpenCharm OS (`firmware/`)             | Core and emulator built (specs 005, 006); on the board, stages 1–3 of 4 built (009: face, battery, status; Wi-Fi + charmd; voice) |
+| charmd, the charm daemon                         | Built (specs 002, 003, 010, 011, 012); the droplet deploy waits for a droplet (007)                                               |
+| Desktop charm (`apps/desktop`)                   | macOS app built (spec 013); Windows builds in CI, untested on a real machine                                                      |
+| Build guide                                      | `docs/build.md`                                                                                                                   |
 
 ## 2. Principles and the moment of truth
 
@@ -112,7 +112,7 @@ No swipes needed. Rule: if someone can't use it ten seconds after picking it up,
 | **Speech**   | Answers, confirmations | Eyes shrink and move up; one line types out underneath while the mouth flaps. |
 | **Decision** | Approvals, questions   | Speech layout + orange ring + a hint line, e.g. `HOLD · SEND    PRESS · NO`.  |
 
-Rules: one thing per screen; glyphs on true black; orange only when it needs you. No menus on the charm: settings live on the computer.
+Rules: one thing per screen; glyphs on true black; orange only when it needs you. No menus on the charm: settings live on the computer. The one exception is a read-only status screen (battery, temperatures, Wi-Fi, charmd), opened by touching and holding the face (spec 009).
 
 ## 5. The face
 
@@ -181,7 +181,7 @@ The mapping is data (`packages/design/faces.json` → `states`), so users can ch
 Detail (board facts, power estimates, alternatives, our own board later, enclosure dimensions and printing): [hardware/README.md](hardware/README.md). Buy list, battery safety and bench check: [docs/build.md](docs/build.md).
 
 - **Three ways to get a charm, one firmware:** flash a supported board (most people), build one from common modules (makers), and later our own open board. We sell none of them.
-- **Reference board:** Waveshare ESP32-S3-Touch-AMOLED-2.16, $31.99 with its 1000 mAh battery: a 480 × 480 AMOLED, two mics with a hardware echo reference, an IMU, supported upstream in xiaozhi-esp32. No speaker in the box (a small 8 Ω speaker is about $2, estimate). Easy-to-find alternative: the round Waveshare 1.75.
+- **Reference board:** Waveshare ESP32-S3-Touch-AMOLED-2.16, $31.99 with its 1000 mAh battery: a 480 × 480 AMOLED, two mics with a hardware echo reference, an IMU, a built-in speaker, supported upstream in xiaozhi-esp32. Easy-to-find alternative: the round Waveshare 1.75.
 - **Enclosure v0.1:** the display glass outline grown by 1.75 mm with concentric corners (46.80 mm square, 22.0 mm deep), one key in a contrast colour, the strap leaving from the seam (no through-hole), a name plate on the back. Generated by `hardware/cad/gen.py`; not yet printed or fitted.
 
 ## 7. Architecture
@@ -203,7 +203,7 @@ The device always dials out to one address. There is no separate LAN mode; a loc
 
 ### 7.1 OpenCharm OS and the emulator
 
-`firmware/core` is portable C++17 (LVGL screens, glyph face, state machine, charm protocol) that talks only to a small HAL. `firmware/device` (planned, spec 009) will be a hard fork of [xiaozhi-esp32](https://github.com/78/xiaozhi-esp32) (MIT, ESP-IDF 6.0) whose drivers implement the HAL. `firmware/sim` builds the same core to WebAssembly: `npx opencharm sim` opens the charm in any browser on localhost (Space is the key, the mouse taps and types the PIN, a side panel drops Wi-Fi, switches square/round and forgets the pairing). The core enforces the mic rule and draws only when something moved. Detail: [firmware/README.md](firmware/README.md).
+`firmware/core` is portable C++17 (LVGL screens, glyph face, state machine, charm protocol) that talks only to a small HAL. `firmware/device` (spec 009, stages 1–3 of 4) is an ESP-IDF 6.1 project that builds the same core and implements the HAL with the board's drivers, taking audio, Wi-Fi and WebSocket code from [xiaozhi-esp32](https://github.com/78/xiaozhi-esp32) (MIT) as later stages need it. `firmware/sim` builds the same core to WebAssembly: `npx opencharm sim` opens the charm in any browser on localhost (Space is the key, the mouse taps and types the PIN, a side panel sets the battery and USB, drops Wi-Fi, switches square/round and forgets the pairing). The core enforces the mic rule and draws only when something moved. Detail: [firmware/README.md](firmware/README.md).
 
 ### 7.2 charmd, the charm daemon
 
@@ -221,10 +221,10 @@ OpenCharm without the hardware (spec 013): `apps/desktop`, a Tauri 2 app around 
 
 We speak xiaozhi-esp32's WebSocket protocol and add one namespaced message type, `{"type": "charm", "op": ...}`, for everything that is ours. This keeps the fork's transport untouched and lets stock XiaoZhi devices talk to charmd. Schemas, a parser that never throws and shared JSON fixtures live in `packages/protocol`; the message tables are in [packages/protocol/README.md](packages/protocol/README.md).
 
-- **Connection:** `wss://<host>/charm` with `Authorization: Bearer <token>` (none before pairing). The charm finds the address through XiaoZhi's config check endpoint, which charmd serves at `/ota/`.
+- **Connection:** `wss://<host>/charm` with `Authorization: Bearer <token>` (none before pairing). The board connects straight to the address typed at Wi-Fi setup (spec 009) and sends its token only to the origin that issued it; charmd still serves XiaoZhi's config check at `/ota/` for stock XiaoZhi devices.
 - **Kept from XiaoZhi:** `hello`, `listen` (key held / released), `abort`, binary Opus (up 16 kHz mono 60 ms frames, down 24 kHz), `stt`, `tts` (start, sentence, stop) and `llm` `emotion` for stock devices. Ours include `charm text`, typed text from the desktop charm, offered to the desktop charm in charmd's hello (`features.text`).
 - **What the charm runs:** its `hello` may carry `build: { kind, version, commit }` (`emulator`, `desktop` or `board`; spec 015). It's optional, so stock XiaoZhi firmware still connects, and never a reason to refuse a charm; `opencharm status` shows it.
-- **Ours:** pairing (`pair_code`, `paired`), the lock (`unlock`, `unlocked`, `locked`, `revoked`), `face` (an agent state id from section 5.4, with an optional short line) questions (`ask`, `ask_end`, `answer`) and the charm's identity (`look`, sent right before every `unlocked`). Later: `notify`, `signal`, `permissions`.
+- **Ours:** pairing (`pair_code`, `paired`), the lock (`unlock`, `unlocked`, `locked`, `revoked`), `face` (an agent state id from section 5.4, with an optional short line) questions (`ask`, `ask_end`, `answer`), the charm's identity (`look`, sent right before every `unlocked`) and its battery (`battery`, from a charm that has one, to a charmd whose hello offers `features.battery`; spec 009). Later: `notify`, `signal`, `permissions`.
 - "Speaking" is not a face: the charm shows its speech layout between `tts start` and `tts stop`. Until `unlocked`, charmd ignores `listen` and audio and answers `locked`.
 
 ## 9. Security and permissions
@@ -261,8 +261,8 @@ We speak xiaozhi-esp32's WebSocket protocol and add one namespaced message type,
 | Milestone                    | Outcome                                                                                                                                                                                    |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **M0 Emulator + charmd**     | Audio spike; charmd MVP; `firmware/core` running in the emulator against charmd with Hermes on the droplet (specs 001–006 done; 007, the droplet, in progress)                             |
-| **M0.5 Bench**               | Reference board arrives; factory and XiaoZhi firmware tested; inside measured; the bench checks in `hardware/README.md` answered                                                           |
-| **M1 Firmware**              | `firmware/device` (XiaoZhi fork) implements the HAL; the same core runs on the 2.16 with echo cancellation on; MVP definition of done met on the device                                    |
+| **M0.5 Bench**               | Reference board arrived and backed up (12 October 2026); key, speaker and buttons answered; OpenCharm OS stage 1 runs on it; inside, battery and battery life still to measure             |
+| **M1 Firmware**              | `firmware/device` implements the HAL (code from XiaoZhi); the same core runs on the 2.16 with echo cancellation on; MVP definition of done met on the device                               |
 | **M2 Agent tools**           | MCP charm tools and needs-you approvals done (specs 011, 012); next: permissions engine, Hermes charm skill, notifications                                                                 |
 | **M3 OpenClaw**              | Verified with the OpenClaw preset and charm skill; optional esp-openclaw-node                                                                                                              |
 | **M4 Enclosure**             | Printed back for the Waveshare case, then shell v0.2 from real measurements                                                                                                                |
@@ -306,9 +306,8 @@ Our gap: about $32, fully open, works with the agent you already host (not a ven
 
 ## 12. Open questions
 
-- Speaker plug type, stack depth, which side button is GPIO18 (bench check on arrival, spec 009).
-- Whether on-device echo cancellation runs for the 2.16 in upstream XiaoZhi (spec 009).
-- Upstream xiaozhi-esp32 issue #2099 (`BOARD_TYPE` missing in menuconfig) and the ESP-IDF 6.0 build (spec 009).
+- Stack depth, the battery's size and protection board, battery life and charge time (bench check, spec 009).
+- Echo cancellation running on the board: XiaoZhi v2.5.2 turns it on for the 2.16; confirmed in spec 009 stage 3 by talking over playback.
 - OpenAI voice latency: not measured yet (no key used so far; spec 007's smoke test).
 - Exact Hermes plugin and OpenClaw gateway event names for each state in 5.4 (post-MVP agent tools).
 - Name plate and pairing flow details; how a charm is named and coloured at setup.
