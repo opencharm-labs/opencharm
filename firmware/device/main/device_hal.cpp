@@ -1,5 +1,6 @@
 #include "device_hal.h"
 
+#include "audio.h"
 #include "cJSON.h"
 #include "esp_log.h"
 #include "network.h"
@@ -27,6 +28,12 @@ void DeviceHal::send_text(const std::string& json) {
 }
 
 void DeviceHal::reconnect() { network::reconnect(); }
+
+void DeviceHal::send_audio(const uint8_t* data, size_t size) { network::send_binary(data, size); }
+void DeviceHal::mic_start() { audio::mic_start(); }
+void DeviceHal::mic_stop() { audio::mic_stop(); }
+void DeviceHal::play_audio(const uint8_t* data, size_t size) { audio::play(data, size); }
+void DeviceHal::stop_audio() { audio::stop(); }
 
 std::string DeviceHal::store_get(const std::string& key) {
   nvs_handle_t nvs;

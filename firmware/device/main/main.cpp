@@ -2,11 +2,14 @@
 // Every ~16 ms it reads the key, ticks the core and lets LVGL draw; once a
 // second it reads the battery and temperatures.
 #include <string>
+#include <vector>
 
+#include "audio.h"
 #include "board.h"
 #include "charm/app.h"
 #include "device_hal.h"
 #include "esp_app_desc.h"
+#include "esp_heap_caps.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
@@ -52,6 +55,10 @@ extern "C" void app_main() {
   static board::Board b;
   board::init(b);
   if (!power::init(b.i2c)) ESP_LOGE(kTag, "battery readings unavailable");
+  if (!audio::init(b.i2c)) ESP_LOGE(kTag, "no voice: the audio didn't start");
+#if CONFIG_OPENCHARM_AUDIO_SELFTEST
+  audio::self_test();
+#endif
 
   static DeviceHal hal(b);
   static charm::LvglView view(b.display, charm::ViewOptions{});
@@ -65,6 +72,9 @@ extern "C" void app_main() {
   view.on_face_hold([](void*) { app.on_touch_hold(now_ms()); }, nullptr);
   view.on_pin([](void*, const char* pin) { app.on_pin_entered(pin, now_ms()); }, nullptr);
   app.start(now_ms());
+  ESP_LOGI(kTag, "free memory: %u KB internal, %u KB PSRAM",
+           unsigned(heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
+           unsigned(heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024));
   ESP_LOGI(kTag, "OpenCharm OS %s (core %s)", options.build.version.c_str(), charm::kBuildCommit);
 
 #if CONFIG_OPENCHARM_BENCH_FACE
@@ -115,6 +125,12 @@ extern "C" void app_main() {
           app.on_audio(reinterpret_cast<const uint8_t*>(event.data.data()), event.data.size());
           break;
       }
+    }
+    std::vector<uint8_t> mic_packet;
+    float mic_level = 0;
+    while (audio::poll_mic(mic_packet, mic_level)) {
+      app.on_mic_frame(mic_packet.data(), mic_packet.size());
+      app.on_mic_level(mic_level);
     }
     if (key_raw != key && now - key_changed >= kDebounceMs) {
       key = key_raw;

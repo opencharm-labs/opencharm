@@ -19,6 +19,7 @@ constexpr uint8_t kAdcEnable = 0x30;    // bit 0 battery voltage, bit 4 die temp
 constexpr uint8_t kBatteryHigh = 0x34;  // battery mV, 14 bits: high 6 here, low 8 next
 constexpr uint8_t kDieHigh = 0x3C;      // die temperature raw, 14 bits: high 6 here, low 8 next
 constexpr uint8_t kPercent = 0xA4;      // the fuel gauge's battery percent
+constexpr uint8_t kLdoEnable = 0x90;    // bit 0: ALDO1 (the mics)
 
 i2c_master_dev_handle_t chip = nullptr;
 temperature_sensor_handle_t sensor = nullptr;
@@ -65,6 +66,10 @@ bool init(i2c_master_bus_handle_t bus) {
     chip = nullptr;
     return false;
   }
+  // The mics run from ALDO1 (xiaozhi-esp32 switches it on); say whether it is, for the bench.
+  uint8_t ldos = 0;
+  if (read_reg(kLdoEnable, ldos))
+    ESP_LOGI(kTag, "mic power (ALDO1) %s", (ldos & 0x01) ? "on" : "off");
   return true;
 }
 
