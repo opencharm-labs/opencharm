@@ -94,6 +94,7 @@ class LvglView : public View {
   void update_dots();
   void build_battery();
   void build_status();
+  void place_status();
   static void on_pad_event(lv_event_t* e);
   static void on_screen_click(lv_event_t* e);
   static void on_screen_touch(lv_event_t* e);

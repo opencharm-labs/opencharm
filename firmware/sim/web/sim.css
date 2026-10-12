@@ -150,3 +150,13 @@ aside p {
   background: var(--ink);
   color: var(--paper);
 }
+
+.battery {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.battery input {
+  flex: 1;
+  accent-color: currentColor;
+}

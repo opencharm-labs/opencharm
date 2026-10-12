@@ -258,17 +258,35 @@ void LvglView::build_battery() {
 }
 
 // The read-only status screen: the percent large, the state under it, then one short reading per
-// line, centred. Each line is one line (longer text ends in "…"), as wide as the screen allows at
-// its height: on a round screen, the circle's width there.
+// line, centred; show_status places them.
 void LvglView::build_status() {
-  const float top = options_.round ? 0.15f : 0.14f;  // the block sits in the middle
   status_percent_ = make_label(root_, &charm_digits_80, glyph_);
-  lv_obj_align(status_percent_, LV_ALIGN_TOP_MID, 0, int(h_ * top));
-  int y = int(h_ * top) + lv_font_get_line_height(&charm_digits_80);
   for (int i = 0; i < kStatusLines; ++i) {
     // The state in the larger text; the readings smaller; the build, last, dim.
-    const lv_font_t* font = i == 0 ? &charm_text_35 : &charm_text_24;
-    const int line = lv_font_get_line_height(font);
+    lv_obj_t* label = make_label(root_, i == 0 ? &charm_text_35 : &charm_text_24, glyph_);
+    lv_label_set_long_mode(label, LV_LABEL_LONG_MODE_DOTS);
+    lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
+    if (i == kStatusLines - 1) lv_obj_set_style_text_opa(label, LV_OPA_60, 0);
+    status_lines_[i] = label;
+  }
+  hide(status_percent_, true);
+  for (lv_obj_t* label : status_lines_) hide(label, true);
+}
+
+// Lines that have something to say, one under the other with no gaps for the ones that don't. Each
+// is one line (longer text ends in "…"), as wide as the screen allows at its height: on a round
+// screen, the circle's width there.
+void LvglView::place_status() {
+  int y = int(h_ * (options_.round ? 0.15f : 0.14f));
+  if (!lv_obj_has_flag(status_percent_, LV_OBJ_FLAG_HIDDEN)) {
+    lv_obj_align(status_percent_, LV_ALIGN_TOP_MID, 0, y);
+    y += lv_font_get_line_height(&charm_digits_80);
+  }
+  for (int i = 0; i < kStatusLines; ++i) {
+    lv_obj_t* label = status_lines_[i];
+    if (lv_obj_has_flag(label, LV_OBJ_FLAG_HIDDEN)) continue;
+    const int line = lv_font_get_line_height(i == 0 ? &charm_text_35 : &charm_text_24);
+    if (i == kStatusLines - 1) y += int(u_ * 0.03f);  // the build sits a little apart
     int width = int(w_ * 0.88f);
     if (options_.round) {
       float r = float(u_) / 2;
@@ -277,17 +295,10 @@ void LvglView::build_status() {
       float chord = dy < r ? 2 * std::sqrt(r * r - dy * dy) : 0;
       width = std::min(width, int(chord - u_ * 0.08f));
     }
-    lv_obj_t* label = make_label(root_, font, glyph_);
     lv_obj_set_size(label, std::max(0, width), line);
-    lv_label_set_long_mode(label, LV_LABEL_LONG_MODE_DOTS);
-    lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
-    if (i == kStatusLines - 1) lv_obj_set_style_text_opa(label, LV_OPA_60, 0);
     lv_obj_align(label, LV_ALIGN_TOP_MID, 0, y);
-    y += line + int(u_ * (i == 0 ? 0.035f : i == kStatusLines - 2 ? 0.03f : 0.012f));
-    status_lines_[i] = label;
+    y += line + int(u_ * (i == 0 ? 0.035f : 0.012f));
   }
-  hide(status_percent_, true);
-  for (lv_obj_t* label : status_lines_) hide(label, true);
 }
 
 void LvglView::on_pin(void (*callback)(void*, const char*), void* ctx) {
@@ -712,15 +723,16 @@ void LvglView::show_status(const Status& s) {
   std::string charmd = s.charmd.empty() ? "No charmd set"
                        : s.connected    ? "charmd " + s.charmd
                                         : "charmd " + s.charmd + " \u00B7 offline";
-  std::string build = s.build.kind.empty()
-                          ? std::string()
-                          : s.build.kind + " " + s.build.version + " \u00B7 " + s.build.commit;
+  // The release identity (it already says what ships it, e.g. "cli@0.2.0") and the core's commit.
+  std::string build = s.build.version.empty() ? s.build.kind : s.build.version;
+  if (!s.build.commit.empty()) build += (build.empty() ? "" : " \u00B7 ") + s.build.commit;
   const std::string lines[kStatusLines] = {state, cell, temps, wifi, charmd, build};
   for (int i = 0; i < kStatusLines; ++i) {
     if (lines[i] != lv_label_get_text(status_lines_[i]))
       lv_label_set_text(status_lines_[i], lines[i].c_str());
     hide(status_lines_[i], lines[i].empty());
   }
+  place_status();
   apply();
 }
 
