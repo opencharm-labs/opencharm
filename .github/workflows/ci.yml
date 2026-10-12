@@ -1,7 +1,7 @@
 name: CI
 # One workflow for every pull request and every push to main. The first job works out which areas a
-# change touches; the slow jobs (firmware, emulator, website, the desktop app on macOS and Windows)
-# run only for their areas. `ci` is the one check to require: it fails if any job that ran failed.
+# change touches; the slow jobs (firmware, the board build, emulator, website, the desktop app on
+# macOS and Windows) run only for their areas. `ci` is the one check to require: it fails if any job that ran failed.
 # A change to CI itself, the lockfile or the root package.json runs everything, and so do the weekly
 # run (the safety net for the path rules, new advisories and runner updates) and a manual run.
 # A green run on main starts the release workflows (cli-release.yml, desktop-release.yml).
@@ -109,6 +109,31 @@ jobs:
       - run: cmake --build firmware/core/build
       - run: ctest --test-dir firmware/core/build --output-on-failure
 
+  # The board firmware (spec 009) in Espressif's ESP-IDF 6.1 image, the version upstream XiaoZhi builds
+  # with. It keeps one image to flash at 0x0 (docs/build.md section 5) as an artifact.
+  device:
+    needs: changes
+    if: needs.changes.outputs.firmware == 'true'
+    runs-on: ubuntu-latest
+    container: espressif/idf:v6.1
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      # The checkout belongs to another user inside the container; git must trust it to stamp the commit.
+      - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - working-directory: firmware/device
+        run: |
+          . "$IDF_PATH/export.sh"
+          idf.py build
+          idf.py merge-bin -o opencharm-waveshare-2.16.bin
+      - uses: actions/upload-artifact@v7
+        with:
+          name: opencharm-waveshare-2.16
+          path: firmware/device/build/opencharm-waveshare-2.16.bin
+          if-no-files-found: error
+
   # The firmware core in WebAssembly, built once for the emulator test and the desktop app.
   sim:
     needs: changes
@@ -200,7 +225,7 @@ jobs:
   # The one required check: passes when every job that ran passed (skipped areas are fine).
   ci:
     if: always()
-    needs: [changes, checks, firmware, sim, emulator, website, desktop]
+    needs: [changes, checks, firmware, device, sim, emulator, website, desktop]
     runs-on: ubuntu-latest
     steps:
       - env:

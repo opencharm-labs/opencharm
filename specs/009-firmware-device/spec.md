@@ -54,4 +54,4 @@ IMU modes, desk charge limit, the 1.75 board, browser flasher (post-MVP).
 - [ ] MVP definition of done (CONTRIBUTING, "Testing and definition of done") passes on the device, including a phone hotspot.
 - [ ] Echo cancellation confirmed running (talk over playback test).
 - [ ] "Key released → first audio" measured on the device and recorded in `OPENCHARM.md`.
-- [ ] CI builds the device firmware.
+- [x] CI builds the device firmware (`device` job in `ci.yml`, with a flashable image as an artifact).
