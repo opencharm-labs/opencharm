@@ -1,0 +1,8 @@
+dependencies:
+  idf: ">=6.1"
+  lvgl/lvgl:
+    version: "9.6.0"
+    public: true
+  espressif/cjson:
+    version: "1.7.19"
+    public: true

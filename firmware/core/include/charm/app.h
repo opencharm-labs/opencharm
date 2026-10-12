@@ -21,6 +21,9 @@ struct AppOptions {
   uint32_t pleased_ms = 1200;        // a happy moment after speaking
   uint32_t sleep_after_ms = 240000;  // nothing for this long = asleep
   uint32_t seed = 1;                 // reactions vary; tests fix the order
+  uint32_t battery_ms = 3000;        // the battery level shows this long on wake and a key press
+  uint32_t status_ms = 10000;        // the status screen closes after this long without touch
+  int battery_low = 15;              // below this percent a marker stays on the face
   Build build;                       // what this charm runs, sent in hello (spec 015)
 };
 
@@ -46,6 +49,12 @@ class App {
   Typed on_typed(std::string_view text, uint32_t now);
   // How loud the voice is right now (0..1), from the platform's microphone; used while talking.
   void on_mic_level(float level);
+  // What the platform reads about itself (battery, temperatures, Wi-Fi, charmd), about once a
+  // second. Drives the battery indicator and the status screen (spec 009).
+  void on_status(const Status& status, uint32_t now);
+  // A finger held on the face (1 s): opens the status screen.
+  void on_touch_hold(uint32_t now);
+  bool status_open() const { return status_open_; }
 
   // The platform connects with "Authorization: Bearer <token>" when this is not empty.
   std::string token() const;
@@ -77,6 +86,9 @@ class App {
   void show_current();
   bool wake(uint32_t now);
   uint32_t next_random();
+  void show_battery_for_a_moment(uint32_t now) { battery_until_ = now + options_.battery_ms; }
+  void update_battery(uint32_t now);
+  void close_status();
 
   Hal& hal_;
   View& view_;
@@ -119,6 +131,13 @@ class App {
   bool key_answered_ = false;  // this key hold already answered; its release does nothing
   std::string speech_line_;    // to bring the speech layout back after a question
   std::string connecting_line_;
+  // Battery and status (spec 009).
+  Status status_;
+  uint32_t battery_until_ = 0;
+  Battery battery_shown_;
+  BatteryShow battery_show_ = BatteryShow::Hidden;
+  bool status_open_ = false;
+  uint32_t status_until_ = 0;
   std::string pair_code_;
   int pin_tries_ = -1;
   bool pin_wrong_ = false;

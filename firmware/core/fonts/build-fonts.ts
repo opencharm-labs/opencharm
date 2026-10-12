@@ -66,7 +66,7 @@ const withHeart = (size: number) => [
 convert("charm_eyes_163", 163, withHeart(163));
 convert("charm_eyes_95", 95, withHeart(95));
 convert("charm_eyes_57", 57, withHeart(57));
-convert("charm_digits_80", 80, [{ file: EXTRA_BOLD, symbols: "0123456789 " }]);
+convert("charm_digits_80", 80, [{ file: EXTRA_BOLD, symbols: "0123456789 %" }]); // pairing code, battery percent
 // Latin-1 plus the punctuation agents like to use, for spoken lines and hints.
 const TEXT_RANGE =
   "0x20-0x7E,0xA0-0xFF,0x2013-0x2014,0x2018-0x201D,0x2022,0x2026,0x2212";

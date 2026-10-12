@@ -32,7 +32,7 @@
           <p>
             <b>Hold Space</b> (or the key on the right side) to talk. A short
             press stops speech or dismisses a line. Tap the face. Type the PIN
-            on the screen.
+            on the screen. <b>Touch and hold the face</b> for the status screen.
           </p>
           <p>
             <b>Orange means it needs you.</b> On a question, hold for yes, press
@@ -46,15 +46,21 @@
           <p class="mono small" id="url"></p>
           <p class="mono dim">BUILD</p>
           <p class="mono small" id="build"></p>
+          <p class="mono dim">BATTERY</p>
+          <div class="battery">
+            <input type="range" id="battery" min="0" max="100" value="80" />
+            <span class="mono small" id="battery-value">80%</span>
+          </div>
           <div class="buttons">
+            <button class="pill" id="usb">Plug in USB</button>
             <button class="pill" id="wifi">Drop Wi-Fi</button>
             <button class="pill" id="shape">Round screen</button>
             <button class="pill" id="forget">Forget pairing</button>
           </div>
           <p class="mono dim">LATER</p>
           <p class="small dim">
-            Pick up, face-down, shake and battery arrive with the motion sensor
-            work (after the MVP).
+            Pick up, face-down and shake arrive with the motion sensor work
+            (after the MVP).
           </p>
           <p class="small dim">
             Same code as the charm: firmware/core compiled to WebAssembly. No

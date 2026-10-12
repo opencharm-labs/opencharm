@@ -1,0 +1,11 @@
+menu "OpenCharm"
+
+config OPENCHARM_BENCH_FACE
+    bool "Show the face without charmd (stage 1 bench)"
+    default y
+    help
+        Until the board connects to charmd (spec 009, stage 2), it plays charmd's hello and
+        "unlocked" to the core itself, so the face, the key, touch, the battery and the status
+        screen can be checked on the bench. Turned off once the network lands.
+
+endmenu

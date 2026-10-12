@@ -55,7 +55,7 @@ A new spec is only for a new feature. If a change could be described as "the des
 | 006 | [Emulator](006-emulator/spec.md)                                      | Done        |
 | 007 | [Droplet deploy](007-droplet-deploy/spec.md)                          | In progress |
 | 008 | [Website (opencharm.dev)](008-website/spec.md)                        | Done        |
-| 009 | [Firmware device (Waveshare 2.16)](009-firmware-device/spec.md)       | Draft       |
+| 009 | [Firmware device (Waveshare 2.16)](009-firmware-device/spec.md)       | In progress |
 | 010 | [Agents over ACP](010-acp-agents/spec.md)                             | Done        |
 | 011 | [Ask on the charm](011-ask-on-charm/spec.md)                          | Done        |
 | 012 | [Charm tools for the agent (MCP)](012-charm-tools/spec.md)            | Done        |
