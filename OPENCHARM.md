@@ -112,7 +112,7 @@ No swipes needed. Rule: if someone can't use it ten seconds after picking it up,
 | **Speech**   | Answers, confirmations | Eyes shrink and move up; one line types out underneath while the mouth flaps. |
 | **Decision** | Approvals, questions   | Speech layout + orange ring + a hint line, e.g. `HOLD · SEND    PRESS · NO`.  |
 
-Rules: one thing per screen; glyphs on true black; orange only when it needs you. No menus on the charm: settings live on the computer.
+Rules: one thing per screen; glyphs on true black; orange only when it needs you. No menus on the charm: settings live on the computer. The one exception is a read-only status screen (battery, temperatures, Wi-Fi, charmd), opened by touching and holding the face (spec 009).
 
 ## 5. The face
 

@@ -76,7 +76,7 @@ C++17 without exceptions or RTTI, LVGL 9.6, cJSON.
 3. **Pairing**: a large 6-digit code in Geist Mono, a small face above, hint `opencharm pair 482913`; refreshes every 300 s.
 4. **PIN pad**: 3×4 grid on true black, dots for entered digits; wrong → `x x` shake + "3 tries left"; blocked → `− −` + "Locked. Unlock from your computer."
 5. **Face**: idle `o o` (blinks, glances); key held `O O`; released `o _ o` with cursor; speaking = eyes up, the line types out, the mouth flaps; error `x x` + one line; back to idle.
-6. **Problems only**: "No Wi-Fi", "Can't reach charmd" on the face screen. No menus; settings live on the computer.
+6. **Problems only**: "No Wi-Fi", "Can't reach charmd" on the face screen. No menus; settings live on the computer. One read-only status screen (touch and hold the face) shows battery, temperatures, Wi-Fi and charmd (spec 009).
 
 ## Emulator (spec 006, built)
 
