@@ -34,9 +34,13 @@ struct Screen {
   charm::LvglView view;
   charm::App app;
   uint32_t now = 0;
+  // Motion tests keep a finger down to hold the eyes still; for them a hold opens nothing.
+  bool holds = true;
 
-  Screen(int w, int h, bool round)
-      : screen(w, h), view(screen.display(), charm::ViewOptions{round}), app(hal, view) {
+  Screen(int w, int h, bool round, charm::Build build = {})
+      : screen(w, h),
+        view(screen.display(), charm::ViewOptions{round}),
+        app(hal, view, options(build)) {
     view.on_pin(
         [](void* ctx, const char* pin) {
           auto* self = static_cast<Screen*>(ctx);
@@ -49,9 +53,20 @@ struct Screen {
           self->app.on_touch_face(self->now);
         },
         this);
+    view.on_face_hold(
+        [](void* ctx) {
+          auto* self = static_cast<Screen*>(ctx);
+          if (self->holds) self->app.on_touch_hold(self->now);
+        },
+        this);
     app.start(0);
     at(1300);
     app.on_connected(now);
+  }
+  static charm::AppOptions options(const charm::Build& build) {
+    charm::AppOptions o;
+    o.build = build;
+    return o;
   }
   // Advance like a real platform: one tick per 16 ms frame, so easing and pops run their course.
   void at(uint32_t t) {
@@ -291,6 +306,7 @@ TEST_CASE("it breathes: asleep, the face rises and falls with each slow breath")
   Screen s(480, 480, false);
   s.unlocked();
   s.server(R"({"type":"charm","op":"face","state":"asleep"})");
+  s.holds = false;
   s.screen.press(240, 240);  // a finger on the screen holds the eyes still (no glances)
   // Breath peaks at 1/4 and 3/4 of the 6.4 s cycle.
   uint32_t cycle = 6400;
@@ -533,6 +549,7 @@ TEST_CASE("a face at rest draws nothing new: the same moment twice is one frame"
   // Battery and CPU: a frame is drawn only when something on the screen really moved.
   Screen s(480, 480, false);
   s.unlocked();
+  s.holds = false;
   s.screen.press(240, 240);  // hold the glances
   s.app.tick(s.now);
   s.screen.redraw();
@@ -652,6 +669,7 @@ TEST_CASE("on a notch, a Cobalt charm's eyes and z's are Cobalt; the outline sta
 TEST_CASE("the same look twice draws nothing new") {
   Screen s(480, 480, false);
   s.unlocked(look("#9DB6FF", "full"));
+  s.holds = false;
   s.screen.press(240, 240);  // hold the glances
   s.app.tick(s.now);
   s.screen.redraw();
@@ -761,4 +779,124 @@ TEST_CASE("on the narrowest notch, the longest yes and no stay inside the orange
     }
   CHECK_EQ(over, 0);
   CHECK(hint > 200);
+}
+
+// Battery and status screen (spec 009).
+
+namespace {
+
+charm::Status board_status(int percent, bool charging, bool usb) {
+  charm::Status st;
+  st.battery = {percent, charging, usb};
+  st.millivolts = 4012;
+  st.board_c = 34;
+  st.chip_c = 41;
+  return st;
+}
+
+void press_key(Screen& s) {
+  s.app.on_key(true, s.now);
+  s.at(s.now + 50);
+  s.app.on_key(false, s.now);
+  s.at(s.now + 400);
+}
+
+}  // namespace
+
+TEST_CASE("the battery is hidden at rest: nothing lit above the eyes") {
+  Screen s(480, 480, false);
+  s.unlocked();
+  s.app.on_status(board_status(80, false, false), s.now);
+  s.at(s.now + 4000);
+  CHECK(s.view.battery_text().empty());
+  CHECK(s.screen.count_lit(120, 0, 360, 50) == 0);
+}
+
+TEST_CASE("a key press shows the battery level, top centre, in the glyph colour") {
+  for (auto [size, round] : {std::pair{480, false}, std::pair{466, true}}) {
+    Screen s(size, size, round);
+    s.unlocked();
+    s.app.on_status(board_status(80, false, false), s.now);
+    press_key(s);
+    CHECK(s.view.battery_text() == "80%");
+    int top = round ? int(size * 0.09f) : int(size * 0.04f);
+    CHECK(s.screen.count_lit(size / 2 - 120, top, size / 2 + 120, top + 30) > 100);
+    CHECK(s.screen.count_colour(0, 0, size, size / 3, 0xFF5A1F, 60) == 0);  // never orange
+    s.screen.save_png(round ? "battery-level-466" : "battery-level-480");
+    s.at(s.now + 3200);
+    CHECK(s.view.battery_text().empty());
+  }
+}
+
+TEST_CASE("charging shows the level and says so the whole time it's on USB") {
+  Screen s(480, 480, false);
+  s.unlocked();
+  s.app.on_status(board_status(62, true, true), s.now);
+  s.at(s.now + 5000);
+  CHECK(s.view.battery_text() == "62% \u00B7 charging");
+  s.screen.save_png("battery-charging-480");
+}
+
+TEST_CASE("low battery keeps a small marker on the face") {
+  Screen s(480, 480, false);
+  s.unlocked();
+  s.app.on_status(board_status(9, false, false), s.now);
+  s.at(s.now + 5000);
+  CHECK(s.view.battery_text() == "[low]");
+  CHECK(s.screen.count_lit(200, 0, 280, 50) > 30);
+  s.screen.save_png("battery-low-480");
+}
+
+TEST_CASE("touch and hold for a second opens the status screen; a tap closes it") {
+  for (auto [size, round] : {std::pair{480, false}, std::pair{466, true}}) {
+    Screen s(size, size, round, {"device", "0.0.0", "abc1234"});
+    s.unlocked();
+    charm::Status st = board_status(87, true, true);
+    st.wifi = "Workshop";
+    st.wifi_rssi = -61;
+    st.charmd = "studio.local";
+    st.connected = true;
+    st.battery_c = 29;
+    s.app.on_status(st, s.now);
+    s.screen.press(size / 2, size / 2);
+    s.at(s.now + 600);
+    CHECK_FALSE(s.app.status_open());  // not yet a hold
+    s.at(s.now + 600);
+    CHECK(s.app.status_open());
+    s.screen.release();
+    s.at(s.now + 100);
+    CHECK(s.app.status_open());  // letting go of the hold isn't a tap
+    std::string text = s.view.status_text();
+    CHECK(text.find("87%") == 0);
+    CHECK(text.find("\nCharging\n4.01 V \u00B7 Battery 29\u00B0C\n") != std::string::npos);
+    CHECK(text.find("\nBoard 34\u00B0C \u00B7 Chip 41\u00B0C\n") != std::string::npos);
+    CHECK(text.find("\nWi-Fi Workshop \u00B7 -61 dBm\n") != std::string::npos);
+    CHECK(text.find("\ncharmd studio.local\n") != std::string::npos);
+    CHECK(text.find("\ndevice 0.0.0 \u00B7 abc1234") != std::string::npos);
+    s.screen.save_png(round ? "status-466" : "status-480");
+    if (round) {  // nothing in the corners of a round screen
+      CHECK(s.screen.count_lit(0, 0, 60, 60) == 0);
+      CHECK(s.screen.count_lit(size - 60, size - 60, size, size) == 0);
+    }
+    s.screen.click(size / 2, size / 2);
+    s.at(s.now + 400);
+    CHECK_FALSE(s.app.status_open());
+    CHECK(s.view.status_text().empty());
+    CHECK(s.eye(-0.215f, 0.46f) > 200);
+  }
+}
+
+TEST_CASE("the status screen says what isn't known instead of guessing") {
+  Screen s(480, 480, false);
+  s.unlocked();
+  charm::Status st;  // nothing read yet
+  s.app.on_status(st, s.now);
+  s.app.on_touch_hold(s.now);
+  s.at(s.now + 100);
+  std::string text = s.view.status_text();
+  CHECK(text.find("No battery") != std::string::npos);
+  CHECK(text.find("Board \u2014 \u00B7 Chip \u2014") != std::string::npos);
+  CHECK(text.find('%') == std::string::npos);
+  CHECK(text.find("No Wi-Fi") != std::string::npos);
+  CHECK(text.find("No charmd set") != std::string::npos);
 }

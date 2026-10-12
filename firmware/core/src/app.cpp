@@ -62,11 +62,11 @@ void App::react(const char* face, const char* line, uint32_t ms, uint32_t now,
   react_until_ = now + ms;
   then_face_ = then_face;
   then_ms_ = then_ms;
-  view_.show_face(face, line);
+  if (!status_open_) view_.show_face(face, line);
 }
 
 void App::show_current() {
-  if (screen_ != Screen::Face || asking_) return;
+  if (screen_ != Screen::Face || asking_ || status_open_) return;
   if (speaking_) return;  // the speech layout is on screen
   view_.show_face(asleep_ ? "sleepy" : std::string_view(face_), asleep_ ? "" : line_);
 }
@@ -75,6 +75,7 @@ void App::show_current() {
 bool App::wake(uint32_t now) {
   if (!asleep_) return false;
   asleep_ = false;
+  show_battery_for_a_moment(now);
   react("surprised", "", 500, now, "happy", 900);
   return true;
 }
@@ -116,6 +117,11 @@ void App::go(Screen screen) {
   // Leaving the face lets go of the key: its release may come on another screen, where it isn't
   // seen, and a hold must never carry over (it would start a talk with the key up). The mic stops.
   if (screen != Screen::Face) {
+    status_open_ = false;
+    if (battery_show_ != BatteryShow::Hidden) {
+      battery_show_ = BatteryShow::Hidden;
+      view_.set_battery(status_.battery, BatteryShow::Hidden);
+    }
     end_talk(false);
     key_down_ = false;
     key_answered_ = false;
@@ -155,8 +161,10 @@ void App::tick(uint32_t now) {
       show_current();
     }
   }
+  if (status_open_ && now >= status_until_) close_status();
   if (screen_ == Screen::Face && !asleep_ && !talking_ && !speaking_ && !key_down_ && !asking_ &&
-      react_until_ == 0 && sleep_after_ms_ != 0 && now - last_activity_ >= sleep_after_ms_) {
+      !status_open_ && react_until_ == 0 && sleep_after_ms_ != 0 &&
+      now - last_activity_ >= sleep_after_ms_) {
     asleep_ = true;
     view_.show_face("sleepy", "");
   }
@@ -165,6 +173,7 @@ void App::tick(uint32_t now) {
     dimmed_ = true;
     hal_.set_brightness(kDimPercent);
   }
+  update_battery(now);
   view_.tick(now);
 }
 
@@ -172,6 +181,7 @@ void App::activity(uint32_t now) {
   last_activity_ = now;
   if (dimmed_) {
     dimmed_ = false;
+    show_battery_for_a_moment(now);
     hal_.set_brightness(kFullPercent);
   }
 }
@@ -275,7 +285,8 @@ void App::handle(const ServerMessage& m, uint32_t now) {
       // A real agent state (thinking, a failure, "needs you") shows at once; only the plain idle
       // face waits for a reaction (a greeting, a poke, being pleased) to finish.
       if (m.state != "idle") stop_reacting();
-      if (!speaking_ && !key_down_ && react_until_ == 0) view_.show_face(face_, line_);
+      if (!speaking_ && !key_down_ && react_until_ == 0 && !status_open_)
+        view_.show_face(face_, line_);
       break;
     case ServerKind::Ask:
       if (screen_ != Screen::Face) break;
@@ -289,6 +300,7 @@ void App::handle(const ServerMessage& m, uint32_t now) {
       } else if (capturing_) {
         end_talk(false);
       }
+      status_open_ = false;  // a question matters more than the status screen
       asking_ = true;
       key_answered_ = key_down_;  // a hold already in progress isn't an answer
       ask_id_ = m.id;
@@ -305,6 +317,7 @@ void App::handle(const ServerMessage& m, uint32_t now) {
       if (screen_ != Screen::Face) break;
       activity(now);
       speaking_ = true;
+      status_open_ = false;
       stop_reacting();
       asleep_ = false;
       speech_line_.clear();
@@ -355,6 +368,14 @@ void App::on_key(bool down, uint32_t now) {
     key_down_ = true;
     key_down_at_ = now;
     key_answered_ = false;
+    show_battery_for_a_moment(now);
+    update_battery(now);
+    if (status_open_) {
+      // This press only closes the status screen: no talk, no stop, nothing else.
+      key_answered_ = true;
+      close_status();
+      return;
+    }
     if (!asking_) {
       wake(now);
       stop_reacting();
@@ -401,6 +422,10 @@ void App::on_key(bool down, uint32_t now) {
 void App::on_touch_face(uint32_t now) {
   bool was_dimmed = dimmed_;
   activity(now);
+  if (status_open_) {
+    close_status();
+    return;
+  }
   if (screen_ != Screen::Face || speaking_ || key_down_ || asking_) return;
   if (wake(now) || was_dimmed) return;  // the first touch only wakes it
   taps_[0] = taps_[1];
@@ -474,6 +499,48 @@ void App::stop_speech(bool tell_server) {
   if (tell_server) hal_.send_text(client_abort(session_id_, "key_pressed"));
   hal_.stop_audio();
   view_.speech_end();
+}
+
+void App::on_status(const Status& status, uint32_t now) {
+  status_ = status;
+  status_.build = options_.build;
+  if (status_open_) view_.show_status(status_);
+  update_battery(now);
+}
+
+void App::on_touch_hold(uint32_t now) {
+  bool was_dimmed = dimmed_;
+  activity(now);
+  if (screen_ != Screen::Face || speaking_ || talking_ || key_down_ || asking_) return;
+  if (wake(now) || was_dimmed) return;  // the first touch only wakes it
+  stop_reacting();
+  status_open_ = true;
+  status_until_ = now + options_.status_ms;
+  update_battery(now);  // hidden first: the status screen shows it in large type
+  view_.show_status(status_);
+}
+
+void App::close_status() {
+  if (!status_open_) return;
+  status_open_ = false;
+  view_.show_face(asleep_ ? "sleepy" : std::string_view(face_), asleep_ ? "" : line_);
+}
+
+// Hidden at rest; the level for a moment after waking or a key press, and the whole time on USB;
+// a marker that stays while low. Only on the face, and never over the status screen.
+void App::update_battery(uint32_t now) {
+  const Battery& b = status_.battery;
+  BatteryShow show = BatteryShow::Hidden;
+  if (b.percent != kUnknown && screen_ == Screen::Face && !status_open_ && !booting_) {
+    if (b.usb || now < battery_until_)
+      show = BatteryShow::Level;
+    else if (b.percent < options_.battery_low)
+      show = BatteryShow::Low;
+  }
+  if (show == battery_show_ && (show == BatteryShow::Hidden || b == battery_shown_)) return;
+  battery_show_ = show;
+  battery_shown_ = b;
+  view_.set_battery(b, show);
 }
 
 std::string App::token() const { return hal_.store_get("token"); }

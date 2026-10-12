@@ -13,6 +13,8 @@ namespace charm {
 // it (sim_panel_radius) and clips the open panel to it, so the orange outline, drawn with it, is
 // never cut.
 constexpr int kNotchPanelRadius = 60;
+// How long a finger stays on the face to open the status screen (spec 009).
+constexpr uint32_t kHoldMs = 1000;
 
 struct ViewOptions {
   bool round = false;         // round screens keep content inside the circle
@@ -33,6 +35,9 @@ class LvglView : public View {
 
   void on_pin(void (*callback)(void* ctx, const char* pin), void* ctx);
   void on_face_tap(void (*callback)(void* ctx), void* ctx);
+  // A finger held on the face for kHoldMs (spec 009: opens the status screen). The click that ends
+  // that hold is not a tap.
+  void on_face_hold(void (*callback)(void* ctx), void* ctx);
   // Notch shape: told when the panel below the notch opens, closes or needs more room, with its
   // height in pixels (the window grows or shrinks to it).
   void on_panel(void (*callback)(void* ctx, bool open, int height), void* ctx);
@@ -59,10 +64,16 @@ class LvglView : public View {
   void set_voice_level(float level) override;
   void set_look(uint32_t glyph, bool calm) override;
   void show_decision(std::string_view text, std::string_view yes, std::string_view no) override;
+  void set_battery(const Battery& battery, BatteryShow show) override;
+  void show_status(const Status& status) override;
   void tick(uint32_t now_ms) override;
 
+  // For tests: the text the battery indicator and the status screen show.
+  std::string battery_text() const;
+  std::string status_text() const;
+
  private:
-  enum class Mode { Boot, Connecting, Pairing, Pin, Blocked, Face, Decision };
+  enum class Mode { Boot, Connecting, Pairing, Pin, Blocked, Face, Decision, Status };
 
   void build();
   void set_face(std::string_view face_id, bool pop);
@@ -81,6 +92,8 @@ class LvglView : public View {
                    float sx, float sy, float degrees);
   void place_zzz(int x, int y, float phase);
   void update_dots();
+  void build_battery();
+  void build_status();
   static void on_pad_event(lv_event_t* e);
   static void on_screen_click(lv_event_t* e);
   static void on_screen_touch(lv_event_t* e);
@@ -105,6 +118,17 @@ class LvglView : public View {
   lv_obj_t* dots_ = nullptr;
   lv_obj_t* pad_ = nullptr;
   lv_obj_t* ring_ = nullptr;
+  // The battery indicator (spec 009): an outline, its fill, the nub and the percent.
+  lv_obj_t* battery_ = nullptr;
+  lv_obj_t* battery_body_ = nullptr;
+  lv_obj_t* battery_fill_ = nullptr;
+  lv_obj_t* battery_nub_ = nullptr;
+  lv_obj_t* battery_text_ = nullptr;
+  BatteryShow battery_show_ = BatteryShow::Hidden;
+  // The status screen: the percent large, then one reading per line.
+  static constexpr int kStatusLines = 6;
+  lv_obj_t* status_percent_ = nullptr;
+  lv_obj_t* status_lines_[kStatusLines] = {};
   // What each glyph shows now. LVGL redraws on every style write, even an unchanged one, so a
   // glyph is only touched when it really moves: a face at rest costs no frames (battery, CPU).
   struct Placed {
@@ -157,6 +181,10 @@ class LvglView : public View {
   void (*pin_callback_)(void*, const char*) = nullptr;
   void* pin_ctx_ = nullptr;
   void (*tap_callback_)(void*) = nullptr;
+  void (*hold_callback_)(void*) = nullptr;
+  void* hold_ctx_ = nullptr;
+  uint32_t press_start_ = 0;  // when the finger went down; 0 = not down
+  bool hold_fired_ = false;
   void (*panel_callback_)(void*, bool, int) = nullptr;
   void* panel_ctx_ = nullptr;
   bool panel_open_ = false;
