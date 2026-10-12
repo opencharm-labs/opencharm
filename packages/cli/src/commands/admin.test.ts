@@ -70,7 +70,7 @@ describe("opencharm pair", () => {
     expect(err()).toContain("No charm is waiting to pair");
   });
 
-  it("with no code and one charm waiting, shows its code and pairs it once confirmed", async () => {
+  it("with no code and one charm waiting, still asks for the code on its screen", async () => {
     const { ctx, out } = context();
     const send = vi
       .fn()
@@ -80,11 +80,13 @@ describe("opencharm pair", () => {
       .mockResolvedValueOnce({ id: "c_1", name: "charm" });
     const prompt = vi
       .fn()
-      .mockResolvedValueOnce("y")
+      .mockResolvedValueOnce("482 913")
       .mockResolvedValueOnce("4829")
       .mockResolvedValueOnce("4829");
     await runAdminCommand(ctx, "pair", [], { socket: SOCKET, send, prompt });
-    expect(prompt.mock.calls[0]?.[0]).toContain("482 913");
+    expect(out()).toContain("A charm is waiting to pair (board)");
+    expect(prompt.mock.calls[0]?.[0]).toContain("code on your charm");
+    expect(out()).not.toContain("482"); // the code is never shown: it's read off the charm
     expect(send).toHaveBeenLastCalledWith(SOCKET, {
       cmd: "pair",
       code: "482913",

@@ -68,10 +68,9 @@ function fail(ctx: CliContext, message: string): void {
   process.exitCode = 1;
 }
 
-const spaced = (code: string) => `${code.slice(0, 3)} ${code.slice(3)}`;
-
-// No code given: the charms waiting to pair (spec 002), each with the code on its screen. One is
-// confirmed by its code; with several, the code on the charm is typed. Nothing is paired unseen.
+// No code given: the charms waiting to pair (spec 002) are listed, and the code on the charm's
+// screen is typed, even when only one waits: typing it proves you're looking at your own charm,
+// where a y/N would pair whatever device on the network happened to be waiting.
 async function chooseWaiting(
   ctx: CliContext,
   deps: AdminDeps
@@ -87,20 +86,9 @@ async function chooseWaiting(
     );
     return undefined;
   }
-  if (charms.length === 1) {
-    const [only] = charms;
-    if (!only) return undefined;
-    const yes = await deps.prompt(
-      `A charm is waiting with code ${spaced(only.code)}${only.kind ? ` (${only.kind})` : ""}. Is that the code on your charm? [y/N] `
-    );
-    if (!/^y(es)?$/i.test(yes.trim())) {
-      fail(ctx, "Not paired.");
-      return undefined;
-    }
-    return only.code;
-  }
-  for (const c of charms)
-    ctx.out.write(`  ${spaced(c.code)}${c.kind ? `  ${c.kind}` : ""}\n`);
+  ctx.out.write(
+    `${charms.length === 1 ? "A charm is" : `${charms.length} charms are`} waiting to pair${charms.some((c) => c.kind) ? ` (${charms.map((c) => c.kind ?? "?").join(", ")})` : ""}.\n`
+  );
   const typed = (
     await deps.prompt("Type the code on your charm's screen: ")
   ).replace(/\s/g, "");
