@@ -48,7 +48,7 @@ A new spec is only for a new feature. If a change could be described as "the des
 | #   | Spec                                                                  | Status      |
 | --- | --------------------------------------------------------------------- | ----------- |
 | 001 | [Protocol package](001-protocol/spec.md)                              | Approved    |
-| 002 | [charmd core (sessions, pairing, PIN, lock)](002-charmd-core/spec.md) | Done        |
+| 002 | [charmd core (sessions, pairing, PIN, lock)](002-charmd-core/spec.md) | Approved    |
 | 003 | [Voice and agent turns](003-voice-turns/spec.md)                      | Done        |
 | 004 | [Workspace](004-workspace/spec.md)                                    | Done        |
 | 005 | [OpenCharm OS (firmware core)](005-opencharm-os/spec.md)              | Done        |

@@ -53,6 +53,14 @@ Not everyone wants to buy a board and print a shell. The same companion can live
   - A desktop release now also follows `packages/cli`, `packages/charmd` and `packages/protocol` (the release planner's units and tests, CI's path filter, CONTRIBUTING's table): a CLI or charmd change releases the app too, with those notes, accepted.
   - Third-party notices include Node's licence and the bundled npm dependencies' licences.
 - **Releases:** CI (`ci.yml`, job `desktop`) checks every PR that touches the app on macOS and Windows. `desktop-release.yml` releases the app from `main` (CONTRIBUTING, "Releasing"): after a merged `fix`/`feat`/`perf` that touches it, it builds macOS (Apple silicon, Intel) and Windows and publishes them as `desktop@<version>` on GitHub Releases, with `SHA256SUMS.txt` and build-provenance attestations. First release: `desktop@0.1.0`, 3 October 2026.
+- **Add a board charm** (maintainer, 12 October 2026): connecting the board is done mainly from the app, with the manual way (`opencharm serve`, `opencharm pair`) still there.
+  - Settings, **Charms on this network**: a switch, off by default. On, the app's charmd listens on the home network at a fixed port (8787, so a board's saved address stays valid; a clear message if it's taken) with `allowInsecureRemote`, and announces itself on the local network (spec 002). The notch charm still connects through 127.0.0.1.
+  - **Add a charm…** (Settings and the menu bar) opens a guided window:
+    1. Turn it on: the switch above, and the charm on USB.
+    2. Wi-Fi: on your phone, join "OpenCharm-XXXX" (on the charm's screen), pick your Wi-Fi and its password, leave the address empty: the charm finds this computer by itself (spec 009). The address to type instead, for when it doesn't (`http://<this Mac>.local:8787`), is one click away.
+    3. Pair: the app shows each charm waiting to pair with the code on its screen (spec 002's `waiting`). You check it's the same code, name it (the charm's name by default) and click Pair; the app chooses no PIN for you: you pick one, twice, in the window.
+    4. Unlock: type that PIN on the charm. The window says "All set" when it's unlocked.
+  - **Your charms** in Settings: each paired charm with its state, its battery (spec 009) and Remove (revoke). The app's own notch charm isn't listed as a board.
 - Test-only environment variables (`OPENCHARM_FAKE_MIC`, `OPENCHARM_TEST_PIN`, `OPENCHARM_DATA`, …) are listed in `apps/desktop/README.md`.
 
 ## Decisions
@@ -65,6 +73,7 @@ Not everyone wants to buy a board and print a shell. The same companion can live
 - On Windows the pill sits at the top centre, the same layout as the Mac (maintainer, 1 October 2026).
 - No paid signing identity: open source; checksums, provenance and building it yourself instead (maintainer, 1 October 2026). macOS builds are signed with OpenCharm's own self-made certificate (a GitHub secret, made once with `apps/desktop/scripts/create-signing-certificate.sh`), in a release job of its own that runs nothing but Apple's tools and `sign-macos.sh`: macOS then recognises every update as the same app and keeps its answers (Desktop folder, microphone, keychain), which ad hoc builds lost at each update; "Open Anyway" stays (maintainer, 5 October 2026, after macOS asked for the Desktop folder again after an update; an Apple Developer ID is for later).
 
+- A board is added from the app over the home network for now: the app's charmd listens beyond the computer only while **Charms on this network** is on, the board finds it by mDNS, and pairing is a code compared by eye, so a nearby device can't pair in its place. Bluetooth setup from the app (encrypted, with a certificate pinned for TLS at home) is for later; the board's hotspot stays (maintainer, 12 October 2026).
 - Setup is a guided flow of its own, not a mode of Settings; creating a workspace works like an IDE's New Project (a name and a location, Documents by default), with no OpenCharm folder chosen for the user, and it works the same on every OS the app runs on: paths, keys, agent lookup and the microphone follow the platform (maintainer, 5 October 2026).
 
 ## Not in scope
@@ -112,6 +121,8 @@ Guided setup:
 - [ ] The whole flow in the built app with a throwaway `OPENCHARM_DATA`, the fake agent, voice and mic: create a workspace, name and colour it, one spoken turn on the Try it step; a screenshot of every step.
   - Every step rendered in headless Chrome with a stand-in for the app's commands, on macOS and Windows settings, and screenshotted (5 October 2026); the click-through in the built app is the maintainer's run.
 - [ ] The same on Windows on a real machine.
+
+- [ ] Add a charm: with **Charms on this network** on, a board set up with an empty address finds the app's charmd, appears in the window with its code, pairs with a PIN chosen in the window, and shows in **Your charms** with its battery (manual check on the board; Rust and page tests for the switch, the config and the waiting list).
 
 ## Notes
 
