@@ -23,7 +23,8 @@ bool poll_mic(std::vector<uint8_t>& packet, float& level);
 
 // One Opus packet of charmd's speech, queued for the speaker.
 void play(const uint8_t* data, size_t size);
-// Drop what's queued and stop the speaker now.
+// Drop what's queued; the speaker falls silent within about 150 ms (the packet being written and
+// the I2S buffers play out).
 void stop();
 
 // Bench only (CONFIG_OPENCHARM_AUDIO_SELFTEST): plays a tone and logs how loud the echo reference,
