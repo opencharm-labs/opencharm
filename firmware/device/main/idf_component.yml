@@ -1,0 +1,5 @@
+dependencies:
+  idf: ">=6.1"
+  # The same screen and touch drivers XiaoZhi v2.5.2 uses for this board.
+  espressif/esp_lcd_co5300: "^2.1.0"
+  waveshare/esp_lcd_touch_cst9217: "^1.0.3"
