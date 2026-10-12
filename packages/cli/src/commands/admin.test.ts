@@ -58,14 +58,57 @@ describe("opencharm pair", () => {
     expect(err()).toContain("didn't match");
   });
 
-  it("needs the code from the charm's screen", async () => {
+  it("with no code and no charm waiting, says how to get one", async () => {
     const { ctx, err } = context();
+    const send = vi.fn().mockResolvedValue({ charms: [] });
     await runAdminCommand(ctx, "pair", [], {
       socket: SOCKET,
-      send: vi.fn(),
+      send,
       prompt: vi.fn(),
     });
-    expect(err()).toContain("opencharm pair <code>");
+    expect(send).toHaveBeenCalledWith(SOCKET, { cmd: "waiting" });
+    expect(err()).toContain("No charm is waiting to pair");
+  });
+
+  it("with no code and one charm waiting, still asks for the code on its screen", async () => {
+    const { ctx, out } = context();
+    const send = vi
+      .fn()
+      .mockResolvedValueOnce({
+        charms: [{ code: "482913", kind: "board", expiresIn: 280 }],
+      })
+      .mockResolvedValueOnce({ id: "c_1", name: "charm" });
+    const prompt = vi
+      .fn()
+      .mockResolvedValueOnce("482 913")
+      .mockResolvedValueOnce("4829")
+      .mockResolvedValueOnce("4829");
+    await runAdminCommand(ctx, "pair", [], { socket: SOCKET, send, prompt });
+    expect(out()).toContain("A charm is waiting to pair (board)");
+    expect(prompt.mock.calls[0]?.[0]).toContain("code on your charm");
+    expect(out()).not.toContain("482"); // the code is never shown: it's read off the charm
+    expect(send).toHaveBeenLastCalledWith(SOCKET, {
+      cmd: "pair",
+      code: "482913",
+      pin: "4829",
+      name: "charm",
+    });
+    expect(out()).toContain("Paired charm");
+  });
+
+  it("with no code and several waiting, asks which code is on its screen", async () => {
+    const { ctx, err } = context();
+    const send = vi.fn().mockResolvedValueOnce({
+      charms: [
+        { code: "482913", kind: "board", expiresIn: 280 },
+        { code: "111222", kind: "emulator", expiresIn: 100 },
+      ],
+    });
+    const prompt = vi.fn().mockResolvedValueOnce("999999");
+    await runAdminCommand(ctx, "pair", [], { socket: SOCKET, send, prompt });
+    expect(prompt.mock.calls[0]?.[0]).toContain("code on your charm");
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(err()).toContain("isn't one of them");
   });
 });
 

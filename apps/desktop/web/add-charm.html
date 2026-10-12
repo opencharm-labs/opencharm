@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Add a charm</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="settings.css" />
+    <link rel="stylesheet" href="setup.css" />
+    <script src="charm-face.js"></script>
+  </head>
+  <body class="setup">
+    <header>
+      <div class="charm" id="face" aria-hidden="true"></div>
+      <p class="mono dim">ADD A CHARM</p>
+    </header>
+
+    <main>
+      <section data-step="1" aria-labelledby="t1">
+        <p class="mono dim">STEP 1 OF 4</p>
+        <h1 id="t1">Let it reach this computer</h1>
+        <p class="lede">
+          A charm you built connects to your agent through this app, over your
+          Wi-Fi. Turn on <b>Charms on this network</b>, then plug the charm in
+          with USB.
+        </p>
+        <div class="row">
+          <button type="button" class="pill small" id="network-on">
+            Turn on Charms on this network
+          </button>
+        </div>
+        <p class="note" id="network-note"></p>
+        <p class="note" id="mac-note" hidden>
+          macOS asks whether OpenCharm may find devices on your local network:
+          choose Allow, so the charm can find this Mac by itself.
+        </p>
+      </section>
+
+      <section data-step="2" aria-labelledby="t2" hidden>
+        <p class="mono dim">STEP 2 OF 4</p>
+        <h1 id="t2">Connect it to your Wi-Fi</h1>
+        <ol class="steps">
+          <li>
+            The charm's screen says <b>Join Wi-Fi OpenCharm-…</b>. On your
+            phone, join that network.
+          </li>
+          <li>
+            A page opens (or go to <span class="mono">192.168.4.1</span>). Pick
+            your Wi-Fi, 2.4 GHz, and type its password.
+          </li>
+          <li>
+            Leave everything else as it is: the charm finds this computer by
+            itself.
+          </li>
+        </ol>
+        <details>
+          <summary>If it says "No charmd" after a minute</summary>
+          <p class="note">
+            Hold its key for 5 seconds to open its Wi-Fi page again, and under
+            <b>Advanced → Custom OTA URL</b> type:
+          </p>
+          <div class="row">
+            <span class="mono" id="address">…</span>
+            <button type="button" class="pill ghost small" id="copy">
+              Copy
+            </button>
+          </div>
+        </details>
+      </section>
+
+      <section data-step="3" aria-labelledby="t3" hidden>
+        <p class="mono dim">STEP 3 OF 4</p>
+        <h1 id="t3">Pair it</h1>
+        <p class="lede" id="waiting">Waiting for your charm…</p>
+        <label class="field">
+          <span>The code on the charm's screen</span>
+          <input
+            id="code"
+            inputmode="numeric"
+            autocomplete="off"
+            maxlength="7"
+            placeholder="000 000"
+          />
+        </label>
+        <label class="field">
+          <span>Its name (lowercase letters, digits and hyphens)</span>
+          <input id="name" maxlength="40" spellcheck="false" />
+        </label>
+        <label class="field">
+          <span>A PIN to unlock it (4 to 12 digits)</span>
+          <input id="pin" type="password" inputmode="numeric" maxlength="12" />
+        </label>
+        <label class="field">
+          <span>The PIN again</span>
+          <input id="pin2" type="password" inputmode="numeric" maxlength="12" />
+        </label>
+        <p class="note" id="pair-note"></p>
+      </section>
+
+      <section data-step="4" aria-labelledby="t4" hidden>
+        <p class="mono dim">STEP 4 OF 4</p>
+        <h1 id="t4">Unlock it</h1>
+        <p class="lede">Type the PIN you chose on the charm's screen.</p>
+        <ul class="checks">
+          <li id="check-paired"><span class="dot running"></span>Paired</li>
+          <li id="check-unlocked"><span class="dot"></span>Unlocked</li>
+        </ul>
+        <p class="note" id="done-note"></p>
+      </section>
+    </main>
+
+    <footer>
+      <button type="button" class="pill ghost" id="back">Back</button>
+      <div class="dots" id="dots" aria-hidden="true">
+        <span></span><span></span><span></span><span></span>
+      </div>
+      <button type="button" class="pill" id="next">Continue</button>
+    </footer>
+    <script type="module" src="add-charm.js"></script>
+  </body>
+</html>

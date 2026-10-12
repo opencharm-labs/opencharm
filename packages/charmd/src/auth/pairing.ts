@@ -52,6 +52,17 @@ class PairingRegistry {
     return pending.connectionId;
   }
 
+  // The codes now valid: which connection shows each, and for how many more seconds.
+  waiting(): { code: string; connectionId: string; expiresIn: number }[] {
+    this.#prune();
+    const now = this.#options.now();
+    return [...this.#byCode.values()].map((p) => ({
+      code: p.code,
+      connectionId: p.connectionId,
+      expiresIn: Math.max(0, Math.round((p.expiresAt - now) / 1000)),
+    }));
+  }
+
   release(connectionId: string): void {
     for (const [code, pending] of this.#byCode) {
       if (pending.connectionId === connectionId) this.#byCode.delete(code);

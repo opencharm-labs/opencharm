@@ -23,6 +23,9 @@ const PIPE_PREFIX: &str = r"\\.\pipe\opencharm-desktop-";
 /// How charmd announces its WebSocket (packages/charmd/src/daemon.ts): "charmd … listening on <url>".
 const LISTENING: &str = " listening on ";
 const LOOPBACK: &str = "ws://127.0.0.1:";
+/// Charms on this network: charmd's second listener, at a fixed port so a board's saved address
+/// stays valid (spec 013). The app's own charm never uses it.
+pub const NETWORK_PORT: u16 = 8787;
 const MARK: &str = "__OPENCHARM_ENV__";
 const LABELS: [(&str, &str); 6] = [
     ("claude", "Claude Code"),
@@ -397,6 +400,17 @@ pub fn listening_url(line: &str) -> Option<String> {
     valid.then(|| url.to_string())
 }
 
+/// The address a board can be given by hand (spec 013): this computer's mDNS name, so it keeps
+/// working when the IP changes. `local_host_name` is macOS's LocalHostName ("Mikes-MacBook-Air");
+/// anything that isn't a plain label gives nothing.
+pub fn network_address(local_host_name: &str) -> Option<String> {
+    let name = local_host_name.trim().trim_end_matches(".local");
+    let plain = !name.is_empty()
+        && name.len() <= 63
+        && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '-');
+    plain.then(|| format!("http://{name}.local:{NETWORK_PORT}"))
+}
+
 /// charmd's config for these settings and this folder; `data` is the app's data folder.
 pub fn build_config(settings: &Settings, folder: &Folder, data: &Path) -> (Value, String) {
     let state = data.join("charmd");
@@ -432,8 +446,9 @@ pub fn build_config(settings: &Settings, folder: &Folder, data: &Path) -> (Value
     let voice = json!({ "listen": listen, "speak": speak, "language": settings.language });
     let (agent, label) = agent_config(settings, folder);
     let admin = admin_path(data).to_string_lossy().to_string();
-    let config = json!({
-        // 0: the system picks a free port as charmd starts; charmd says which (listening_url).
+    let mut config = json!({
+        // 0: the system picks a free port as charmd starts; charmd says which (listening_url). The
+        // app's own charm always connects here, so nobody can hold its port first.
         "listen": { "host": "127.0.0.1", "port": 0 },
         "statePath": state.join("state.json").to_string_lossy(),
         "adminSocket": admin,
@@ -443,6 +458,12 @@ pub fn build_config(settings: &Settings, folder: &Folder, data: &Path) -> (Value
         "logTranscripts": false,
         "speakReplies": settings.speak_replies,
     });
+    if settings.network {
+        // Charms on this network (spec 013): a second listener for boards, announced by mDNS;
+        // charmd refuses it without allowInsecureRemote: plain ws on a home network, by choice.
+        config["network"] = json!({ "host": "0.0.0.0", "port": NETWORK_PORT });
+        config["allowInsecureRemote"] = json!(true);
+    }
     (config, label)
 }
 
@@ -1055,6 +1076,21 @@ mod tests {
     }
 
     #[test]
+    fn a_board_is_given_this_computers_local_name() {
+        assert_eq!(
+            network_address("Mikes-MacBook-Air").as_deref(),
+            Some("http://Mikes-MacBook-Air.local:8787")
+        );
+        assert_eq!(
+            network_address("studio.local\n").as_deref(),
+            Some("http://studio.local:8787")
+        );
+        for other in ["", "a b", "evil.com/x", "x@y", &"a".repeat(64)] {
+            assert_eq!(network_address(other), None, "{other}");
+        }
+    }
+
+    #[test]
     fn each_start_gets_its_own_admin_pipe_in_the_config() {
         let config = r#"{"listen":{"host":"127.0.0.1","port":0},"adminSocket":"old"}"#;
         let next: Value =
@@ -1088,6 +1124,26 @@ mod tests {
         assert!(!admin_path(Path::new("/d"))
             .to_string_lossy()
             .ends_with("opencharm-desktop"));
+    }
+
+    #[test]
+    fn charms_on_this_network_get_a_listener_of_their_own() {
+        let dir = momo("momo-network");
+        let folder = inspect_folder(&dir.to_string_lossy());
+        let (off, _) = build_config(&Settings::default(), &folder, Path::new("/d"));
+        assert_eq!(off["listen"]["host"], "127.0.0.1");
+        assert!(off.get("allowInsecureRemote").is_none());
+        let network = Settings {
+            network: true,
+            ..Settings::default()
+        };
+        let (on, _) = build_config(&network, &folder, Path::new("/d"));
+        // The app's own charm stays on loopback at a port the system picks.
+        assert_eq!(on["listen"]["host"], "127.0.0.1");
+        assert_eq!(on["listen"]["port"], 0);
+        assert_eq!(on["network"]["host"], "0.0.0.0");
+        assert_eq!(on["network"]["port"], 8787);
+        assert_eq!(on["allowInsecureRemote"], true);
     }
 
     #[test]

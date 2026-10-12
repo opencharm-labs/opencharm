@@ -25,6 +25,11 @@ type AdminActions = {
   lock: (input: unknown) => Promise<{ connected: number }>;
   unlock: (input: unknown) => Promise<{ connected: number }>;
   revoke: (input: unknown) => Promise<{ connected: number }>;
+  // Charms connected and waiting to pair, with the code on each one's screen (spec 002): the desktop
+  // app lists them to be compared by eye; `opencharm pair` with no code shows them.
+  waiting: () => {
+    charms: { code: string; kind: string | undefined; expiresIn: number }[];
+  };
   status: () => {
     charmd: string;
     starter?: string;
@@ -245,6 +250,21 @@ function createAdminActions({
         replies.speak = speak;
         return { speak };
       });
+    },
+    waiting() {
+      const live = new Map(
+        [...sessions()].map((s) => [s.connectionId, s] as const)
+      );
+      return {
+        charms: pairing
+          .waiting()
+          .filter((w) => live.get(w.connectionId)?.state === "unpaired")
+          .map((w) => ({
+            code: w.code,
+            kind: live.get(w.connectionId)?.build?.kind,
+            expiresIn: w.expiresIn,
+          })),
+      };
     },
     status() {
       return {

@@ -21,7 +21,8 @@ async function start(
     pairCodeMs?: number;
     heartbeatMs?: number;
   },
-  extra: Record<string, unknown> = {}
+  extra: Record<string, unknown> = {},
+  options: { announce?: (port: number) => () => Promise<void> } = {}
 ) {
   const dir = mkdtempSync(join(tmpdir(), "oc-daemon-"));
   daemon = await startDaemon(
@@ -30,7 +31,7 @@ async function start(
       statePath: join(dir, "state.json"),
       ...extra,
     }),
-    { timings, quiet: true }
+    { timings, quiet: true, ...options }
   );
   return { daemon, statePath: join(dir, "state.json") };
 }
@@ -602,5 +603,90 @@ describe("the charm's battery (spec 009)", () => {
     await d.admin.lock({ charm: "board" });
     await charm.next((m) => m.type === "charm" && m.op === "locked");
     expect(d.admin.status().charms[0]?.battery).toBeUndefined();
+  });
+});
+
+describe("charms waiting to pair, and being found (spec 002)", () => {
+  it("lists a charm waiting to pair with its code and kind, and not once it's paired", async () => {
+    const { daemon: d } = await start();
+    const charm = await connectFakeCharm(d.url, undefined, {
+      build: { kind: "board", version: "firmware@0.0.0", commit: "abc1234" },
+    });
+    const code = await charm.next(isOp("pair_code"));
+    if (code.type !== "charm" || code.op !== "pair_code")
+      throw new Error("no code");
+    expect(d.admin.waiting().charms).toEqual([
+      {
+        code: code.code,
+        kind: "board",
+        expiresIn: expect.any(Number) as unknown,
+      },
+    ]);
+    await d.admin.pair({ code: code.code, pin: "482913", name: "board" });
+    expect(d.admin.waiting().charms).toEqual([]);
+  });
+
+  it("takes charms on a network listener of its own, and keeps its loopback address", async () => {
+    const announced: number[] = [];
+    const announce = (port: number) => {
+      announced.push(port);
+      return () => Promise.resolve();
+    };
+    const { daemon: d } = await start(
+      undefined,
+      { network: { host: "127.0.0.1", port: 0 }, allowInsecureRemote: true },
+      { announce }
+    );
+    expect(d.url).toMatch(/^ws:\/\/127\.0\.0\.1:\d+\/charm$/);
+    expect(announced).toHaveLength(1);
+    const networkPort = announced[0];
+    expect(networkPort).not.toBe(Number(/:(\d+)\/charm$/.exec(d.url)?.[1]));
+    // A charm on the network listener is the same charmd: it gets a pairing code.
+    const charm = await connectFakeCharm(`ws://127.0.0.1:${networkPort}/charm`);
+    await charm.next(isOp("pair_code"));
+    expect(d.admin.waiting().charms).toHaveLength(1);
+  });
+
+  it("refuses a network listener without allowInsecureRemote", () => {
+    expect(() => parseConfig({ network: { port: 8787 } })).toThrow(
+      /allowInsecureRemote/
+    );
+  });
+
+  it("announces itself on the network only when it listens beyond this computer", async () => {
+    const announced: number[] = [];
+    let stopped = 0;
+    const announce = (port: number) => {
+      announced.push(port);
+      return () => {
+        stopped += 1;
+        return Promise.resolve();
+      };
+    };
+    const local = await start(undefined, {}, { announce });
+    expect(announced).toEqual([]);
+    await local.daemon.close();
+
+    const network = await start(
+      undefined,
+      { listen: { host: "0.0.0.0", port: 0 }, allowInsecureRemote: true },
+      { announce }
+    );
+    const port = Number(/:(\d+)\/charm$/.exec(network.daemon.url)?.[1]);
+    expect(announced).toEqual([port]);
+    await network.daemon.close();
+    expect(stopped).toBe(1);
+
+    const quiet = await start(
+      undefined,
+      {
+        listen: { host: "0.0.0.0", port: 0 },
+        allowInsecureRemote: true,
+        discoverable: false,
+      },
+      { announce }
+    );
+    expect(announced).toEqual([port]);
+    await quiet.daemon.close();
   });
 });

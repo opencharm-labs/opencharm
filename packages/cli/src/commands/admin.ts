@@ -68,19 +68,44 @@ function fail(ctx: CliContext, message: string): void {
   process.exitCode = 1;
 }
 
+// No code given: the charms waiting to pair (spec 002) are listed, and the code on the charm's
+// screen is typed, even when only one waits: typing it proves you're looking at your own charm,
+// where a y/N would pair whatever device on the network happened to be waiting.
+async function chooseWaiting(
+  ctx: CliContext,
+  deps: AdminDeps
+): Promise<string | undefined> {
+  const answer = (await deps.send(deps.socket, { cmd: "waiting" })) as {
+    charms?: { code: string; kind?: string }[];
+  };
+  const charms = (answer.charms ?? []).filter((c) => /^\d{6}$/.test(c.code));
+  if (charms.length === 0) {
+    fail(
+      ctx,
+      "No charm is waiting to pair. Turn it on and connect it to this charmd: its screen shows a 6-digit code. Then: opencharm pair [code]"
+    );
+    return undefined;
+  }
+  ctx.out.write(
+    `${charms.length === 1 ? "A charm is" : `${charms.length} charms are`} waiting to pair${charms.some((c) => c.kind) ? ` (${charms.map((c) => c.kind ?? "?").join(", ")})` : ""}.\n`
+  );
+  const typed = (
+    await deps.prompt("Type the code on your charm's screen: ")
+  ).replace(/\s/g, "");
+  if (!charms.some((c) => c.code === typed)) {
+    fail(ctx, "That code isn't one of them. Nothing was changed.");
+    return undefined;
+  }
+  return typed;
+}
+
 async function pair(
   ctx: CliContext,
   args: readonly string[],
   deps: AdminDeps
 ): Promise<void> {
-  const code = firstPositional(args);
-  if (!code) {
-    fail(
-      ctx,
-      "Usage: opencharm pair <code> [--name <name>]   (the 6-digit code on the charm's screen)"
-    );
-    return;
-  }
+  const code = firstPositional(args) ?? (await chooseWaiting(ctx, deps));
+  if (!code) return;
   const pin = await deps.prompt("Choose a PIN for the charm (4-12 digits): ");
   const again = await deps.prompt("Type it again: ");
   if (pin !== again) {

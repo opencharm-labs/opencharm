@@ -181,6 +181,9 @@ pub struct Settings {
     pub setup_step: u32,
     /// Where the setup last created a workspace, offered first next time.
     pub setup_location: Option<String>,
+    /// Charms on this network (spec 013): the app's charmd also listens on the home network, at a
+    /// fixed port, and announces itself, so a board can connect. Off by default.
+    pub network: bool,
 }
 
 impl Default for Settings {
@@ -208,6 +211,7 @@ impl Default for Settings {
             microsoft_voices: BTreeMap::new(),
             setup_step: 0,
             setup_location: None,
+            network: false,
         }
     }
 }

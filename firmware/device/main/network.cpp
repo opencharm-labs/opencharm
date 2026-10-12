@@ -1,6 +1,7 @@
 #include "network.h"
 
 #include <atomic>
+#include <cstring>
 #include <mutex>
 
 #include "charm/protocol.h"
@@ -12,6 +13,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/task.h"
+#include "mdns.h"
 #include "nvs.h"
 #include "ssid_manager.h"
 #include "wifi_manager.h"
@@ -52,6 +54,8 @@ uint32_t generation = 0;
 uint32_t offline_since = 0;      // when Wi-Fi went away (0 = it's up, or setup is open)
 uint32_t unreachable_since = 0;  // when charmd stopped answering (0 = it answers)
 bool hinted = false;
+bool discovering = false;  // no address saved: looking for charmd on the local network
+uint32_t discover_at = 0;  // when to ask again
 
 // Shared with the main loop and the WebSocket task.
 std::mutex send_lock;  // guards `client` for sends; the worker holds it only to swap it
@@ -103,6 +107,58 @@ std::string token_origin() { return read_nvs("charm", "token_origin"); }
 std::string origin_of(const std::string& ws_url) {
   size_t from = ws_url.find("://") + 3;
   return ws_url.substr(0, ws_url.find('/', from));
+}
+
+void save_address(const std::string& address) {
+  nvs_handle_t nvs;
+  if (nvs_open("wifi", NVS_READWRITE, &nvs) != ESP_OK) return;
+  if (nvs_set_str(nvs, "ota_url", address.c_str()) == ESP_OK) nvs_commit(nvs);
+  nvs_close(nvs);
+}
+
+// No address typed at setup (spec 009): ask the local network for `_opencharm._tcp` (charmd
+// announces it when it listens beyond its computer, spec 002) and take the first answer as
+// `http://<computer>.local:<port>`. The `.local` name, not the IP, so the pairing stays valid when
+// the computer gets a new address; lwIP resolves `.local` names by mDNS.
+// What a network answer may name: one label of letters, digits and hyphens (a computer's
+// LocalHostName), and a real port. Anything else is ignored: a name like "evil.com/x" glued into
+// "http://…local:port" would otherwise be read as another host.
+bool plain_host(const char* name) {
+  size_t n = name ? std::strlen(name) : 0;
+  if (n == 0 || n > 63) return false;
+  for (size_t i = 0; i < n; ++i) {
+    char c = name[i];
+    bool ok =
+        (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-';
+    if (!ok) return false;
+  }
+  return true;
+}
+
+std::string local_address(const char* hostname, uint16_t port) {
+  if (!plain_host(hostname) || port == 0) return "";
+  return "http://" + std::string(hostname) + ".local:" + std::to_string(port);
+}
+
+std::string discover() {
+  static bool started = false;
+  if (!started) started = mdns_init() == ESP_OK;
+  if (!started) return "";
+  mdns_result_t* results = nullptr;
+  if (mdns_query_ptr("_opencharm", "_tcp", 1500, 2, &results) != ESP_OK || !results) return "";
+  std::string found;
+  for (mdns_result_t* r = results; r && found.empty(); r = r->next) {
+    if (r->hostname && r->port) {
+      found = local_address(r->hostname, r->port);
+    } else if (r->instance_name) {
+      mdns_result_t* srv = nullptr;
+      if (mdns_query_srv(r->instance_name, "_opencharm", "_tcp", 800, &srv) == ESP_OK && srv)
+        found = local_address(srv->hostname, srv->port);
+      if (srv) mdns_query_results_free(srv);
+    }
+  }
+  mdns_query_results_free(results);
+  return found;
 }
 
 std::string host_of(const std::string& ws_url) {
@@ -178,9 +234,16 @@ void stop_socket() {
 // hotspot, so it can be typed.
 void start_socket() {
   stop_socket();
-  std::string next = charm::charm_url(saved_address());
+  std::string address = saved_address();
+  if (address.empty()) {  // none typed: find charmd on the local network (worker loop)
+    discovering = true;
+    discover_at = 0;
+    push(Event::Kind::Offline, "Looking for charmd…");
+    return;
+  }
+  std::string next = charm::charm_url(address);
   if (next.empty()) {
-    ESP_LOGW(kTag, "no usable charmd address saved; opening Wi-Fi setup");
+    ESP_LOGW(kTag, "the saved charmd address isn't usable; opening Wi-Fi setup");
     WifiManager::GetInstance().StartConfigAp();
     return;
   }
@@ -225,6 +288,7 @@ void start_socket() {
 }
 
 void open_setup() {
+  discovering = false;
   stop_socket();
   offline_since = 0;
   unreachable_since = 0;
@@ -245,6 +309,7 @@ void worker(void*) {
           start_socket();
           break;
         case Command::WifiDown:
+          discovering = false;
           stop_socket();
           retry_at = 0;
           unreachable_since = 0;
@@ -272,6 +337,17 @@ void worker(void*) {
       retry_at = 0;
       if (wifi.IsConnected() && !is_connected) {
         if (unreachable_since == 0) unreachable_since = now;
+        start_socket();
+      }
+    }
+    if (discovering && wifi.IsConnected() && now >= discover_at) {
+      std::string found = discover();
+      if (found.empty()) {
+        discover_at = now_ms() + 3000;  // short asks, spaced out: the worker stays responsive
+      } else {
+        ESP_LOGI(kTag, "found charmd on the local network");
+        discovering = false;
+        save_address(found);
         start_socket();
       }
     }

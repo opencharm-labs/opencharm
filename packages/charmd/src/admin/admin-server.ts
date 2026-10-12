@@ -16,6 +16,7 @@ const COMMANDS = [
   "unlock",
   "revoke",
   "status",
+  "waiting",
   "devFace",
   "devSay",
   "devAsk",
@@ -46,7 +47,9 @@ async function run(actions: AdminActions, request: unknown): Promise<unknown> {
   ) as { cmd?: unknown };
   if (!isCommand(cmd))
     throw new Error(`Unknown command ${JSON.stringify(cmd)}`);
-  return cmd === "status" ? actions.status() : actions[cmd](args);
+  if (cmd === "status") return actions.status();
+  if (cmd === "waiting") return actions.waiting();
+  return actions[cmd](args);
 }
 
 function handle(socket: Socket, actions: AdminActions): void {

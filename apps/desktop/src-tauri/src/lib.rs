@@ -70,6 +70,7 @@ type CharmdFields = (
     String,
     String,
     Option<String>,
+    bool,
 );
 
 fn charmd_fields(s: &Settings) -> CharmdFields {
@@ -84,6 +85,7 @@ fn charmd_fields(s: &Settings) -> CharmdFields {
         s.speak.clone(),
         s.language.clone(),
         s.cli_path.clone(),
+        s.network,
     )
 }
 
@@ -283,6 +285,149 @@ async fn voice_progress(app: AppHandle) -> Vec<String> {
     })
     .await
     .unwrap_or_default()
+}
+
+/// The app's own charmd, running: its admin channel, else a sentence the window can show.
+fn own_admin(app: &AppHandle) -> Result<PathBuf, String> {
+    let managed = app.state::<Managed>();
+    if !app.state::<Saved>().settings.lock().unwrap().managed {
+        return Err(
+            "Charms on this network need the app's own charmd (Settings → Advanced).".into(),
+        );
+    }
+    if managed.charmd.status().state != "running" {
+        return Err("charmd isn't running yet.".into());
+    }
+    Ok(managed.socket())
+}
+
+fn admin_blocking(app: AppHandle, request: serde_json::Value) -> Result<serde_json::Value, String> {
+    let socket = own_admin(&app)?;
+    pairing::admin(&socket, &request)
+}
+
+/// Charms waiting to pair with the app's charmd (spec 013): what each runs, never its code, which is
+/// read off the charm and typed. The app's own notch charm pairs by itself and isn't listed.
+#[tauri::command]
+async fn charms_waiting(app: AppHandle) -> Result<Vec<String>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let answer = admin_blocking(app, serde_json::json!({ "cmd": "waiting" }))?;
+        Ok(answer["charms"]
+            .as_array()
+            .map(|charms| {
+                charms
+                    .iter()
+                    .map(|c| c["kind"].as_str().unwrap_or("charm").to_string())
+                    .filter(|kind| kind != "desktop")
+                    .collect()
+            })
+            .unwrap_or_default())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Pairs the charm showing `code` (typed from its screen) as `name`, with the PIN chosen in the
+/// window; charmd checks all three.
+#[tauri::command]
+async fn pair_charm(
+    app: AppHandle,
+    code: String,
+    name: String,
+    pin: String,
+) -> Result<String, String> {
+    let code: String = code.chars().filter(|c| !c.is_whitespace()).collect();
+    tauri::async_runtime::spawn_blocking(move || {
+        let answer = admin_blocking(
+            app,
+            serde_json::json!({ "cmd": "pair", "code": code, "pin": pin, "name": name.trim() }),
+        )?;
+        Ok(answer["name"].as_str().unwrap_or_default().to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// The charms paired with the app's charmd, but its own notch charm: name, state, battery.
+#[tauri::command]
+async fn paired_charms(app: AppHandle) -> Result<Vec<serde_json::Value>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let status = admin_blocking(app, serde_json::json!({ "cmd": "status" }))?;
+        Ok(status["charms"]
+            .as_array()
+            .map(|charms| {
+                charms
+                    .iter()
+                    .filter(|c| c["name"] != pairing::NAME)
+                    .map(|c| {
+                        serde_json::json!({
+                            "name": c["name"], "state": c["state"],
+                            "connected": c["connected"], "battery": c["battery"],
+                        })
+                    })
+                    .collect()
+            })
+            .unwrap_or_default())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn remove_charm(app: AppHandle, name: String) -> Result<(), String> {
+    if name == pairing::NAME {
+        return Err("That's the app's own charm.".into());
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        admin_blocking(app, serde_json::json!({ "cmd": "revoke", "charm": name })).map(|_| ())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// The address to type at the charm's Wi-Fi setup when it doesn't find this computer by itself.
+#[tauri::command]
+fn charm_network_address() -> Option<String> {
+    managed::network_address(&local_host_name()?)
+}
+
+fn local_host_name() -> Option<String> {
+    #[cfg(target_os = "macos")]
+    {
+        let out = std::process::Command::new("scutil")
+            .args(["--get", "LocalHostName"])
+            .output()
+            .ok()?;
+        out.status
+            .success()
+            .then(|| String::from_utf8_lossy(&out.stdout).trim().to_string())
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        std::env::var("COMPUTERNAME")
+            .or_else(|_| std::env::var("HOSTNAME"))
+            .ok()
+    }
+}
+
+#[tauri::command]
+fn open_add_charm(app: AppHandle) -> Result<(), String> {
+    show_add_charm(&app).map_err(|e| e.to_string())
+}
+
+fn show_add_charm(app: &AppHandle) -> tauri::Result<()> {
+    if let Some(window) = app.get_webview_window("add-charm") {
+        window.show()?;
+        return window.set_focus();
+    }
+    let window =
+        WebviewWindowBuilder::new(app, "add-charm", WebviewUrl::App("add-charm.html".into()))
+            .title("Add a charm")
+            .inner_size(480.0, 620.0)
+            .resizable(false)
+            .center()
+            .build()?;
+    window.set_focus()
 }
 
 #[tauri::command]
@@ -921,6 +1066,12 @@ pub fn run() {
                 .build(),
         )
         .invoke_handler(tauri::generate_handler![
+            charms_waiting,
+            pair_charm,
+            paired_charms,
+            remove_charm,
+            charm_network_address,
+            open_add_charm,
             typing_done,
             app_identity,
             charm_geometry,
@@ -1011,6 +1162,7 @@ pub fn run() {
                 MenuItem::with_id(app, "settings", "Settings…", true, Some("CmdOrCtrl+,"))?;
             let quit = MenuItem::with_id(app, "quit", "Quit OpenCharm", true, Some("CmdOrCtrl+Q"))?;
             let setup_item = MenuItem::with_id(app, "setup", "Set up again…", true, None::<&str>)?;
+            let add_item = MenuItem::with_id(app, "add-charm", "Add a charm…", true, None::<&str>)?;
             let speak_on = app.state::<Saved>().settings.lock().unwrap().speak_replies;
             let type_item = MenuItem::with_id(app, "type", "Type to your charm…", true, None::<&str>)?;
             let speak_item = CheckMenuItem::with_id(
@@ -1030,6 +1182,7 @@ pub fn run() {
                     &speak_item,
                     &separator,
                     &settings_item,
+                    &add_item,
                     &setup_item,
                     &separator_2,
                     &quit,
@@ -1046,6 +1199,9 @@ pub fn run() {
                     }
                     "setup" => {
                         let _ = show_setup(app);
+                    }
+                    "add-charm" => {
+                        let _ = show_add_charm(app);
                     }
                     "update" => {
                         let offered = app.state::<Tray>().offered.lock().unwrap().clone();
