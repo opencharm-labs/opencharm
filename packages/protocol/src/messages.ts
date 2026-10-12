@@ -88,15 +88,28 @@ const answer = z.object({
   yes: z.boolean(),
 });
 
+// The charm's battery (spec 009): sent once unlocked and again when it changes, so the agent can know
+// it. A charm without a battery (the desktop charm) never sends it.
+const battery = z.object({
+  type: z.literal("charm"),
+  op: z.literal("battery"),
+  percent: z.number().int().min(0).max(100),
+  charging: z.boolean(),
+  usb: z.boolean(),
+});
+
 // charmd → charm
 const serverHello = z.object({
   type: z.literal("hello"),
   transport: z.literal("websocket"),
   session_id: z.string().min(1).max(128),
   audio_params: audioParams,
-  // What this charmd accepts beyond XiaoZhi's protocol: `text`, typed text (spec 013). Absent from
-  // an older charmd, so a charm knows not to offer typing.
-  features: z.object({ text: z.boolean().optional() }).optional(),
+  // What this charmd accepts beyond XiaoZhi's protocol: `text`, typed text (spec 013); `battery`, the
+  // charm's battery (spec 009). Absent from an older charmd, which would close the connection on a
+  // message it doesn't know, so a charm sends these only when offered.
+  features: z
+    .object({ text: z.boolean().optional(), battery: z.boolean().optional() })
+    .optional(),
 });
 const stt = z.object({
   session_id: sessionId,
@@ -190,6 +203,7 @@ const CLIENT_SCHEMAS = {
   "charm:unlock": unlock,
   "charm:answer": answer,
   "charm:text": typed,
+  "charm:battery": battery,
 } as const;
 const SERVER_SCHEMAS = {
   hello: serverHello,
@@ -232,3 +246,4 @@ export {
 };
 export type { ClientMessage, ServerMessage };
 export type CharmBuild = z.infer<typeof charmBuild>;
+export type CharmBattery = Omit<z.infer<typeof battery>, "type" | "op">;

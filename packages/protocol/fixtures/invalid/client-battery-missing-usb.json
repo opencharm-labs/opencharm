@@ -1,0 +1,10 @@
+{
+  "direction": "client",
+  "message": {
+    "type": "charm",
+    "op": "battery",
+    "percent": 62,
+    "charging": true
+  },
+  "error": "invalid_fields"
+}

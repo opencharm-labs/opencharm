@@ -93,6 +93,7 @@ class App {
   void show_battery_for_a_moment(uint32_t now) { battery_until_ = now + options_.battery_ms; }
   void update_battery(uint32_t now);
   void close_status();
+  void report_battery();
 
   Hal& hal_;
   View& view_;
@@ -127,7 +128,8 @@ class App {
   bool calm_ = false;
   // A question from charmd (decision layout): hold = yes, press = no.
   bool asking_ = false;
-  bool can_type_ = false;  // charmd's hello said it accepts typed text
+  bool can_type_ = false;     // charmd's hello said it accepts typed text
+  bool can_battery_ = false;  // charmd's hello said it accepts the battery
   std::string ask_id_;
   std::string ask_text_;
   std::string ask_yes_;
@@ -142,7 +144,10 @@ class App {
   BatteryShow battery_show_ = BatteryShow::Hidden;
   bool status_open_ = false;
   uint32_t status_until_ = 0;
-  uint32_t setup_key_at_ = 0;  // the key went down on the connecting screen (0 = it isn't down)
+  uint32_t setup_key_at_ = 0;
+  Battery battery_reported_;  // what charmd last heard on this connection
+  bool battery_reported_known_ =
+      false;  // the key went down on the connecting screen (0 = it isn't down)
   std::string pair_code_;
   int pin_tries_ = -1;
   bool pin_wrong_ = false;

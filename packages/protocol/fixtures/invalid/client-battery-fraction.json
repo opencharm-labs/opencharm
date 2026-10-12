@@ -1,0 +1,11 @@
+{
+  "direction": "client",
+  "message": {
+    "type": "charm",
+    "op": "battery",
+    "percent": 62.5,
+    "charging": false,
+    "usb": false
+  },
+  "error": "invalid_fields"
+}

@@ -43,3 +43,7 @@ Readable signals (picked up, battery…), MCP over HTTP (charmd behind Caddy mus
   - a non-object JSON line crashed the server
   - charmd guessed its own command line from `process.argv`; the CLI now passes it, without debugger flags
 - Deferred: `notifications/cancelled` from the agent doesn't withdraw a question yet (it times out in 30 s); `allowedTools: ["mcp__charm"]` would also allow a workspace MCP server named `charm` (it would need a malicious workspace).
+
+## Next
+
+- **A `battery` tool** (proposed with spec 009's battery report, 12 October 2026; waiting for the maintainer): returns the connected charm's battery (`62%, charging`), so the agent can mention it ("your charm is at 9 %"). charmd already keeps it per charm (`charm battery`). It would move "battery" out of Not in scope.

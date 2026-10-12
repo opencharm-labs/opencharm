@@ -153,6 +153,37 @@ describe("opencharm status", () => {
     expect(out()).toMatch(/pip\s+unlocked\s+emulator cli@0\.2\.0 \(abc1234\)/);
   });
 
+  it("shows each charm's battery, and leaves out one that doesn't fit (spec 009)", async () => {
+    const { ctx, out } = context();
+    const row = (name: string, battery: unknown) => ({
+      id: name,
+      name,
+      blocked: false,
+      failedTries: 0,
+      connected: true,
+      state: "unlocked",
+      battery,
+    });
+    const send = vi.fn().mockResolvedValue({
+      charmd: "cli@0.2.0 (abc1234)",
+      charms: [
+        row("pip", { percent: 62, charging: true, usb: true }),
+        row("bo", { percent: 100, charging: false, usb: true }),
+        row("kit", { percent: 9, charging: false, usb: false }),
+        row("odd", { percent: 140, charging: false, usb: false }),
+      ],
+    });
+    await runAdminCommand(ctx, "status", [], {
+      socket: SOCKET,
+      send,
+      prompt: vi.fn(),
+    });
+    expect(out()).toMatch(/pip\s+unlocked\s+62% charging/);
+    expect(out()).toMatch(/bo\s+unlocked\s+100% on USB/);
+    expect(out()).toMatch(/kit\s+unlocked\s+9%\n/);
+    expect(out()).toMatch(/odd\s+unlocked\n/);
+  });
+
   it("refuses a status answer whose charm list it can't trust, instead of printing it (spec 015)", async () => {
     const { ctx, out, err } = context();
     const send = vi

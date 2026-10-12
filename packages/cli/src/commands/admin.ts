@@ -35,6 +35,15 @@ const statusSchema = z.object({
       blocked: z.boolean(),
       failedTries: z.number(),
       build: charmBuild.optional().catch(undefined),
+      // The charm's battery (spec 009); an informational field that doesn't fit is left out.
+      battery: z
+        .object({
+          percent: z.number().int().min(0).max(100),
+          charging: z.boolean(),
+          usb: z.boolean(),
+        })
+        .optional()
+        .catch(undefined),
     })
   ),
 });
@@ -200,7 +209,15 @@ function printStatus(
     const build = charm.build
       ? `${charm.build.kind} ${charm.build.version} (${charm.build.commit})`
       : "";
-    const details = [note, build].filter(Boolean).join("  ");
+    const battery = charm.battery
+      ? `${charm.battery.percent}%` +
+        (charm.battery.charging
+          ? " charging"
+          : charm.battery.usb
+            ? " on USB"
+            : "")
+      : "";
+    const details = [note, battery, build].filter(Boolean).join("  ");
     ctx.out.write(
       `${charm.name.padEnd(16)} ${charm.state.padEnd(10)} ${details}`.trimEnd() +
         "\n"

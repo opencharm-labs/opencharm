@@ -77,6 +77,14 @@ describe("battery and status on the emulated charm", () => {
     await page.screenshot({ path: join(SHOTS, "battery-level.png") });
   });
 
+  it("reports its battery to charmd, which shows it in status (spec 009)", async () => {
+    const { daemon, page } = emulator;
+    await page.locator("#battery").fill("57");
+    await expect
+      .poll(() => daemon.admin.status().charms[0]?.battery, { timeout: 5000 })
+      .toEqual({ percent: 57, charging: false, usb: false });
+  });
+
   it("keeps the level on screen while it's on USB", async () => {
     const { page } = emulator;
     await page.locator("#usb").click();
