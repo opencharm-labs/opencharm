@@ -190,6 +190,9 @@ const schema = z
     publicUrl: z.url().optional(),
     maxConnections: z.number().int().min(1).max(1024).default(16),
     allowInsecureRemote: z.boolean().default(false),
+    // Announce this charmd on the local network by mDNS (spec 002) when it listens beyond this
+    // computer; off with false. Never on loopback, where no charm could reach it.
+    discoverable: z.boolean().default(true),
     voice: voiceSchema.default({ provider: "fake" }),
     agent: agentSchema.default({ adapter: "fake" }),
     turnTimeoutSeconds: z.number().int().min(5).max(600).default(60),
@@ -373,7 +376,12 @@ function loadConfig(path?: string, options: LoadOptions = {}): CharmdConfig {
     : parseConfig({});
 }
 
-export { loadConfig, parseConfig };
+// Reachable only from this computer: nothing on the network could connect, so nothing to announce.
+function isLoopback(host: string): boolean {
+  return LOOPBACK.has(host);
+}
+
+export { isLoopback, loadConfig, parseConfig };
 export type {
   AcpConfig,
   AgentConfig,

@@ -19,7 +19,7 @@ function runHelp(ctx: CliContext): void {
     opencharm serve                 start charmd   [--config <file>]
     opencharm sim                   the emulator, for developing the charm [--url <ws>] [--port <n>]
     opencharm voice                 the local voice's models   [install: download them now]
-    opencharm pair <code>           pair the charm showing <code>   [--name <name>]
+    opencharm pair [code]           pair the charm showing [code]; no code: the charms waiting   [--name <name>]
     opencharm status                paired charms and their state
     opencharm lock <charm>          lock a charm now
     opencharm unlock <charm>        clear a block and unlock

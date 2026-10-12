@@ -8,7 +8,8 @@ import { WebSocketServer } from "ws";
 import { type AdminActions, createAdminActions } from "./admin/admin-actions";
 import { startAdminServer } from "./admin/admin-server";
 import { PairingRegistry } from "./auth/pairing";
-import type { CharmdConfig } from "./config/config";
+import { type CharmdConfig, isLoopback } from "./config/config";
+import { type Announce, announceOnNetwork } from "./device/announce";
 import { handleOta, isOtaRequest } from "./device/ota";
 import { toBuffer } from "./device/raw-data";
 import { SUBPROTOCOL, tokenFrom } from "./device/token";
@@ -31,6 +32,8 @@ type DaemonOptions = {
   identity?: string;
   // Which starter commit the workspace began from (spec 015), shown in status.
   starter?: string;
+  // How charmd announces itself on the local network (spec 002); tests pass a fake.
+  announce?: Announce;
   // Where per-turn timing entries go; defaults to JSON lines on stdout unless quiet.
   log?: (entry: Record<string, unknown>) => void;
   // How to start `opencharm mcp` (the charm's tools for ACP agents); the CLI passes itself.
@@ -211,6 +214,11 @@ async function startDaemon(
     ? `[${config.listen.host}]`
     : config.listen.host;
   const url = `ws://${host}:${port}/charm`;
+  // Beyond loopback, say so on the local network, so a board can find this charmd (spec 002).
+  const stopAnnouncing =
+    config.discoverable && !isLoopback(config.listen.host)
+      ? (options.announce ?? announceOnNetwork)(port)
+      : undefined;
   websocketUrl = config.publicUrl ?? url;
   if (!options.quiet)
     console.log(
@@ -224,6 +232,7 @@ async function startDaemon(
     admin,
     close: async () => {
       clearInterval(heartbeat);
+      await stopAnnouncing?.();
       for (const client of wss.clients) client.terminate();
       agent.dispose?.();
       await new Promise<void>((resolve) => wss.close(() => resolve()));

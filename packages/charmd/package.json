@@ -19,6 +19,7 @@
     "@agentclientprotocol/sdk": "1.5.1",
     "@opencharm-labs/design": "*",
     "@opencharm-labs/protocol": "*",
+    "bonjour-service": "^1.4.4",
     "opusscript": "^0.1.1",
     "sherpa-onnx-node": "1.13.8",
     "ws": "^8.22.0",

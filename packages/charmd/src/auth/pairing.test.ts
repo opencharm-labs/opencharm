@@ -29,6 +29,21 @@ describe("PairingRegistry", () => {
     expect(reg.claim(code)).toBeUndefined();
   });
 
+  it("lists the codes waiting, with how long each has left, and drops expired ones", () => {
+    const { reg, advance } = registry();
+    const first = reg.issue("conn-1");
+    advance(100_000);
+    const second = reg.issue("conn-2");
+    expect(reg.waiting()).toEqual([
+      { code: first.code, connectionId: "conn-1", expiresIn: 200 },
+      { code: second.code, connectionId: "conn-2", expiresIn: 300 },
+    ]);
+    advance(200_001);
+    expect(reg.waiting().map((w) => w.connectionId)).toEqual(["conn-2"]);
+    reg.claim(second.code);
+    expect(reg.waiting()).toEqual([]);
+  });
+
   it("expires codes after the time to live", () => {
     const { reg, advance } = registry();
     const { code } = reg.issue("conn-1");

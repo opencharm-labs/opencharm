@@ -68,19 +68,56 @@ function fail(ctx: CliContext, message: string): void {
   process.exitCode = 1;
 }
 
+const spaced = (code: string) => `${code.slice(0, 3)} ${code.slice(3)}`;
+
+// No code given: the charms waiting to pair (spec 002), each with the code on its screen. One is
+// confirmed by its code; with several, the code on the charm is typed. Nothing is paired unseen.
+async function chooseWaiting(
+  ctx: CliContext,
+  deps: AdminDeps
+): Promise<string | undefined> {
+  const answer = (await deps.send(deps.socket, { cmd: "waiting" })) as {
+    charms?: { code: string; kind?: string }[];
+  };
+  const charms = (answer.charms ?? []).filter((c) => /^\d{6}$/.test(c.code));
+  if (charms.length === 0) {
+    fail(
+      ctx,
+      "No charm is waiting to pair. Turn it on and connect it to this charmd: its screen shows a 6-digit code. Then: opencharm pair [code]"
+    );
+    return undefined;
+  }
+  if (charms.length === 1) {
+    const [only] = charms;
+    if (!only) return undefined;
+    const yes = await deps.prompt(
+      `A charm is waiting with code ${spaced(only.code)}${only.kind ? ` (${only.kind})` : ""}. Is that the code on your charm? [y/N] `
+    );
+    if (!/^y(es)?$/i.test(yes.trim())) {
+      fail(ctx, "Not paired.");
+      return undefined;
+    }
+    return only.code;
+  }
+  for (const c of charms)
+    ctx.out.write(`  ${spaced(c.code)}${c.kind ? `  ${c.kind}` : ""}\n`);
+  const typed = (
+    await deps.prompt("Type the code on your charm's screen: ")
+  ).replace(/\s/g, "");
+  if (!charms.some((c) => c.code === typed)) {
+    fail(ctx, "That code isn't one of them. Nothing was changed.");
+    return undefined;
+  }
+  return typed;
+}
+
 async function pair(
   ctx: CliContext,
   args: readonly string[],
   deps: AdminDeps
 ): Promise<void> {
-  const code = firstPositional(args);
-  if (!code) {
-    fail(
-      ctx,
-      "Usage: opencharm pair <code> [--name <name>]   (the 6-digit code on the charm's screen)"
-    );
-    return;
-  }
+  const code = firstPositional(args) ?? (await chooseWaiting(ctx, deps));
+  if (!code) return;
   const pin = await deps.prompt("Choose a PIN for the charm (4-12 digits): ");
   const again = await deps.prompt("Type it again: ");
   if (pin !== again) {
