@@ -20,9 +20,9 @@ Built in four stages, each flashed and checked on the board before the next star
 
 What it's made of:
 
-- `firmware/device`: hard fork of 78/xiaozhi-esp32 v2.5.2 (MIT, credit kept), ESP-IDF 6.1 (what upstream builds with). Removed: xiaozhi.me defaults, activation, their UI and assets. Kept: board support for the 2.16, audio and echo cancellation, WebSocket, Wi-Fi setup and the config check (charmd `/ota/`). LVGL moves from upstream's 9.5 to 9.6, the core's version.
+- `firmware/device`: an ESP-IDF 6.1 project (what upstream xiaozhi-esp32 v2.5.2 builds with) taking from upstream (MIT, credit kept) only what each stage needs: the board's facts, its Wi-Fi setup component, and later audio and echo cancellation. Nothing of xiaozhi.me: no defaults, activation, UI or assets. The WebSocket is Espressif's `esp_websocket_client`. LVGL is 9.6, the core's version.
 - An ESP32 HAL implementation for the core (`core/include/charm/hal.h`).
-- **Wi-Fi setup:** upstream's portal (78/esp-wifi-connect), renamed: hotspot `OpenCharm-XXXX`, the screen says "Join Wi-Fi OpenCharm-XXXX", and the portal's server-address field is labelled "charmd address".
+- **Wi-Fi setup:** upstream's portal (78/esp-wifi-connect 3.3, used as a component): hotspot `OpenCharm-XXXX`, the screen says "Join Wi-Fi OpenCharm-XXXX", English page; charmd's address goes in its "Custom OTA URL" field under Advanced. With no saved network found within a minute, or no usable address, the hotspot opens again.
 - **Battery:** the device reads the AXP2101 (percent, charging, on USB) and passes it to the core. The View shows it on the face: hidden at rest; a small level in the identity colour for 3 s on wake and on a key press, and while on USB; a small marker that stays while below 15 %. Never orange (orange means "it needs you"). The emulator gets a battery control in its side panel, so the indicator is tested without the board. The charm also sends its battery to charmd (`charm` `battery`, protocol spec 001), so the agent can know it.
 - **Status screen:** touch and hold the face for 1 s to open it; a key press, a tap or 10 s without touch closes it. Read-only, large type in Geist Mono on true black, one item per line:
   - battery: percent in large type, then charging / on USB / on battery, and the voltage
@@ -40,6 +40,9 @@ What it's made of:
 - The charm gets one read-only status screen for battery, temperatures, Wi-Fi and charmd, in large type (maintainer, 12 October 2026). It changes nothing, so "settings live on the computer" still holds; touch and hold opens it because hold-to-talk is on the key, not the screen.
 - Built from XiaoZhi v2.5.2 on ESP-IDF 6.1, not v2.4 on 6.0: upstream moved there (release of 11 October 2026).
 - Upstream's Wi-Fi portal is reused instead of writing our own page: fewer parts, same result.
+- The board connects straight to the address typed at Wi-Fi setup (scheme, host and port; path `/charm`) instead of first asking charmd's `/ota/` where to go: the `/ota/` answer comes over plain HTTP on a home network and could send the charm, with its token, somewhere else. `/ota/` stays for stock XiaoZhi devices. Proposed in the stage 2 pull request; the maintainer confirms it there.
+- The pairing token is bound to the origin that issued it (scheme, host and port) and never sent anywhere else, not even to the same host without TLS: the setup hotspot is open (as upstream's) and reopens when the saved network can't be found, so anyone nearby could change the address; a charm pointed somewhere new pairs again (stage 2 security review, 12 October 2026).
+- Holding the key 5 s while the charm isn't connected opens Wi-Fi setup, so a wrong charmd address can be fixed without a reflash; the hotspot doesn't open by itself just because charmd is quiet (its computer may be asleep). Proposed in the stage 2 pull request; the maintainer confirms it there.
 - The fork is taken by import: `firmware/device` is a new ESP-IDF project that copies upstream files as each stage needs them, each credited with its commit, instead of cloning 154 boards and deleting (plan.md).
 
 ## Not in scope

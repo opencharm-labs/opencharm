@@ -207,3 +207,23 @@ TEST_CASE("a look outside the limits is refused") {
 TEST_CASE("the core knows the commit it was built from") {
   CHECK(!std::string(charm::kBuildCommit).empty());
 }
+
+TEST_CASE("the charmd address typed at Wi-Fi setup becomes the charm's WebSocket address") {
+  // https or no scheme: TLS; http: plain (a computer on the same network); only the host counts.
+  CHECK(charm::charm_url("charm.example.com") == "wss://charm.example.com/charm");
+  CHECK(charm::charm_url("https://charm.example.com") == "wss://charm.example.com/charm");
+  CHECK(charm::charm_url("  HTTPS://Charm.Example.com/  ") == "wss://Charm.Example.com/charm");
+  CHECK(charm::charm_url("http://192.168.1.20:8787") == "ws://192.168.1.20:8787/charm");
+  CHECK(charm::charm_url("http://192.168.1.20:8787/ota/") == "ws://192.168.1.20:8787/charm");
+  CHECK(charm::charm_url("ws://studio.local:8787/charm") == "ws://studio.local:8787/charm");
+  CHECK(charm::charm_url("wss://charm.example.com/charm?x=1") == "wss://charm.example.com/charm");
+  CHECK(charm::charm_url("http://[fd00::5]:8787") == "ws://[fd00::5]:8787/charm");
+}
+
+TEST_CASE("an address the charm can't use is refused, never guessed at") {
+  for (const char* bad :
+       {"", "   ", "https://", "ftp://charm.example.com", "http://a b.example.com",
+        "https://user:pass@charm.example.com", "https://charm.example.com:port",
+        "https://charm.example.com:99999", "https://:8787", "https://ex\nample.com"})
+    CHECK_MESSAGE(charm::charm_url(bad).empty(), bad);
+}

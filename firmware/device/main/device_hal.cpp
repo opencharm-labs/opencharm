@@ -2,25 +2,31 @@
 
 #include "cJSON.h"
 #include "esp_log.h"
+#include "network.h"
 #include "nvs.h"
 
 namespace {
 
 constexpr const char* kTag = "hal";
 constexpr const char* kNamespace = "charm";
+constexpr const char* kToken = "token";
+constexpr const char* kTokenOrigin = "token_origin";
 
 }  // namespace
 
-// Nowhere to send it yet (stage 2). The bench log gets the message's type and op only: never the
-// payload, which can hold the PIN (`unlock`) or typed text.
+// To charmd. The log gets the message's type and op only: never the payload, which can hold the PIN
+// (`unlock`) or typed text.
 void DeviceHal::send_text(const std::string& json) {
   cJSON* message = cJSON_Parse(json.c_str());
   const cJSON* type = cJSON_GetObjectItemCaseSensitive(message, "type");
   const cJSON* op = cJSON_GetObjectItemCaseSensitive(message, "op");
-  ESP_LOGI(kTag, "would send %s%s%s", cJSON_IsString(type) ? type->valuestring : "?",
+  ESP_LOGI(kTag, "send %s%s%s", cJSON_IsString(type) ? type->valuestring : "?",
            cJSON_IsString(op) ? " " : "", cJSON_IsString(op) ? op->valuestring : "");
   cJSON_Delete(message);
+  network::send_text(json);
 }
+
+void DeviceHal::reconnect() { network::reconnect(); }
 
 std::string DeviceHal::store_get(const std::string& key) {
   nvs_handle_t nvs;
@@ -41,13 +47,23 @@ std::string DeviceHal::store_get(const std::string& key) {
 void DeviceHal::store_set(const std::string& key, const std::string& value) {
   nvs_handle_t nvs;
   if (nvs_open(kNamespace, NVS_READWRITE, &nvs) != ESP_OK) return;
-  if (nvs_set_str(nvs, key.c_str(), value.c_str()) == ESP_OK) nvs_commit(nvs);
+  bool ok = nvs_set_str(nvs, key.c_str(), value.c_str()) == ESP_OK;
+  // A pairing token is bound to the charmd it came from, on this connection (network.cpp).
+  if (ok && key == kToken)
+    ok = nvs_set_str(nvs, kTokenOrigin, network::connected_origin().c_str()) == ESP_OK;
+  if (ok) nvs_commit(nvs);
   nvs_close(nvs);
+  // Just paired: connect again, so this and every later connection carries the token.
+  if (ok && key == kToken) network::reconnect();
 }
+
+void DeviceHal::open_setup() { network::open_wifi_setup(); }
 
 void DeviceHal::store_erase(const std::string& key) {
   nvs_handle_t nvs;
   if (nvs_open(kNamespace, NVS_READWRITE, &nvs) != ESP_OK) return;
-  if (nvs_erase_key(nvs, key.c_str()) == ESP_OK) nvs_commit(nvs);
+  bool ok = nvs_erase_key(nvs, key.c_str()) == ESP_OK;
+  if (key == kToken) nvs_erase_key(nvs, kTokenOrigin);
+  if (ok) nvs_commit(nvs);
   nvs_close(nvs);
 }

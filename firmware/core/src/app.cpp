@@ -116,6 +116,7 @@ void App::render() {
 void App::go(Screen screen) {
   // Leaving the face lets go of the key: its release may come on another screen, where it isn't
   // seen, and a hold must never carry over (it would start a talk with the key up). The mic stops.
+  if (screen != Screen::Connecting) setup_key_at_ = 0;
   if (screen != Screen::Face) {
     status_open_ = false;
     if (battery_show_ != BatteryShow::Hidden) {
@@ -149,6 +150,11 @@ void App::tick(uint32_t now) {
     } else if (!talking_ && !key_answered_) {
       begin_talk();
     }
+  }
+  if (setup_key_at_ != 0 && screen_ == Screen::Connecting &&
+      now - setup_key_at_ >= options_.setup_hold_ms) {
+    setup_key_at_ = 0;
+    hal_.open_setup();
   }
   if (react_until_ != 0 && now >= react_until_) {
     react_until_ = 0;
@@ -208,13 +214,15 @@ void App::end_ask() {
 
 void App::on_connected(uint32_t) { hal_.send_text(client_hello(options_.build)); }
 
-void App::on_disconnected(uint32_t) {
+void App::on_disconnected(uint32_t now) { on_offline("Can't reach charmd", now); }
+
+void App::on_offline(std::string_view line, uint32_t) {
   asking_ = false;
   can_type_ = false;  // the next charmd says again in its hello
   end_talk(false);
   if (speaking_) stop_speech(false);
   set_needs_you(false);
-  connecting_line_ = "Can't reach charmd";
+  connecting_line_ = std::string(line);
   go(Screen::Connecting);
 }
 
@@ -363,6 +371,12 @@ void App::on_mic_frame(const uint8_t* data, size_t size) {
 void App::on_key(bool down, uint32_t now) {
   bool was_dimmed = dimmed_;
   activity(now);
+  if (screen_ == Screen::Connecting) {
+    // Not connected: holding the key long enough opens Wi-Fi setup (to fix the network or charmd's
+    // address); there's nothing to talk to.
+    setup_key_at_ = down ? (now == 0 ? 1 : now) : 0;
+    return;
+  }
   if (screen_ != Screen::Face) return;
   if (down) {
     if (key_down_) return;  // already down (two inputs for one key): nothing new

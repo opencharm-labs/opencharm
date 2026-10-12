@@ -24,6 +24,7 @@ struct AppOptions {
   uint32_t battery_ms = 3000;        // the battery level shows this long on wake and a key press
   uint32_t status_ms = 10000;        // the status screen closes after this long without touch
   int battery_low = 15;              // below this percent a marker stays on the face
+  uint32_t setup_hold_ms = 5000;     // the key held this long while not connected: Wi-Fi setup
   Build build;                       // what this charm runs, sent in hello (spec 015)
 };
 
@@ -37,6 +38,9 @@ class App {
 
   void on_connected(uint32_t now);
   void on_disconnected(uint32_t now);
+  // Not connected, and why, on the connecting screen: "Join Wi-Fi OpenCharm-7F3A" at Wi-Fi setup,
+  // "No Wi-Fi" (spec 009). Like a dropped connection, it ends a talk, speech and a question.
+  void on_offline(std::string_view line, uint32_t now);
   void on_text(std::string_view json, uint32_t now);
   void on_audio(const uint8_t* data, size_t size);
   void on_mic_frame(const uint8_t* data, size_t size);
@@ -138,6 +142,7 @@ class App {
   BatteryShow battery_show_ = BatteryShow::Hidden;
   bool status_open_ = false;
   uint32_t status_until_ = 0;
+  uint32_t setup_key_at_ = 0;  // the key went down on the connecting screen (0 = it isn't down)
   std::string pair_code_;
   int pin_tries_ = -1;
   bool pin_wrong_ = false;

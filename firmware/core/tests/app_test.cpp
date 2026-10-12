@@ -1,5 +1,6 @@
 #include "charm/app.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <map>
 #include <string>
@@ -35,6 +36,7 @@ struct FakeHal : charm::Hal {
   void store_set(const std::string& k, const std::string& v) override { store[k] = v; }
   void store_erase(const std::string& k) override { store.erase(k); }
   void reconnect() override { events.push_back("reconnect"); }
+  void open_setup() override { events.push_back("open_setup"); }
   bool sent_contains(const std::string& part) const {
     for (const auto& s : sent)
       if (s.find(part) != std::string::npos) return true;
@@ -989,4 +991,66 @@ TEST_CASE("charmd waking a dimmed charm doesn't show the battery: only a person 
   r.app.on_touch_face(r.now);
   r.at(140016);
   CHECK(r.view.battery == "battery level 80");
+}
+
+TEST_CASE("offline lines: Wi-Fi setup and no Wi-Fi show on the connecting screen and end a talk") {
+  Rig r;
+  r.unlocked();
+  r.hold(5000, 5600);
+  r.app.on_key(true, r.now);
+  r.at(r.now + 300);
+  CHECK(r.app.talking());
+  r.app.on_offline("No Wi-Fi", r.now);
+  CHECK_FALSE(r.app.talking());
+  CHECK(r.app.screen() == charm::Screen::Connecting);
+  CHECK(r.view.last() == "connecting No Wi-Fi");
+  r.app.on_offline("Join Wi-Fi OpenCharm-7F3A", r.now);
+  CHECK(r.view.last() == "connecting Join Wi-Fi OpenCharm-7F3A");
+}
+
+TEST_CASE("an offline line during boot waits for the boot face to finish") {
+  Rig r;
+  r.app.start(0);
+  r.app.on_offline("Join Wi-Fi OpenCharm-7F3A", 100);
+  CHECK(r.view.last() == "boot");
+  r.at(1300);
+  CHECK(r.view.last() == "connecting Join Wi-Fi OpenCharm-7F3A");
+}
+
+TEST_CASE("holding the key 5 s while not connected opens Wi-Fi setup; a shorter hold doesn't") {
+  Rig r;
+  r.app.start(0);
+  r.at(1300);
+  r.app.on_offline("Can't reach charmd", r.now);
+  r.app.on_key(true, r.now);
+  r.at(r.now + 4900);
+  r.app.on_key(false, r.now);
+  r.at(r.now + 1000);
+  CHECK(r.hal.events.empty());
+  r.app.on_key(true, r.now);
+  r.at(r.now + 5000);
+  CHECK(r.hal.events == std::vector<std::string>{"open_setup"});
+  r.at(r.now + 6000);  // once per hold
+  CHECK(r.hal.events.size() == 1);
+  r.app.on_key(false, r.now);
+}
+
+TEST_CASE(
+    "on the face a long hold is a talk, never Wi-Fi setup; leaving the screen forgets the hold") {
+  Rig r;
+  r.unlocked();
+  r.app.on_key(true, r.now);
+  r.at(r.now + 6000);
+  CHECK(r.app.talking());
+  CHECK(std::count(r.hal.events.begin(), r.hal.events.end(), "open_setup") == 0);
+  r.app.on_key(false, r.now);
+
+  Rig s;
+  s.app.start(0);
+  s.at(1300);
+  s.app.on_key(true, s.now);
+  s.at(s.now + 1000);
+  s.server(R"({"type":"charm","op":"pair_code","code":"482913","expires_in":300})");
+  s.at(s.now + 6000);
+  CHECK(s.hal.events.empty());
 }
