@@ -900,3 +900,51 @@ TEST_CASE("the status screen says what isn't known instead of guessing") {
   CHECK(text.find("No Wi-Fi") != std::string::npos);
   CHECK(text.find("No charmd set") != std::string::npos);
 }
+
+TEST_CASE("speech takes over from the status screen on screen too, and the USB level comes back") {
+  Screen s(480, 480, false);
+  s.unlocked();
+  s.app.on_status(board_status(62, true, true), s.now);
+  s.at(s.now + 100);
+  CHECK(s.view.battery_text() == "62% · charging");
+  s.app.on_touch_hold(s.now);
+  s.at(s.now + 100);
+  CHECK_FALSE(s.view.status_text().empty());
+  s.server(R"({"type":"tts","state":"start","session_id":"s1"})");
+  s.server(R"({"type":"tts","state":"sentence_start","text":"Sure."})");
+  CHECK(s.view.status_text().empty());
+  CHECK(s.view.battery_text() == "62% · charging");
+  s.screen.save_png("status-then-speech-480");
+}
+
+TEST_CASE("an open status screen with the same readings draws nothing new") {
+  Screen s(480, 480, false);
+  s.unlocked();
+  charm::Status st = board_status(87, true, true);
+  s.app.on_status(st, s.now);
+  s.app.on_touch_hold(s.now);
+  s.at(s.now + 100);
+  s.screen.redraw();
+  s.app.on_status(st, s.now);  // the board's once-a-second reading, unchanged
+  s.app.tick(s.now);
+  CHECK(s.screen.redraw() == 0);
+  st.battery.percent = 88;
+  s.app.on_status(st, s.now);
+  s.app.tick(s.now);
+  CHECK(s.screen.redraw() > 0);
+}
+
+TEST_CASE("the battery level over the decision and speech layouts, on both shapes") {
+  for (auto [size, round] : {std::pair{480, false}, std::pair{466, true}}) {
+    Screen s(size, size, round);
+    s.unlocked();
+    s.app.on_status(board_status(62, true, true), s.now);
+    s.server(R"({"type":"charm","op":"ask","id":"q1","text":"Allow the deploy?"})");
+    s.screen.save_png(round ? "battery-decision-466" : "battery-decision-480");
+    s.server(R"({"type":"charm","op":"ask_end","id":"q1"})");
+    s.server(R"({"type":"tts","state":"start","session_id":"s1"})");
+    s.server(R"({"type":"tts","state":"sentence_start","text":"Deploying now."})");
+    s.at(s.now + 1000);
+    s.screen.save_png(round ? "battery-speech-466" : "battery-speech-480");
+  }
+}

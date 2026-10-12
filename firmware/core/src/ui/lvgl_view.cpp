@@ -334,7 +334,11 @@ void LvglView::set_mode(Mode mode) {
   bool status = mode == Mode::Status;
   hide(status_percent_, !status);
   for (lv_obj_t* label : status_lines_) hide(label, !status);
-  if (status) hide(battery_, true);
+  if (status) {
+    hide(battery_, true);
+  } else if (battery_show_ != BatteryShow::Hidden) {
+    set_battery(last_battery_, battery_show_);  // back from the status screen
+  }
   hide(pad_, !pin || options_.notch);  // a notch has no room for a pad: the PIN is typed
   hide(title_, !pin);
   hide(dots_, !pin);
@@ -476,7 +480,7 @@ void LvglView::show_face(std::string_view face_id, std::string_view line) {
 }
 
 void LvglView::speech_start() {
-  if (mode_ == Mode::Decision) set_mode(Mode::Face);
+  if (mode_ == Mode::Decision || mode_ == Mode::Status) set_mode(Mode::Face);
   speaking_ = true;
   layout_target_ = 1;
   set_line("", false);
@@ -656,6 +660,7 @@ void LvglView::set_look(uint32_t glyph, bool calm) {
 }
 
 void LvglView::set_battery(const Battery& battery, BatteryShow show) {
+  last_battery_ = battery;
   battery_show_ = show;
   if (show == BatteryShow::Hidden || mode_ == Mode::Status) {
     hide(battery_, true);
@@ -663,9 +668,8 @@ void LvglView::set_battery(const Battery& battery, BatteryShow show) {
   }
   int percent = std::clamp(battery.percent, 0, 100);
   // The fill never vanishes entirely: an empty outline would read as "no battery".
-  int inner = lv_obj_get_content_width(battery_body_);
   lv_obj_update_layout(battery_body_);
-  inner = lv_obj_get_content_width(battery_body_);
+  int inner = lv_obj_get_content_width(battery_body_);
   lv_obj_set_width(battery_fill_, std::max(2, inner * percent / 100));
   if (show == BatteryShow::Low) {
     lv_label_set_text(battery_text_, "");
@@ -694,13 +698,22 @@ std::string degrees(const char* name, int c) {
 }  // namespace
 
 void LvglView::show_status(const Status& s) {
-  boot_phase_ = -1;
-  speaking_ = false;
-  set_line("", false);
-  if (mode_ != Mode::Status) set_mode(Mode::Status);
+  // Called about once a second while open: only what changed touches LVGL (a write redraws).
+  if (mode_ != Mode::Status) {
+    boot_phase_ = -1;
+    speaking_ = false;
+    set_line("", false);
+    set_mode(Mode::Status);
+  }
   const Battery& b = s.battery;
   bool known = b.percent != kUnknown;
-  if (known) lv_label_set_text_fmt(status_percent_, "%d%%", std::clamp(b.percent, 0, 100));
+  bool relayout = known == lv_obj_has_flag(status_percent_, LV_OBJ_FLAG_HIDDEN);
+  if (known) {
+    char percent[8];
+    std::snprintf(percent, sizeof percent, "%d%%", std::clamp(b.percent, 0, 100));
+    if (std::strcmp(percent, lv_label_get_text(status_percent_)) != 0)
+      lv_label_set_text(status_percent_, percent);
+  }
   hide(status_percent_, !known);
   std::string state = !known       ? "No battery"
                       : b.charging ? "Charging"
@@ -730,9 +743,11 @@ void LvglView::show_status(const Status& s) {
   for (int i = 0; i < kStatusLines; ++i) {
     if (lines[i] != lv_label_get_text(status_lines_[i]))
       lv_label_set_text(status_lines_[i], lines[i].c_str());
+    if (lines[i].empty() != lv_obj_has_flag(status_lines_[i], LV_OBJ_FLAG_HIDDEN)) relayout = true;
     hide(status_lines_[i], lines[i].empty());
   }
-  place_status();
+  if (relayout || !status_placed_) place_status();
+  status_placed_ = true;
   apply();
 }
 

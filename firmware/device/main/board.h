@@ -18,20 +18,19 @@ constexpr int kWidth = 480;
 constexpr int kHeight = 480;
 
 struct Board {
-  i2c_master_bus_handle_t i2c =
-      nullptr; // shared: power chip, touch, codecs, IMU, RTC
+  i2c_master_bus_handle_t i2c = nullptr;  // shared: power chip, touch, codecs, IMU, RTC
   esp_lcd_panel_io_handle_t panel_io = nullptr;
   esp_lcd_panel_handle_t panel = nullptr;
   esp_lcd_touch_handle_t touch = nullptr;
-  lv_display_t *display = nullptr;
+  lv_display_t* display = nullptr;
 };
 
 // I2C, the screen (with an LVGL display), touch (an LVGL pointer) and the key.
 // Call after lv_init.
-void init(Board &board);
+void init(Board& board);
 // The key (GPIO18, the button labelled +/KEY): pulled up, low while pressed.
 bool key_down();
 // 0..100; the AMOLED dims itself, there's no backlight.
-void set_brightness(const Board &board, uint8_t percent);
+void set_brightness(const Board& board, uint8_t percent);
 
-} // namespace board
+}  // namespace board

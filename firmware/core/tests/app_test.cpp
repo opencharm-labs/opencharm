@@ -964,3 +964,29 @@ TEST_CASE("a question or speech takes over from the status screen; a face change
   CHECK_FALSE(r.app.status_open());
   CHECK(r.view.last() == "speech_start");
 }
+
+TEST_CASE("'needs you' closes the status screen, so the orange ring comes with its face") {
+  Rig r;
+  r.unlocked();
+  r.at(5000);
+  r.app.on_touch_hold(r.now);
+  r.server(R"({"type":"charm","op":"face","state":"needs_you","text":"Approve the deploy?"})");
+  CHECK_FALSE(r.app.status_open());
+  CHECK(r.view.last() == "face ask | Approve the deploy?");
+}
+
+TEST_CASE("charmd waking a dimmed charm doesn't show the battery: only a person does") {
+  Rig r;
+  r.unlocked();
+  r.app.on_status(battery_at(80), r.now);
+  r.at(70000);  // dimmed
+  CHECK(r.app.dimmed());
+  r.server(R"({"type":"tts","state":"start","session_id":"s1"})");
+  r.at(70100);
+  CHECK(r.view.battery == "battery hidden");
+  r.server(R"({"type":"tts","state":"stop","session_id":"s1"})");
+  r.at(140000);  // dimmed again
+  r.app.on_touch_face(r.now);
+  r.at(140016);
+  CHECK(r.view.battery == "battery level 80");
+}

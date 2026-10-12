@@ -181,7 +181,6 @@ void App::activity(uint32_t now) {
   last_activity_ = now;
   if (dimmed_) {
     dimmed_ = false;
-    show_battery_for_a_moment(now);
     hal_.set_brightness(kFullPercent);
   }
 }
@@ -285,6 +284,8 @@ void App::handle(const ServerMessage& m, uint32_t now) {
       // A real agent state (thinking, a failure, "needs you") shows at once; only the plain idle
       // face waits for a reaction (a greeting, a poke, being pleased) to finish.
       if (m.state != "idle") stop_reacting();
+      // "It needs you" outranks the status screen: the ring comes with the face that says why.
+      if (m.state == "needs_you") status_open_ = false;
       if (!speaking_ && !key_down_ && react_until_ == 0 && !status_open_)
         view_.show_face(face_, line_);
       break;
@@ -422,6 +423,7 @@ void App::on_key(bool down, uint32_t now) {
 void App::on_touch_face(uint32_t now) {
   bool was_dimmed = dimmed_;
   activity(now);
+  if (was_dimmed) show_battery_for_a_moment(now);  // a person woke it
   if (status_open_) {
     close_status();
     return;
@@ -511,6 +513,7 @@ void App::on_status(const Status& status, uint32_t now) {
 void App::on_touch_hold(uint32_t now) {
   bool was_dimmed = dimmed_;
   activity(now);
+  if (was_dimmed) show_battery_for_a_moment(now);  // a person woke it
   if (screen_ != Screen::Face || speaking_ || talking_ || key_down_ || asking_) return;
   if (wake(now) || was_dimmed) return;  // the first touch only wakes it
   stop_reacting();

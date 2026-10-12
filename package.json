@@ -29,7 +29,7 @@
     "spec:new": "tsx tools/checks/scripts/new-spec.ts",
     "firmware:test": "cmake -S firmware/core -B firmware/core/build -G Ninja && cmake --build firmware/core/build && ctest --test-dir firmware/core/build --output-on-failure",
     "firmware:fonts": "tsx firmware/core/fonts/build-fonts.ts",
-    "device:build": "cd firmware/device && idf.py reconfigure build",
+    "device:build": "cd firmware/device && idf.py build",
     "device:flash": "cd firmware/device && idf.py flash",
     "device:monitor": "cd firmware/device && idf.py monitor",
     "firmware:format": "clang-format -i firmware/core/include/charm/*.h firmware/core/src/*.cpp firmware/core/src/ui/*.cpp firmware/core/src/ui/*.h firmware/core/tests/*.cpp firmware/core/tests/*.h firmware/device/main/*.cpp firmware/device/main/*.h",

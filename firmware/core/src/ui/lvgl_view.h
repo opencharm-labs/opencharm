@@ -125,7 +125,9 @@ class LvglView : public View {
   lv_obj_t* battery_fill_ = nullptr;
   lv_obj_t* battery_nub_ = nullptr;
   lv_obj_t* battery_text_ = nullptr;
+  Battery last_battery_;  // the last one App showed, to bring back after the status screen
   BatteryShow battery_show_ = BatteryShow::Hidden;
+  bool status_placed_ = false;
   // The status screen: the percent large, then one reading per line.
   static constexpr int kStatusLines = 6;
   lv_obj_t* status_percent_ = nullptr;

@@ -10,7 +10,7 @@
 namespace board {
 namespace {
 
-constexpr const char *kTag = "board";
+constexpr const char* kTag = "board";
 
 constexpr gpio_num_t kI2cSda = GPIO_NUM_15;
 constexpr gpio_num_t kI2cScl = GPIO_NUM_14;
@@ -37,55 +37,50 @@ constexpr int kBufferLines = 48;
 // The screen's start-up sequence, the same in Waveshare's board package and
 // xiaozhi-esp32.
 const co5300_lcd_init_cmd_t kInitCmds[] = {
-    {0x11, (uint8_t[]){0x00}, 0, 600}, // sleep out
+    {0x11, (uint8_t[]){0x00}, 0, 600},  // sleep out
     {0xFE, (uint8_t[]){0x20}, 1, 0},
     {0x19, (uint8_t[]){0x10}, 1, 0},
     {0x1C, (uint8_t[]){0xA0}, 1, 0},
     {0xFE, (uint8_t[]){0x00}, 1, 0},
     {0xC4, (uint8_t[]){0x80}, 1, 0},
-    {0x3A, (uint8_t[]){0x55}, 1, 0}, // RGB565
+    {0x3A, (uint8_t[]){0x55}, 1, 0},  // RGB565
     {0x35, (uint8_t[]){0x00}, 1, 0},
     {0x53, (uint8_t[]){0x20}, 1, 0},
-    {0x51, (uint8_t[]){0xFF}, 1, 0}, // brightness
+    {0x51, (uint8_t[]){0xFF}, 1, 0},  // brightness
     {0x63, (uint8_t[]){0xFF}, 1, 0},
-    {0x2A, (uint8_t[]){0x00, 0x00, 0x01, 0xDF}, 4, 0}, // columns 0..479
-    {0x2B, (uint8_t[]){0x00, 0x00, 0x01, 0xDF}, 4, 0}, // rows 0..479
+    {0x2A, (uint8_t[]){0x00, 0x00, 0x01, 0xDF}, 4, 0},  // columns 0..479
+    {0x2B, (uint8_t[]){0x00, 0x00, 0x01, 0xDF}, 4, 0},  // rows 0..479
     {0x36, (uint8_t[]){0xA0}, 1, 0},
-    {0x29, (uint8_t[]){0x00}, 0, 600}, // display on
+    {0x29, (uint8_t[]){0x00}, 0, 600},  // display on
 };
 
-bool on_flushed(esp_lcd_panel_io_handle_t, esp_lcd_panel_io_event_data_t *,
-                void *ctx) {
-  lv_display_flush_ready(static_cast<lv_display_t *>(ctx));
+bool on_flushed(esp_lcd_panel_io_handle_t, esp_lcd_panel_io_event_data_t*, void* ctx) {
+  lv_display_flush_ready(static_cast<lv_display_t*>(ctx));
   return false;
 }
 
-void flush(lv_display_t *display, const lv_area_t *area, uint8_t *pixels) {
-  auto *panel =
-      static_cast<esp_lcd_panel_handle_t>(lv_display_get_user_data(display));
+void flush(lv_display_t* display, const lv_area_t* area, uint8_t* pixels) {
+  auto* panel = static_cast<esp_lcd_panel_handle_t>(lv_display_get_user_data(display));
   // LVGL keeps RGB565 little-endian; the screen reads it big-endian.
   lv_draw_sw_rgb565_swap(pixels, lv_area_get_size(area));
-  esp_lcd_panel_draw_bitmap(panel, area->x1, area->y1, area->x2 + 1,
-                            area->y2 + 1, pixels);
+  esp_lcd_panel_draw_bitmap(panel, area->x1, area->y1, area->x2 + 1, area->y2 + 1, pixels);
 }
 
 // The CO5300 takes areas that start on an even pixel and end on an odd one.
-void round_area(lv_event_t *e) {
-  auto *area = static_cast<lv_area_t *>(lv_event_get_param(e));
+void round_area(lv_event_t* e) {
+  auto* area = static_cast<lv_area_t*>(lv_event_get_param(e));
   area->x1 &= ~1;
   area->y1 &= ~1;
   area->x2 |= 1;
   area->y2 |= 1;
 }
 
-void read_touch(lv_indev_t *indev, lv_indev_data_t *data) {
-  auto touch =
-      static_cast<esp_lcd_touch_handle_t>(lv_indev_get_user_data(indev));
+void read_touch(lv_indev_t* indev, lv_indev_data_t* data) {
+  auto touch = static_cast<esp_lcd_touch_handle_t>(lv_indev_get_user_data(indev));
   esp_lcd_touch_point_data_t point = {};
   uint8_t count = 0;
   esp_lcd_touch_read_data(touch);
-  bool pressed =
-      esp_lcd_touch_get_data(touch, &point, &count, 1) == ESP_OK && count > 0;
+  bool pressed = esp_lcd_touch_get_data(touch, &point, &count, 1) == ESP_OK && count > 0;
   if (pressed) {
     data->point.x = point.x;
     data->point.y = point.y;
@@ -93,7 +88,7 @@ void read_touch(lv_indev_t *indev, lv_indev_data_t *data) {
   data->state = pressed ? LV_INDEV_STATE_PRESSED : LV_INDEV_STATE_RELEASED;
 }
 
-void init_i2c(Board &b) {
+void init_i2c(Board& b) {
   i2c_master_bus_config_t config = {};
   config.i2c_port = I2C_NUM_0;
   config.sda_io_num = kI2cSda;
@@ -103,7 +98,7 @@ void init_i2c(Board &b) {
   ESP_ERROR_CHECK(i2c_new_master_bus(&config, &b.i2c));
 }
 
-void init_screen(Board &b) {
+void init_screen(Board& b) {
   spi_bus_config_t bus = {};
   bus.sclk_io_num = kLcdClk;
   bus.data0_io_num = kLcdD0;
@@ -141,25 +136,21 @@ void init_screen(Board &b) {
 
   b.display = lv_display_create(kWidth, kHeight);
   const size_t bytes = kWidth * kBufferLines * sizeof(uint16_t);
-  void *first = heap_caps_malloc(bytes, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
-  void *second = heap_caps_malloc(bytes, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
+  void* first = heap_caps_malloc(bytes, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
+  void* second = heap_caps_malloc(bytes, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
   assert(first && second);
-  lv_display_set_buffers(b.display, first, second, bytes,
-                         LV_DISPLAY_RENDER_MODE_PARTIAL);
+  lv_display_set_buffers(b.display, first, second, bytes, LV_DISPLAY_RENDER_MODE_PARTIAL);
   lv_display_set_user_data(b.display, b.panel);
   lv_display_set_flush_cb(b.display, flush);
-  lv_display_add_event_cb(b.display, round_area, LV_EVENT_INVALIDATE_AREA,
-                          nullptr);
+  lv_display_add_event_cb(b.display, round_area, LV_EVENT_INVALIDATE_AREA, nullptr);
   esp_lcd_panel_io_callbacks_t callbacks = {};
   callbacks.on_color_trans_done = on_flushed;
-  ESP_ERROR_CHECK(esp_lcd_panel_io_register_event_callbacks(
-      b.panel_io, &callbacks, b.display));
+  ESP_ERROR_CHECK(esp_lcd_panel_io_register_event_callbacks(b.panel_io, &callbacks, b.display));
 }
 
-void init_touch(Board &b) {
+void init_touch(Board& b) {
   esp_lcd_panel_io_handle_t io = nullptr;
-  esp_lcd_panel_io_i2c_config_t io_config =
-      ESP_LCD_TOUCH_IO_I2C_CST9217_CONFIG();
+  esp_lcd_panel_io_i2c_config_t io_config = ESP_LCD_TOUCH_IO_I2C_CST9217_CONFIG();
   io_config.scl_speed_hz = 400 * 1000;
   ESP_ERROR_CHECK(esp_lcd_new_panel_io_i2c(b.i2c, &io_config, &io));
   esp_lcd_touch_config_t config = {};
@@ -170,7 +161,7 @@ void init_touch(Board &b) {
   config.flags.mirror_x = 1;
   config.flags.mirror_y = 1;
   ESP_ERROR_CHECK(esp_lcd_touch_new_i2c_cst9217(io, &config, &b.touch));
-  lv_indev_t *pointer = lv_indev_create();
+  lv_indev_t* pointer = lv_indev_create();
   lv_indev_set_type(pointer, LV_INDEV_TYPE_POINTER);
   lv_indev_set_user_data(pointer, b.touch);
   lv_indev_set_read_cb(pointer, read_touch);
@@ -181,13 +172,13 @@ void init_key() {
   gpio_config_t key = {};
   key.pin_bit_mask = 1ULL << kKey;
   key.mode = GPIO_MODE_INPUT;
-  key.pull_up_en = GPIO_PULLUP_DISABLE; // the board has a 10 kΩ pull-up (R18)
+  key.pull_up_en = GPIO_PULLUP_DISABLE;  // the board has a 10 kΩ pull-up (R18)
   ESP_ERROR_CHECK(gpio_config(&key));
 }
 
-} // namespace
+}  // namespace
 
-void init(Board &b) {
+void init(Board& b) {
   init_i2c(b);
   init_screen(b);
   init_touch(b);
@@ -197,10 +188,9 @@ void init(Board &b) {
 
 bool key_down() { return gpio_get_level(kKey) == 0; }
 
-void set_brightness(const Board &b, uint8_t percent) {
+void set_brightness(const Board& b, uint8_t percent) {
   uint8_t level = uint8_t(255 * (percent > 100 ? 100 : percent) / 100);
-  esp_lcd_panel_io_tx_param(
-      b.panel_io, kWriteCmd | (uint32_t(kBrightnessCmd) << 8), &level, 1);
+  esp_lcd_panel_io_tx_param(b.panel_io, kWriteCmd | (uint32_t(kBrightnessCmd) << 8), &level, 1);
 }
 
-} // namespace board
+}  // namespace board

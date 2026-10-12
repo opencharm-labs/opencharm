@@ -18,7 +18,7 @@
 
 namespace {
 
-constexpr const char *kTag = "charm";
+constexpr const char* kTag = "charm";
 constexpr uint32_t kFrameMs = 16;
 constexpr uint32_t kStatusEveryMs = 1000;
 constexpr uint32_t kDebounceMs = 20;
@@ -28,21 +28,20 @@ uint32_t now_ms() { return uint32_t(esp_timer_get_time() / 1000); }
 
 void init_nvs() {
   esp_err_t err = nvs_flash_init();
-  if (err == ESP_ERR_NVS_NO_FREE_PAGES ||
-      err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+  if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
     ESP_ERROR_CHECK(nvs_flash_erase());
     err = nvs_flash_init();
   }
   ESP_ERROR_CHECK(err);
 }
 
-void log_status(const charm::Status &s) {
-  ESP_LOGI(kTag, "battery %d%% %s%s %d mV | board %d C | chip %d C",
-           s.battery.percent, s.battery.charging ? "charging" : "not charging",
-           s.battery.usb ? " on USB" : "", s.millivolts, s.board_c, s.chip_c);
+void log_status(const charm::Status& s) {
+  ESP_LOGI(kTag, "battery %d%% %s%s %d mV | board %d C | chip %d C", s.battery.percent,
+           s.battery.charging ? "charging" : "not charging", s.battery.usb ? " on USB" : "",
+           s.millivolts, s.board_c, s.chip_c);
 }
 
-} // namespace
+}  // namespace
 
 extern "C" void app_main() {
   init_nvs();
@@ -51,26 +50,21 @@ extern "C" void app_main() {
 
   static board::Board b;
   board::init(b);
-  if (!power::init(b.i2c))
-    ESP_LOGE(kTag, "battery readings unavailable");
+  if (!power::init(b.i2c)) ESP_LOGE(kTag, "battery readings unavailable");
 
   static DeviceHal hal(b);
   static charm::LvglView view(b.display, charm::ViewOptions{});
   charm::AppOptions options;
   // Spec 015: the board's kind is "board" and its release unit
   // "firmware@x.y.z".
-  options.build = {
-      "board", std::string("firmware@") + esp_app_get_description()->version,
-      charm::kBuildCommit};
+  options.build = {"board", std::string("firmware@") + esp_app_get_description()->version,
+                   charm::kBuildCommit};
   static charm::App app(hal, view, options);
-  view.on_face_tap([](void *) { app.on_touch_face(now_ms()); }, nullptr);
-  view.on_face_hold([](void *) { app.on_touch_hold(now_ms()); }, nullptr);
-  view.on_pin(
-      [](void *, const char *pin) { app.on_pin_entered(pin, now_ms()); },
-      nullptr);
+  view.on_face_tap([](void*) { app.on_touch_face(now_ms()); }, nullptr);
+  view.on_face_hold([](void*) { app.on_touch_hold(now_ms()); }, nullptr);
+  view.on_pin([](void*, const char* pin) { app.on_pin_entered(pin, now_ms()); }, nullptr);
   app.start(now_ms());
-  ESP_LOGI(kTag, "OpenCharm OS %s (core %s)", options.build.version.c_str(),
-           charm::kBuildCommit);
+  ESP_LOGI(kTag, "OpenCharm OS %s (core %s)", options.build.version.c_str(), charm::kBuildCommit);
 
 #if CONFIG_OPENCHARM_BENCH_FACE
   // Stage 1 bench: what charmd says when a paired charm unlocks, so the face

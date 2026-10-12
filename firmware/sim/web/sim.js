@@ -430,9 +430,16 @@ function charmdHost() {
     return "";
   }
 }
+// Sent only when something changed: at rest the emulator (and the desktop charm, which runs this
+// page) must stay at its slow tick.
+let lastStatus = "";
 function sendStatus() {
   const percent = notch ? -1 : Number(batteryEl.value);
-  withString(charmdHost(), (ptr) =>
+  const host = charmdHost();
+  const now = [percent, usb, wifiOn, host, trace.connected].join("|");
+  if (now === lastStatus) return;
+  lastStatus = now;
+  withString(host, (ptr) =>
     M._sim_status(
       percent,
       usb ? 1 : 0,
@@ -453,7 +460,6 @@ usbEl.addEventListener("click", () => {
   usbEl.textContent = usb ? "On USB" : "Plug in USB";
   sendStatus();
 });
-setInterval(sendStatus, 1000);
 
 // The charm is always on screen, so it must cost next to nothing at rest. The core only redraws what
 // moved; this loop copies only that box, ticks at 60 Hz while something animates and at 10 Hz at

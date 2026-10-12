@@ -19,4 +19,4 @@ struct Reading {
 bool init(i2c_master_bus_handle_t bus);
 Reading read();
 
-} // namespace power
+}  // namespace power
