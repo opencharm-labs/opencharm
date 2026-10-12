@@ -83,6 +83,7 @@ function fill() {
   $("type-key").value = settings.typeKey;
   $("url").value = settings.url;
   $("login").checked = settings.startAtLogin;
+  $("network").checked = settings.network;
   $("speak-replies").checked = settings.speakReplies;
   $("updates").checked = settings.checkUpdates;
   $("external").checked = !settings.managed;
@@ -387,6 +388,47 @@ void window.__TAURI__.event.listen("settings-changed", async () => {
   settings = await invoke("get_settings");
   fill();
 });
+$("network").addEventListener(
+  "change",
+  (e) => void save({ network: e.target.checked })
+);
+$("add-charm").addEventListener("click", () => void invoke("open_add_charm"));
+
+// Your charms (spec 013): the charms paired with the app's charmd, but its own notch charm, with
+// their state and battery, and Remove (a revoke: it has to pair again).
+async function showCharms() {
+  const list = $("charms");
+  let charms = [];
+  try {
+    charms = await invoke("paired_charms");
+  } catch {
+    charms = [];
+  }
+  list.replaceChildren(
+    ...charms.map((c) => {
+      const li = document.createElement("li");
+      const label = document.createElement("span");
+      const b = c.battery;
+      label.textContent = `${c.name} · ${c.connected ? c.state : "offline"}${
+        b ? ` · ${b.percent}%${b.charging ? " charging" : ""}` : ""
+      }`;
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "pill ghost small";
+      remove.textContent = "Remove";
+      remove.addEventListener("click", async () => {
+        if (!confirm(`Remove ${c.name}? It will need to pair again.`)) return;
+        await invoke("remove_charm", { name: c.name }).catch(() => undefined);
+        await showCharms();
+      });
+      li.append(label, remove);
+      return li;
+    })
+  );
+}
+void showCharms();
+setInterval(() => void showCharms(), 5000);
+
 $("login").addEventListener(
   "change",
   (e) => void save({ startAtLogin: e.target.checked })

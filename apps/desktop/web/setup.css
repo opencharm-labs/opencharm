@@ -158,3 +158,23 @@ body.setup:not(.welcome) .charm {
   align-items: center;
   gap: 12px;
 }
+
+/* Add a charm (spec 013): labelled fields and numbered instructions, in the same window style. */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+.steps {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+}
+details summary {
+  cursor: pointer;
+  font-size: 13px;
+}

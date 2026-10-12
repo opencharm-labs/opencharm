@@ -229,6 +229,28 @@
 
       <section class="switch-row">
         <div>
+          <span class="mono">CHARMS ON THIS NETWORK</span>
+          <p class="note">
+            A charm you built connects to your agent through this app, over your
+            Wi-Fi (port 8787). Off: only this computer can reach it.
+          </p>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="network" />
+          <span></span>
+        </label>
+      </section>
+      <section id="charms-section">
+        <div class="row">
+          <button type="button" class="pill small" id="add-charm">
+            Add a charm…
+          </button>
+        </div>
+        <ul class="charms" id="charms"></ul>
+      </section>
+
+      <section class="switch-row">
+        <div>
           <span class="mono">START AT LOGIN</span>
           <p class="note">Your charm is there when you are.</p>
         </div>

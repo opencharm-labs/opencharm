@@ -86,7 +86,7 @@ With no saved Wi-Fi the board opens its setup hotspot: the screen says "Join Wi-
 3. Tap the face: a reaction.
 4. Touch and hold the face 1 s: the status screen (percent, state, voltage, temperatures, Wi-Fi, charmd, build). A tap or a press closes it.
 5. Unplug USB: the level hides after 3 s; the log shows `not charging` without `on USB`.
-6. Wi-Fi and charmd (the person, docs/build.md section 6): join the hotspot, type the network and charmd's address; the log shows `connected to charmd`, the screen a pairing code; pair, type the PIN.
+6. Wi-Fi and charmd (the person, docs/build.md section 6): the desktop app's **Add a charm…** (Charms on this network on), or by hand. At the hotspot's page only the Wi-Fi is needed: with no address the board logs `found charmd on the local network` and saves `http://<computer>.local:<port>`; the log then shows `connected to charmd`, the screen a pairing code; pair with that code typed, then the PIN on the charm. On a Mac, the Local Network permission of whatever runs charmd must be on, or nothing is announced.
 7. Voice: hold the key and ask something; the reply plays. Talk over a reply to check echo cancellation by ear.
 
 Without anyone at the board, the audio can still be measured: build with `CONFIG_OPENCHARM_AUDIO_SELFTEST=y`, flash, and read the `audio: self-test:` lines (a tone through the speaker read back by the mic and the echo reference, the echo reduction in dB, the mic path's frame count, a 24 kHz Opus decode). On the reference board: about 34 dB less echo, 20 frames in 1.2 s. Rebuild without it afterwards. `power: mic power (ALDO1) on` must be in the boot log, or the mics are unpowered.

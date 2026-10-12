@@ -353,3 +353,20 @@ summary {
 #ms-voice-row[hidden] {
   display: none;
 }
+
+/* Your charms (spec 013): one row each, its state and battery, and Remove. */
+.charms {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+.charms li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
