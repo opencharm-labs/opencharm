@@ -103,7 +103,7 @@ Steps 1, 2 and 4 work today with the [desktop charm](../apps/desktop/README.md);
    - charmd on a server behind Caddy ([deploy.md](deploy.md)): its domain, for example `charm.yourdomain.com`. The charm connects with TLS, checked against the public certificate authorities.
    - charmd on your own computer: `http://` and the computer's address on your network, for example `http://192.168.1.20:8787`. charmd listens only on the computer itself unless told otherwise, so set `"listen": { "host": "0.0.0.0", "port": 8787 }` and `"allowInsecureRemote": true` in its config (`packages/charmd/README.md`) and restart it. Without TLS the charm's token crosses your network unencrypted: fine at home, not on shared Wi-Fi. The desktop app's built-in charmd stays on the computer and isn't reachable from the board.
 
-   Only the address's scheme, host and port count; the charm connects to `/charm` there. If the charm can't find a saved network for a minute, or the address is missing or unusable, it opens the setup hotspot again.
+   Only the address's scheme, host and port count; the charm connects to `/charm` there. It opens the setup hotspot again by itself when there's no Wi-Fi for a minute or no usable address saved. If Wi-Fi works but charmd doesn't answer (a wrong address, or the computer moved to another IP), the screen says "No charmd. Hold the key 5 s for setup.": hold the key for 5 seconds to open the hotspot and change the address. Its pairing belongs to the charmd it paired with: point it at a different address and it shows a new pairing code instead of handing over its token.
 
 4. The charm shows a 6-digit code; run `opencharm pair <code>` on the agent's machine, then choose the charm's PIN.
 

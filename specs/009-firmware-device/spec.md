@@ -41,6 +41,8 @@ What it's made of:
 - Built from XiaoZhi v2.5.2 on ESP-IDF 6.1, not v2.4 on 6.0: upstream moved there (release of 11 October 2026).
 - Upstream's Wi-Fi portal is reused instead of writing our own page: fewer parts, same result.
 - The board connects straight to the address typed at Wi-Fi setup (scheme, host and port; path `/charm`) instead of first asking charmd's `/ota/` where to go: the `/ota/` answer comes over plain HTTP on a home network and could send the charm, with its token, somewhere else. `/ota/` stays for stock XiaoZhi devices. Proposed in the stage 2 pull request; the maintainer confirms it there.
+- The pairing token is bound to the charmd host that issued it and never sent anywhere else: the setup hotspot is open (as upstream's) and reopens when the saved network can't be found, so anyone nearby could change the address; a charm pointed somewhere new pairs again (stage 2 security review, 12 October 2026).
+- Holding the key 5 s while the charm isn't connected opens Wi-Fi setup, so a wrong charmd address can be fixed without a reflash; the hotspot doesn't open by itself just because charmd is quiet (its computer may be asleep). Proposed in the stage 2 pull request; the maintainer confirms it there.
 - The fork is taken by import: `firmware/device` is a new ESP-IDF project that copies upstream files as each stage needs them, each credited with its commit, instead of cloning 154 boards and deleting (plan.md).
 
 ## Not in scope

@@ -955,6 +955,10 @@ TEST_CASE("Wi-Fi setup and no Wi-Fi read on the connecting screen, on both shape
     s.app.on_offline("Join Wi-Fi OpenCharm-7F3A", s.now);
     s.at(s.now + 400);
     s.screen.save_png(round ? "join-wifi-466" : "join-wifi-480");
+    s.app.on_offline("No charmd. Hold the key 5 s for setup.", s.now);
+    s.at(s.now + 400);
+    s.screen.save_png(round ? "unreachable-hint-466" : "unreachable-hint-480");
+    if (round) CHECK(s.screen.count_lit(0, size - 60, 60, size) == 0);
     CHECK(s.screen.count_lit(0, size / 2, size, size) > 500);  // the line is drawn
     if (round) CHECK(s.screen.count_lit(0, size - 60, 60, size) == 0);
   }

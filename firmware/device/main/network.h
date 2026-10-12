@@ -31,8 +31,15 @@ void start(std::function<std::string()> token);
 bool poll(Event& out);
 void send_text(const std::string& json);
 void send_binary(const uint8_t* data, size_t size);
-// Drops the connection and connects again (after "revoked", with the token now erased).
+// Drops the connection and connects again: after "revoked" (the token erased) and after pairing
+// (so every later connection carries the new token).
 void reconnect();
+// Opens the setup hotspot now (the key held on the connecting screen).
+void open_wifi_setup();
+
+// The charmd host this charm is connected to now ("" when not connected): a token charmd issues is
+// bound to it (DeviceHal), and never sent to any other host.
+std::string connected_host();
 
 // For the status screen.
 std::string wifi_name();  // empty when not on Wi-Fi

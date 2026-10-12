@@ -19,6 +19,7 @@ class DeviceHal : public charm::Hal {
   void store_set(const std::string& key, const std::string& value) override;
   void store_erase(const std::string& key) override;
   void reconnect() override;
+  void open_setup() override;
 
  private:
   const board::Board& board_;

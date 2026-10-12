@@ -23,6 +23,8 @@ class Hal {
   virtual void store_set(const std::string& key, const std::string& value) = 0;
   virtual void store_erase(const std::string& key) = 0;
   virtual void reconnect() = 0;  // drop the connection and connect again (e.g. after "revoked")
+  // Open Wi-Fi setup (the key held 5 s while not connected, spec 009). Only the board has it.
+  virtual void open_setup() {}
 };
 
 }  // namespace charm
