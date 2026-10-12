@@ -115,4 +115,5 @@ npm run device:monitor   # its log: battery, temperatures, the key (Ctrl+] quits
 - One loop in the main task, as in the emulator: the key (debounced 20 ms), `App::tick`, `lv_timer_handler()`, every 16 ms; the battery and temperatures once a second. The screen takes partial renders from two 48-line buffers in internal DMA memory, swapped to big-endian and rounded to even pixels for the CO5300.
 - The power chip's rails and charge settings are left as the board ships them; the firmware only switches on its battery-voltage and temperature measurements.
 - Stage 1 has no network: `CONFIG_OPENCHARM_BENCH_FACE` (on by default until stage 2) plays charmd's hello and "unlocked" to the core, so the face shows offline. The status screen says "No Wi-Fi" and "No charmd set".
+- CI (`device` job in `.github/workflows/ci.yml`) builds it in Espressif's `espressif/idf:v6.1` image whenever `firmware/` changes, and keeps `opencharm-waveshare-2.16.bin` (one image for address `0x0`) as an artifact.
 - Back up before the first flash, and restore from that backup: [docs/build.md](../docs/build.md) section 5, and the `opencharm-device-flash` skill.

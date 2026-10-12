@@ -54,6 +54,8 @@ npm run device:build            # expect "Project build complete", no warnings
 npm run device:flash            # expect "Hash of data verified" for each part
 ```
 
+No ESP-IDF here: CI's `device` job builds the same firmware and keeps `opencharm-waveshare-2.16.bin` as an artifact (`gh run download <run-id> -n opencharm-waveshare-2.16`); write it at `0x0` with esptool.
+
 Coming from other firmware (factory, XiaoZhi): erase first, `cd firmware/device && idf.py -p PORT erase-flash`, so old settings don't linger.
 
 ## 4. Start it and read its log
