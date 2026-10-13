@@ -11,6 +11,7 @@ const DEFAULTS = {
   colour: "white",
   sleepAfterMinutes: 4,
   motion: "full",
+  volume: 85,
 } as const;
 
 describe("the default name", () => {
@@ -49,11 +50,12 @@ describe("CharmLook", () => {
       greeting: "Hi! I'm Pip.",
       sleep_ms: 240_000,
       motion: "full",
+      volume: 85,
     });
     expect(parseServerMessage(JSON.stringify(message)).ok).toBe(true);
   });
 
-  it("uses the configured name, colour, greeting, sleep and motion", () => {
+  it("uses the configured name, colour, greeting, sleep, motion and volume", () => {
     const look = new CharmLook(
       {
         name: "Momo",
@@ -61,6 +63,7 @@ describe("CharmLook", () => {
         greeting: "",
         sleepAfterMinutes: 0,
         motion: "calm",
+        volume: 30,
       },
       "Pip"
     );
@@ -70,6 +73,7 @@ describe("CharmLook", () => {
       greeting: "",
       sleep_ms: 0,
       motion: "calm",
+      volume: 30,
     });
   });
 
@@ -82,10 +86,12 @@ describe("CharmLook", () => {
       greeting: "Hi! I'm Momo.",
       sleepAfterMinutes: 4,
       motion: "full",
+      volume: 85,
     });
-    expect(look.apply({ motion: "calm" })).toMatchObject({
+    expect(look.apply({ motion: "calm", volume: 0 })).toMatchObject({
       colour: "lime",
       motion: "calm",
+      volume: 0,
     });
   });
 
@@ -125,6 +131,8 @@ describe("CharmLook", () => {
     const look = new CharmLook(DEFAULTS, "Pip");
     expect(() => look.apply({ colour: "orange" })).toThrow(/colour/);
     expect(() => look.apply({ greeting: "é".repeat(21) })).toThrow(/40 bytes/);
+    expect(() => look.apply({ volume: 101 })).toThrow(/volume/);
+    expect(() => look.apply({ volume: 42.5 })).toThrow(/volume/);
     expect(look.current()).toMatchObject({ colour: "white", name: "Pip" });
   });
 });

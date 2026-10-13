@@ -22,6 +22,7 @@ struct QuietHal : charm::Hal {
   void play_audio(const uint8_t*, size_t) override {}
   void stop_audio() override {}
   void set_brightness(uint8_t) override {}
+  void set_volume(uint8_t) override {}
   std::string store_get(const std::string& k) override { return store[k]; }
   void store_set(const std::string& k, const std::string& v) override { store[k] = v; }
   void store_erase(const std::string& k) override { store.erase(k); }

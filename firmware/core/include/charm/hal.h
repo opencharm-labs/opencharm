@@ -19,6 +19,7 @@ class Hal {
   virtual void play_audio(const uint8_t* data, size_t size) = 0;  // one Opus packet, 24 kHz
   virtual void stop_audio() = 0;
   virtual void set_brightness(uint8_t percent) = 0;
+  virtual void set_volume(uint8_t percent) = 0;  // the speaker, 0..100 (the look, spec 014)
   virtual std::string store_get(const std::string& key) = 0;
   virtual void store_set(const std::string& key, const std::string& value) = 0;
   virtual void store_erase(const std::string& key) = 0;

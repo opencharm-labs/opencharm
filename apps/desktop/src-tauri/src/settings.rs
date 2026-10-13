@@ -96,6 +96,8 @@ pub struct Look {
     pub greeting: String,
     pub sleep_after_minutes: u32,
     pub motion: String,
+    /// The speaker, in percent.
+    pub volume: u32,
     pub agent_can_change_look: bool,
 }
 
@@ -107,6 +109,7 @@ impl Default for Look {
             greeting: String::new(),
             sleep_after_minutes: 4,
             motion: "full".into(),
+            volume: 85,
             agent_can_change_look: true,
         }
     }
@@ -129,6 +132,9 @@ impl Look {
         }
         if !MOTIONS.contains(&self.motion.as_str()) {
             return Err("choose full or calm motion".into());
+        }
+        if self.volume > 100 {
+            return Err("the volume is up to 100".into());
         }
         Ok(())
     }
@@ -409,6 +415,7 @@ mod tests {
             greeting: "Hi! I'm Momo, your charm. Hold to talk".into(),
             sleep_after_minutes: 0,
             motion: "calm".into(),
+            volume: 0,
             agent_can_change_look: false,
         };
         assert!(ok.valid().is_ok(), "{:?}", ok.valid());
@@ -435,6 +442,10 @@ mod tests {
             },
             Look {
                 motion: "wild".into(),
+                ..ok.clone()
+            },
+            Look {
+                volume: 101,
                 ..ok.clone()
             },
         ] {
@@ -539,6 +550,7 @@ mod tests {
             serde_json::from_str(r#"{"look":{"colour":"sun"},"sayVoice":"Alice"}"#).unwrap();
         assert_eq!(s.look.colour, "sun");
         assert_eq!(s.look.sleep_after_minutes, 4);
+        assert_eq!(s.look.volume, 85);
         assert_eq!(s.say_voice, "Alice");
     }
 

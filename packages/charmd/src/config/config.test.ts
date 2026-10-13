@@ -203,22 +203,24 @@ describe("voice and agent config", () => {
 });
 
 describe("the charm block (its identity)", () => {
-  it("defaults to a white charm that sleeps after 4 minutes, with full motion, that the agent may restyle", () => {
+  it("defaults to a white charm that sleeps after 4 minutes, with full motion at 85% volume, that the agent may restyle", () => {
     expect(parseConfig({}).charm).toEqual({
       colour: "white",
       sleepAfterMinutes: 4,
       motion: "full",
+      volume: 85,
       agentCanChangeLook: true,
     });
   });
 
-  it("accepts a name, an identity colour, a greeting, a sleep delay and calm motion", () => {
+  it("accepts a name, an identity colour, a greeting, a sleep delay, calm motion and a volume", () => {
     const charm = {
       name: "Momo",
       colour: "lilac",
       greeting: "Hey, it's Momo.",
       sleepAfterMinutes: 0,
       motion: "calm",
+      volume: 0,
       agentCanChangeLook: false,
     };
     expect(parseConfig({ charm }).charm).toEqual(charm);
@@ -235,6 +237,8 @@ describe("the charm block (its identity)", () => {
     [{ greeting: "x".repeat(41) }, /charm\.greeting: at most 40 bytes/],
     [{ sleepAfterMinutes: 1441 }, /charm\.sleepAfterMinutes/],
     [{ motion: "wild" }, /charm\.motion/],
+    [{ volume: 101 }, /charm\.volume/],
+    [{ volume: 42.5 }, /charm\.volume/],
     [{ face: "custom" }, /charm/],
   ])("refuses %j with a clear message", (charm, message) => {
     expect(() => parseConfig({ charm })).toThrow(message);

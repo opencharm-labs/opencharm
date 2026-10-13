@@ -488,6 +488,8 @@ pub struct CliFeatures {
     pub voice: bool,
     /// Replies as text on the desktop charm (spec 003): `speakReplies` (`opencharm replies`).
     pub replies: bool,
+    /// The charm's speaker volume (spec 014): `charm.volume` (`opencharm look --volume`).
+    pub volume: bool,
 }
 
 impl CliFeatures {
@@ -495,6 +497,7 @@ impl CliFeatures {
         CliFeatures {
             voice: help.contains("opencharm voice"),
             replies: help.contains("opencharm replies"),
+            volume: help.contains("--volume"),
         }
     }
 }
@@ -507,6 +510,7 @@ pub fn cli_features(cli: &Cli, env: &HashMap<String, String>) -> CliFeatures {
     let current = CliFeatures {
         voice: true,
         replies: true,
+        volume: true,
     };
     let modified = std::fs::metadata(cli.file())
         .and_then(|m| m.modified())
@@ -530,6 +534,7 @@ pub fn cli_features(cli: &Cli, env: &HashMap<String, String>) -> CliFeatures {
         Err(_) => CliFeatures {
             voice: false,
             replies: false,
+            volume: false,
         },
         Ok(mut child) => {
             let deadline = Instant::now() + Duration::from_secs(5);
@@ -662,6 +667,13 @@ fn charm_block(look: &Look, mut block: serde_json::Map<String, Value>) -> Value 
     block.insert("colour".into(), json!(look.colour));
     block.insert("sleepAfterMinutes".into(), json!(look.sleep_after_minutes));
     block.insert("motion".into(), json!(look.motion));
+    // The default isn't written: an `opencharm` from before the volume refuses keys it doesn't know,
+    // and a workspace whose volume was never changed stays readable by it.
+    if look.volume == Look::default().volume {
+        block.remove("volume");
+    } else {
+        block.insert("volume".into(), json!(look.volume));
+    }
     block.insert(
         "agentCanChangeLook".into(),
         json!(look.agent_can_change_look),
@@ -1427,6 +1439,7 @@ mod tests {
         assert_eq!(look.colour, "lilac");
         assert_eq!(look.motion, "calm");
         assert_eq!(look.sleep_after_minutes, 4);
+        assert_eq!(look.volume, 85);
         // Not a workspace: the app's own.
         let repo = inspect_folder(&temp("look-repo").to_string_lossy());
         assert_eq!(
@@ -1443,6 +1456,7 @@ mod tests {
             name: "Momo".into(),
             colour: "cobalt".into(),
             sleep_after_minutes: 10,
+            volume: 40,
             ..Look::default()
         };
         save_workspace_look(&dir, &look, "Alice").unwrap();
@@ -1461,7 +1475,7 @@ mod tests {
         assert_eq!(
             saved["charm"],
             json!({ "name": "Momo", "colour": "cobalt", "sleepAfterMinutes": 10,
-                    "motion": "full", "agentCanChangeLook": true })
+                    "motion": "full", "volume": 40, "agentCanChangeLook": true })
         );
         let folder = inspect_folder(&dir.to_string_lossy());
         assert_eq!(
@@ -1550,6 +1564,17 @@ mod tests {
         let (config, _) = build_config(&mine, &repo, Path::new("/d"));
         assert_eq!(config["charm"]["name"], "Pip");
         assert_eq!(config["charm"]["motion"], "calm");
+        // The default stays out, so an older `opencharm` still reads the config.
+        assert!(config["charm"].get("volume").is_none());
+        let louder = Settings {
+            look: Look {
+                volume: 40,
+                ..Look::default()
+            },
+            ..Settings::default()
+        };
+        let (louder, _) = build_config(&louder, &repo, Path::new("/d"));
+        assert_eq!(louder["charm"]["volume"], 40);
         assert_eq!(config["voice"]["speak"]["voice"], "Daniel");
         let openai = Settings {
             speak: "openai".into(),
@@ -1664,7 +1689,8 @@ mod tests {
             CliFeatures::from_help(old),
             CliFeatures {
                 voice: false,
-                replies: false
+                replies: false,
+                volume: false
             }
         );
         let voice = "opencharm voice                 the local voice's models\n";
@@ -1672,7 +1698,8 @@ mod tests {
             CliFeatures::from_help(voice),
             CliFeatures {
                 voice: true,
-                replies: false
+                replies: false,
+                volume: false
             }
         );
         let both = format!("{voice}    opencharm replies on|off        …\n");
@@ -1680,9 +1707,17 @@ mod tests {
             CliFeatures::from_help(&both),
             CliFeatures {
                 voice: true,
-                replies: true
+                replies: true,
+                volume: false
             }
         );
+    }
+
+    #[test]
+    fn knows_an_opencharm_that_takes_the_volume() {
+        let help = "    opencharm look   … [--motion full|calm] [--volume <0-100>]\n";
+        assert!(CliFeatures::from_help(help).volume);
+        assert!(!CliFeatures::from_help("    opencharm look   … [--motion full|calm]\n").volume);
     }
 
     #[test]

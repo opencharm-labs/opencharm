@@ -14,6 +14,7 @@ EM_JS(void, js_play_pcm, (const float* pcm, int samples),
       { charmSim.playPcm(HEAPF32.slice(pcm >> 2, (pcm >> 2) + samples)); });
 EM_JS(void, js_stop_audio, (), { charmSim.stopAudio(); });
 EM_JS(void, js_brightness, (int percent), { charmSim.brightness(percent); });
+EM_JS(void, js_volume, (int percent), { charmSim.volume(percent); });
 EM_JS(char*, js_store_get, (const char* key), {
   var value = localStorage.getItem((globalThis.charmStore || "opencharm.") + UTF8ToString(key));
   if (value === null) return 0;
@@ -58,6 +59,7 @@ void SimPlatform::play_audio(const uint8_t* data, size_t size) {
 
 void SimPlatform::stop_audio() { js_stop_audio(); }
 void SimPlatform::set_brightness(uint8_t percent) { js_brightness(percent); }
+void SimPlatform::set_volume(uint8_t percent) { js_volume(percent); }
 
 std::string SimPlatform::store_get(const std::string& key) {
   char* value = js_store_get(key.c_str());

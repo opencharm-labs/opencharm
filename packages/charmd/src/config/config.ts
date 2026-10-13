@@ -169,6 +169,7 @@ const charmSchema = z
     colour: lookFields.colour.unwrap().default("white"),
     sleepAfterMinutes: lookFields.sleepAfterMinutes.unwrap().default(4),
     motion: lookFields.motion.unwrap().default("full"),
+    volume: lookFields.volume.unwrap().default(85),
     // Off: the agent's set_look tool is refused.
     agentCanChangeLook: z.boolean().default(true),
   })

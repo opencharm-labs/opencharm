@@ -39,7 +39,7 @@ function setup(live: FakeSession[] = []) {
     pairing: new PairingRegistry({ ttlMs: 60_000, maxPending: 4 }),
     sessions: () => live as unknown as Session[],
     look: new CharmLook(
-      { colour: "white", sleepAfterMinutes: 4, motion: "full" },
+      { colour: "white", sleepAfterMinutes: 4, motion: "full", volume: 85 },
       "Pip"
     ),
     agentCanChangeLook: true,

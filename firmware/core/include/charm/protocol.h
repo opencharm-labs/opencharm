@@ -37,6 +37,7 @@ struct Look {
   std::string greeting;        // the line after unlocking; empty = none
   uint32_t sleep_ms = 240000;  // 0 = never sleeps
   bool calm = false;           // calm motion: no glances, squash or voice swell
+  int volume = -1;             // the speaker, 0..100; -1 = not sent (an older charmd): keep it
 };
 
 struct ServerMessage {

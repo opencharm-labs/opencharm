@@ -268,6 +268,8 @@ function fillLook() {
   )
     $("sleep").append(new Option(`${minutes} minutes alone`, minutes));
   $("sleep").value = minutes;
+  $("volume").value = String(look.volume);
+  $("volume-value").textContent = `${look.volume}%`;
   $("calm").checked = look.motion === "calm";
   $("agent-look").checked = look.agentCanChangeLook;
   $("say-section").hidden = settings.speak !== "system" || voices.length === 0;
@@ -342,6 +344,14 @@ $("greeting").addEventListener(
 $("sleep").addEventListener(
   "change",
   (e) => void saveLook({ sleepAfterMinutes: Number(e.target.value) })
+);
+// The number follows the handle; the charm gets it on release, so a drag isn't a dozen saves.
+$("volume").addEventListener("input", (e) => {
+  $("volume-value").textContent = `${e.target.value}%`;
+});
+$("volume").addEventListener(
+  "change",
+  (e) => void saveLook({ volume: Number(e.target.value) })
 );
 $("calm").addEventListener(
   "change",

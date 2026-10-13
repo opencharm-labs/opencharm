@@ -186,6 +186,8 @@ struct Managed {
     charmd: Charmd,
     data: PathBuf,
     env: Mutex<Option<HashMap<String, String>>>,
+    /// The running `opencharm` takes `volume` in a look (an older one refuses the whole look).
+    volume_ok: std::sync::atomic::AtomicBool,
 }
 
 impl Managed {
@@ -799,12 +801,20 @@ fn apply_managed(app: &AppHandle) {
             let has_key = matches!(pairing::secret("openai"), Ok(Some(_)));
             config["voice"] = managed::older_voice(&config, has_key);
         }
+        managed
+            .volume_ok
+            .store(features.volume, std::sync::atomic::Ordering::Relaxed);
+        if !features.volume {
+            if let Some(charm) = config.get_mut("charm").and_then(|c| c.as_object_mut()) {
+                charm.remove("volume");
+            }
+        }
         if !features.replies {
             if let Some(config) = config.as_object_mut() {
                 config.remove("speakReplies");
             }
         }
-        let current = features.voice && features.replies;
+        let current = features.voice && features.replies && features.volume;
         let config_path = managed.data.join("charmd.json");
         let pid_file = managed.data.join("charmd.pid");
         let written = std::fs::create_dir_all(&managed.data).and_then(|()| {
@@ -986,6 +996,13 @@ async fn save_look(app: AppHandle, look: Look, say_voice: String) -> Result<(), 
                 "sleepAfterMinutes": look.sleep_after_minutes,
                 "motion": look.motion,
             });
+            if app
+                .state::<Managed>()
+                .volume_ok
+                .load(std::sync::atomic::Ordering::Relaxed)
+            {
+                request["volume"] = serde_json::json!(look.volume);
+            }
             // An empty name or greeting is charmd's default: send only what's known.
             if !look.name.is_empty() {
                 request["name"] = serde_json::json!(look.name);
@@ -1205,6 +1222,7 @@ pub fn run() {
                 charmd: Charmd::default(),
                 data: data_dir,
                 env: Mutex::new(None),
+                volume_ok: std::sync::atomic::AtomicBool::new(false),
             });
             // A new address (or none, once it stops): the charm reconnects to what was announced.
             let handle = app.handle().clone();

@@ -19,6 +19,7 @@ type LookSettings = {
   greeting?: string;
   sleepAfterMinutes: number;
   motion: Motion;
+  volume: number;
 };
 // The look as it is now, every default filled in.
 type Look = {
@@ -28,6 +29,7 @@ type Look = {
   greeting: string;
   sleepAfterMinutes: number;
   motion: Motion;
+  volume: number;
 };
 type LookMessage = Extract<ServerMessage, { type: "charm"; op: "look" }>;
 
@@ -71,6 +73,8 @@ const lookFields = {
     .optional(),
   sleepAfterMinutes: z.number().int().min(0).max(1440).optional(),
   motion: z.enum(["full", "calm"]).optional(),
+  // The speaker, in percent.
+  volume: z.number().int().min(0).max(100).optional(),
 };
 const lookUpdateSchema = z.object(lookFields).strict();
 
@@ -96,6 +100,7 @@ function resolve(settings: LookSettings, defaultName: string): Look {
     greeting: settings.greeting ?? `Hi! I'm ${name}.`,
     sleepAfterMinutes: settings.sleepAfterMinutes,
     motion: settings.motion,
+    volume: settings.volume,
   };
 }
 
@@ -108,6 +113,7 @@ function toMessage(look: Look): LookMessage {
     greeting: look.greeting,
     sleep_ms: look.sleepAfterMinutes * 60_000,
     motion: look.motion,
+    volume: look.volume,
   } as const;
   // The protocol's own schema has the last word, so charmd never sends a look the charm would drop.
   const checked = SERVER_SCHEMAS["charm:look"].safeParse(message);

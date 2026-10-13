@@ -65,6 +65,8 @@ let firstFrame = false;
 let mic; // {stream, ctx} while the key is held; the microphone is closed otherwise
 let playCtx;
 let playAt = 0;
+let speaker; // the gain every reply plays through: the look's volume (spec 014)
+let volume = 0.85;
 const playing = new Set();
 
 window.charmSim = {
@@ -86,7 +88,8 @@ window.charmSim = {
     buffer.copyToChannel(pcm, 0);
     const source = playCtx.createBufferSource();
     source.buffer = buffer;
-    source.connect(playCtx.destination);
+    speaker ??= new GainNode(playCtx, { gain: volume });
+    source.connect(speaker).connect(playCtx.destination);
     playAt = Math.max(playAt, playCtx.currentTime + 0.05);
     source.start(playAt);
     playAt += buffer.duration;
@@ -101,6 +104,12 @@ window.charmSim = {
     for (const source of playing) source.stop();
     playing.clear();
     playAt = 0;
+  },
+  volume: (percent) => {
+    volume = Math.min(Math.max(percent, 0), 100) / 100;
+    // Eased over a few milliseconds: a jump mid-reply clicks.
+    if (speaker && playCtx)
+      speaker.gain.setTargetAtTime(volume, playCtx.currentTime, 0.02);
   },
   brightness: (percent) => {
     canvas.style.filter = `brightness(${Math.max(percent, 25) / 100})`;

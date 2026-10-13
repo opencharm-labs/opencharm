@@ -32,6 +32,7 @@ struct FakeHal : charm::Hal {
   void play_audio(const uint8_t*, size_t) override { ++audio_played; }
   void stop_audio() override { events.push_back("stop_audio"); }
   void set_brightness(uint8_t p) override { events.push_back("brightness " + std::to_string(p)); }
+  void set_volume(uint8_t p) override { events.push_back("volume " + std::to_string(p)); }
   std::string store_get(const std::string& k) override { return store.count(k) ? store[k] : ""; }
   void store_set(const std::string& k, const std::string& v) override { store[k] = v; }
   void store_erase(const std::string& k) override { store.erase(k); }
@@ -681,6 +682,26 @@ TEST_CASE("a look that arrives while unlocked applies at once") {
   CHECK(r.view.last() == "look #C9F27B calm");
   r.at(26000);
   CHECK(r.app.asleep());
+}
+
+TEST_CASE("a look's volume goes to the speaker, and a look without one leaves it alone") {
+  auto with_volume = [](const char* volume) {
+    std::string json = look("#9DB6FF", "Hi!", 240000, "full");
+    return json.substr(0, json.size() - 1) + R"(,"volume":)" + volume + "}";
+  };
+  auto volumes = [](const FakeHal& hal) {
+    std::vector<std::string> out;
+    for (const auto& e : hal.events)
+      if (e.rfind("volume ", 0) == 0) out.push_back(e);
+    return out;
+  };
+  Rig r;
+  r.unlocked(with_volume("40"));
+  CHECK(volumes(r.hal) == std::vector<std::string>{"volume 40"});
+  r.server(with_volume("0"));
+  r.server(look("#9DB6FF", "Hi!", 240000, "full"));
+  r.server(with_volume("101"));
+  CHECK(volumes(r.hal) == std::vector<std::string>{"volume 40", "volume 0"});
 }
 
 TEST_CASE("calm motion: the key doesn't squash the face") {

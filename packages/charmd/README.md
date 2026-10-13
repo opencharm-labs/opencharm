@@ -65,6 +65,7 @@ Keys: `apiKey` in the file, or `apiKeyEnv` naming an environment variable.
 | `greeting`           | `Hi! I'm {name}.`; ≤ 40 bytes, `""` for none                                                   |
 | `sleepAfterMinutes`  | `4`; `0` = never, at most 1440                                                                 |
 | `motion`             | `full`; `calm` keeps breathing and blinks but no glances or squash                             |
+| `volume`             | `85`; the speaker, `0` (silent) to `100`                                                       |
 | `agentCanChangeLook` | `true`; `false` refuses the agent's `set_look`                                                 |
 
 ## What's running (spec 015)
@@ -75,9 +76,9 @@ Keys: `apiKey` in the file, or `apiKeyEnv` naming an environment variable.
 
 charmd builds the look from the `charm` block at start and sends it as `charm:look` right before every `charm:unlocked` (PIN, admin unlock, repeated unlock); the charm keeps it only in memory. The admin action `look` changes it live:
 
-- Request: `{"cmd": "look", "name"?, "colour"?, "greeting"?, "sleepAfterMinutes"?, "motion"?, "source"?: "agent"}` (unknown fields are refused). With no look fields it changes nothing and returns the current look.
-- It merges the change, checks it against the protocol's schema (the old look stays on any error), sends it to every unlocked charm, and answers with the whole look: `{"name", "colour", "glyph", "greeting", "sleepAfterMinutes", "motion", "connected"}` (`connected`: charms it was sent to).
-- `"source": "agent"` (the `set_look` tool) is refused when `agentCanChangeLook` is false. Nothing is written to `opencharm.json`: a change lasts until charmd restarts. From the shell: `opencharm look [--colour c] [--greeting "…"] [--motion full|calm]`.
+- Request: `{"cmd": "look", "name"?, "colour"?, "greeting"?, "sleepAfterMinutes"?, "motion"?, "volume"?, "source"?: "agent"}` (unknown fields are refused). With no look fields it changes nothing and returns the current look.
+- It merges the change, checks it against the protocol's schema (the old look stays on any error), sends it to every unlocked charm, and answers with the whole look: `{"name", "colour", "glyph", "greeting", "sleepAfterMinutes", "motion", "volume", "connected"}` (`connected`: charms it was sent to).
+- `"source": "agent"` (the `set_look` tool) is refused when `agentCanChangeLook` is false. Nothing is written to `opencharm.json`: a change lasts until charmd restarts. From the shell: `opencharm look [--colour c] [--greeting "…"] [--motion full|calm] [--volume 0-100]`.
 
 Use `acp` when charmd can start the agent on the same machine as you (Claude Code, Codex, Gemini CLI, a local Hermes or OpenClaw). Use an HTTP adapter when the agent runs behind a user boundary, like the droplet (`docs/deploy.md`): there charmd must not start the agent under its own user. Every ACP session also gets the charm's own tools, an MCP server (`opencharm mcp`: `say`, `show_face`, `ask`, `notify`, `set_look`, `new_conversation`; `"charmTools": false` turns it off). ACP permission requests become a question on the charm (hold = yes, press = no; silence for 30 s = no); answers are always "once".
 
@@ -93,7 +94,7 @@ One rule, standards only. charmd talks to an agent over **ACP** (Agent Client Pr
 
 ## The charm's tools for the agent (spec 012)
 
-The charm is an **MCP server** for the agent, `opencharm mcp` (stdio, no dependencies, protocol versions 2025-06-18 / 2025-03-26 / 2024-11-05), forwarding to charmd's admin socket. Tools: `say` (speak now, unprompted), `show_face` (an agent state with an optional line), `ask` (a yes/no question on the charm; returns yes or no), `notify` (the orange "it needs you" with a line, until a press), `new_conversation` (spec 003: when the person asks to start over; only the charm whose turn the agent is answering starts fresh, once the reply ends; with none, nothing changes) and `set_look` (spec 014: colour, greeting or calm motion, never the name; a try-on until charmd restarts, off with `charm.agentCanChangeLook: false`). The others act on the connected, unlocked charm (the newest if several).
+The charm is an **MCP server** for the agent, `opencharm mcp` (stdio, no dependencies, protocol versions 2025-06-18 / 2025-03-26 / 2024-11-05), forwarding to charmd's admin socket. Tools: `say` (speak now, unprompted), `show_face` (an agent state with an optional line), `ask` (a yes/no question on the charm; returns yes or no), `notify` (the orange "it needs you" with a line, until a press), `new_conversation` (spec 003: when the person asks to start over; only the charm whose turn the agent is answering starts fresh, once the reply ends; with none, nothing changes) and `set_look` (spec 014: colour, greeting, calm motion or volume, never the name; a try-on until charmd restarts, off with `charm.agentCanChangeLook: false`). The others act on the connected, unlocked charm (the newest if several).
 
 - charmd adds the server to every ACP session (`mcpServers`, stdio; `"charmTools": false` turns it off). The `claude` preset lets Claude Code use it without asking (`allowedTools: ["mcp__charm"]`: Claude Code's allow rules in settings don't reach MCP tools through the ACP adapter).
 - Agents that run as the same user as charmd but outside ACP can add `opencharm mcp --config <file>` to their own MCP settings. Never across a user boundary (the droplet): `opencharm mcp` talks to the admin socket, which can also unlock a charm without its PIN; a tools-only socket comes before that.

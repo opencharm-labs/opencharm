@@ -178,6 +178,8 @@ const look = z.object({
   greeting: shownText(0, 40),
   sleep_ms: z.number().int().min(0).max(86_400_000),
   motion: z.enum(["full", "calm"]),
+  // The speaker's volume in percent; an older charmd leaves it out and the charm keeps its own.
+  volume: z.number().int().min(0).max(100).optional(),
 });
 
 // A question for the person holding the charm (the decision layout: orange ring, hold or press).

@@ -17,6 +17,7 @@ const VALUE_FLAGS = new Set([
   "--port",
   "--greeting",
   "--motion",
+  "--volume",
 ]);
 
 function isPositional(args: readonly string[], index: number): boolean {

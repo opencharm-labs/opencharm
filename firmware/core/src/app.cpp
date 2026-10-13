@@ -277,6 +277,7 @@ void App::handle(const ServerMessage& m, uint32_t now) {
       sleep_after_ms_ = m.look.sleep_ms;
       calm_ = m.look.calm;
       view_.set_look(m.look.glyph, m.look.calm);
+      if (m.look.volume >= 0) hal_.set_volume(uint8_t(m.look.volume));
       break;
     case ServerKind::Revoked:
       asking_ = false;

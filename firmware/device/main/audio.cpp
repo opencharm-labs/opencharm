@@ -33,7 +33,7 @@ constexpr gpio_num_t kAmp = GPIO_NUM_46;  // the NS4150B speaker amplifier's ena
 constexpr int kRate = 16000;         // everything: mic, echo cancellation, speaker
 constexpr int kFrameSamples = 960;   // 60 ms: the frame the protocol sends up (spec 001)
 constexpr float kMicGainDb = 30.0f;  // as xiaozhi-esp32 for this board
-constexpr int kVolume = 70;          // as xiaozhi-esp32
+constexpr int kDefaultVolume = 85;   // until the look says otherwise (spec 014)
 constexpr int kSpeechQueue = 64;     // packets: charmd runs ~250 ms ahead (spec 009)
 constexpr int kMicQueue = 24;        // 1.4 s of frames waiting for the main loop
 constexpr int kMaxDecoded = kRate * 120 / 1000;  // the longest Opus packet, 120 ms
@@ -53,6 +53,10 @@ QueueHandle_t speech = nullptr;   // Speech* from the main loop
 QueueHandle_t mic_out = nullptr;  // Frame* to the main loop
 TaskHandle_t mic_task = nullptr;
 std::atomic<bool> mic_on{false};
+// Set from the main loop, applied by whoever opens or writes the speaker, so the codec is only ever
+// touched from one task at a time.
+std::atomic<int> volume{kDefaultVolume};
+int applied_volume = -1;
 bool ready = false;
 // Every capture and every reply has a number: a frame from an earlier capture, or a packet from a
 // reply that was stopped, is dropped wherever it's found (the mic rule: a press's audio never leaks
@@ -170,7 +174,8 @@ bool open_speaker() {
   fs.channel = 1;
   fs.sample_rate = kRate;
   if (esp_codec_dev_open(speaker, &fs) != ESP_CODEC_DEV_OK) return false;
-  esp_codec_dev_set_out_vol(speaker, kVolume);
+  applied_volume = volume;
+  esp_codec_dev_set_out_vol(speaker, applied_volume);
   return true;
 }
 
@@ -261,6 +266,10 @@ void speaker_loop(void*) {
       esp_opus_dec_reset(decoder);
     }
     if (!open) open = open_speaker();
+    if (open && applied_volume != volume) {
+      applied_volume = volume;
+      esp_codec_dev_set_out_vol(speaker, applied_volume);
+    }
     esp_audio_dec_in_raw_t raw = {};
     raw.buffer = s->packet.data();
     raw.len = uint32_t(s->packet.size());
@@ -398,6 +407,8 @@ void stop() {
   Speech* s = nullptr;
   while (xQueueReceive(speech, &s, 0) == pdTRUE) delete s;
 }
+
+void set_volume(int percent) { volume = percent < 0 ? 0 : percent > 100 ? 100 : percent; }
 
 void self_test() {
   if (!ready) {
