@@ -109,3 +109,25 @@ describe("the admin command newConversation", () => {
     expect(started).toEqual([]);
   });
 });
+
+describe("voices", () => {
+  it("passes on the speaking voice's choices", async () => {
+    const store = new StateStore(
+      join(mkdtempSync(join(tmpdir(), "oc-actions-")), "state.json")
+    );
+    const actions = createAdminActions({
+      store,
+      pairing: new PairingRegistry({ ttlMs: 60_000, maxPending: 4 }),
+      sessions: () => [],
+      look: new CharmLook(
+        { colour: "white", sleepAfterMinutes: 4, motion: "full", volume: 85 },
+        "Pip"
+      ),
+      agentCanChangeLook: true,
+      voices: () => Promise.resolve([{ id: "a1", name: "Ada" }]),
+    });
+    expect(await actions.voices()).toEqual({
+      voices: [{ id: "a1", name: "Ada" }],
+    });
+  });
+});

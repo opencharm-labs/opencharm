@@ -466,6 +466,9 @@ pub fn build_config(settings: &Settings, folder: &Folder, data: &Path) -> (Value
     if settings.speak == "elevenlabs" && !settings.elevenlabs_voice.is_empty() {
         speak["voice"] = json!(settings.elevenlabs_voice);
     }
+    if settings.speak == "elevenlabs" && !settings.elevenlabs_model.is_empty() {
+        speak["model"] = json!(settings.elevenlabs_model);
+    }
     let (look, say_voice) = look_of(settings, Some(folder));
     if settings.speak == "system" && !say_voice.is_empty() {
         speak["voice"] = json!(say_voice);
@@ -1667,6 +1670,14 @@ mod tests {
             config["voice"]["speak"],
             json!({ "provider": "elevenlabs", "apiKeyEnv": "OPENCHARM_ELEVENLABS_API_KEY" })
         );
+        // The model picked in Settings, for speaking only.
+        let fastest = Settings {
+            elevenlabs_model: "eleven_flash_v2_5".into(),
+            ..eleven.clone()
+        };
+        let (config, _) = build_config(&fastest, &repo, Path::new("/d"));
+        assert_eq!(config["voice"]["speak"]["model"], "eleven_flash_v2_5");
+        assert!(config["voice"]["listen"].get("model").is_none());
         // The voice ID stays out of another voice's block.
         let microsoft = Settings {
             speak: "microsoft".into(),

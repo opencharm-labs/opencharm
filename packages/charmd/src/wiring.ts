@@ -116,6 +116,7 @@ function createVoiceFromConfig(config: CharmdConfig): VoiceProvider {
       await Promise.allSettled([listener.warm?.(), speaker.warm?.()]);
     },
     ...(speaker.prime ? { prime: speaker.prime } : {}),
+    ...(speaker.voices ? { voices: speaker.voices } : {}),
   };
 }
 

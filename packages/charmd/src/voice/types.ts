@@ -7,6 +7,15 @@ type Listener = {
   // Loads what it needs ahead of the first turn (a local model), so that turn isn't the slow one.
   warm?: () => Promise<void>;
 };
+// A voice the person can pick (spec 003): ElevenLabs lists those in their account.
+type VoiceChoice = {
+  id: string;
+  name: string;
+  // An https link to the service's own sample of the voice.
+  preview?: string;
+  // What the service says about it ("british · female · calm"), when it says anything.
+  description?: string;
+};
 type Speaker = {
   name: string;
   // `language` is the reply's two-letter code; a speaker with one voice ignores it.
@@ -26,6 +35,8 @@ type Speaker = {
   prime?: () => void;
   // Runs on this computer: slow when busy, but not gone, so no first-audio deadline (voice/speak.ts).
   onDevice?: boolean;
+  // The voices this speaker can use, for Settings to show by name.
+  voices?: () => Promise<VoiceChoice[]>;
 };
 type VoiceProvider = {
   name: string;
@@ -34,8 +45,9 @@ type VoiceProvider = {
   stream?: Speaker["stream"];
   warm?: () => Promise<void>;
   prime?: Speaker["prime"];
+  voices?: Speaker["voices"];
   // The language to fall back on when a transcript or a sentence doesn't show one.
   language?: string;
 };
 
-export type { Listener, Speaker, VoiceProvider };
+export type { Listener, Speaker, VoiceChoice, VoiceProvider };

@@ -114,6 +114,7 @@ async function startDaemon(
     starter: options.starter,
     replies,
     newConversation: conversations.startNew,
+    ...(voice.voices ? { voices: voice.voices } : {}),
     voice: () => {
       const downloading = (["parakeet", "supertonic"] as const).flatMap(
         (id) => {

@@ -211,3 +211,48 @@ describe("ElevenLabs speaking", () => {
     expect(String(error)).not.toMatch(/secret-key/);
   });
 });
+
+describe("ElevenLabs voices", () => {
+  it("lists the account's voices by name, with what ElevenLabs says about them", async () => {
+    const api = await server(() => ({
+      json: {
+        voices: [
+          {
+            voice_id: "a1",
+            name: "Ada",
+            preview_url: "https://example.com/ada.mp3",
+            labels: { accent: "british", gender: "female", age: "" },
+          },
+          { voice_id: "b2", name: "", preview_url: "http://example.com/b.mp3" },
+          { name: "no id" },
+        ],
+      },
+    }));
+    const speaker = createElevenLabsSpeaker({ apiKey: "k", baseUrl: api.url });
+    expect(await speaker.voices?.()).toEqual([
+      {
+        id: "a1",
+        name: "Ada",
+        preview: "https://example.com/ada.mp3",
+        description: "british · female",
+      },
+      // No name: its ID; a preview not over https is dropped.
+      { id: "b2", name: "b2" },
+    ]);
+    expect(api.seen[0]).toMatchObject({ url: "/v1/voices", key: "k" });
+  });
+
+  it("names the status when the list fails, never the key", async () => {
+    const api = await server(() => ({ status: 401 }));
+    const speaker = createElevenLabsSpeaker({
+      apiKey: "secret-key",
+      baseUrl: api.url,
+    });
+    const message = await speaker.voices?.().then(
+      () => "",
+      (e: unknown) => (e instanceof Error ? e.message : "")
+    );
+    expect(message).toMatch(/voices failed: 401/);
+    expect(message).not.toMatch(/secret-key/);
+  });
+});

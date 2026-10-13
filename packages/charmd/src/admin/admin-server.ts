@@ -23,6 +23,7 @@ const COMMANDS = [
   "look",
   "replies",
   "newConversation",
+  "voices",
 ] as const;
 
 function isCommand(value: unknown): value is (typeof COMMANDS)[number] {
@@ -50,6 +51,7 @@ async function run(actions: AdminActions, request: unknown): Promise<unknown> {
     throw new Error(`Unknown command ${JSON.stringify(cmd)}`);
   if (cmd === "status") return actions.status();
   if (cmd === "waiting") return actions.waiting();
+  if (cmd === "voices") return actions.voices();
   return actions[cmd](args);
 }
 

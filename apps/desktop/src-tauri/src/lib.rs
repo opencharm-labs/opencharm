@@ -83,13 +83,12 @@ type CharmdFields = (
     String,
     String,
     String,
-    String,
-    String,
-    String,
-    String,
+    VoiceFields,
     Option<String>,
     bool,
 );
+/// Listening, speaking, the fallback language, the ElevenLabs voice and model.
+type VoiceFields = (String, String, String, String, String);
 
 fn charmd_fields(s: &Settings) -> CharmdFields {
     (
@@ -99,10 +98,13 @@ fn charmd_fields(s: &Settings) -> CharmdFields {
         s.agent_command.clone(),
         s.server_url.clone(),
         s.server_model.clone(),
-        s.listen.clone(),
-        s.speak.clone(),
-        s.language.clone(),
-        s.elevenlabs_voice.clone(),
+        (
+            s.listen.clone(),
+            s.speak.clone(),
+            s.language.clone(),
+            s.elevenlabs_voice.clone(),
+            s.elevenlabs_model.clone(),
+        ),
         s.cli_path.clone(),
         s.network,
     )
@@ -490,6 +492,18 @@ fn set_elevenlabs_key(app: AppHandle, key: String) -> Result<(), String> {
     pairing::set_secret("elevenlabs", key.trim())?;
     apply_managed(&app);
     Ok(())
+}
+
+/// The voices in the ElevenLabs account, asked from the app's charmd, which holds the key (spec 003):
+/// the window gets names, IDs and sample links, never the key.
+#[tauri::command]
+async fn elevenlabs_voices(app: AppHandle) -> Result<serde_json::Value, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let answer = admin_blocking(app, serde_json::json!({ "cmd": "voices" }))?;
+        Ok(answer["voices"].clone())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// A new workspace in an empty folder: `opencharm init`, which clones the starter. charmd starts
@@ -1214,6 +1228,7 @@ pub fn run() {
             set_openai_key,
             has_elevenlabs_key,
             set_elevenlabs_key,
+            elevenlabs_voices,
             create_workspace,
             setup_state,
             setup_step_done,
