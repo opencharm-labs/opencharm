@@ -23,6 +23,8 @@ type AcpAgentOptions = {
   // MCP servers for every session, e.g. the charm's own tools (`opencharm mcp`).
   mcpServers?: acp.McpServer[];
   log?: (line: string) => void;
+  // How long a session/close may go unanswered before charmd stops waiting (default 5 s).
+  closeTimeoutMs?: number;
 };
 type Item = { text: string } | { end: true } | { error: Error };
 type Session = { agent: Agent; sessionId: string };
@@ -38,6 +40,7 @@ type Agent = {
 };
 
 const AUTH_REQUIRED = -32000;
+const CLOSE_TIMEOUT_MS = 5000;
 const NO_ACCESS: acp.ClientCapabilities = {
   fs: { readTextFile: false, writeTextFile: false },
   terminal: false,
@@ -307,13 +310,26 @@ function createAcpAgent(options: AcpAgentOptions): AgentAdapter {
       if (!old) return;
       sessions.delete(sessionKey);
       void old
-        .then(({ agent, sessionId }) =>
-          agent.canClose && running === agent
-            ? agent.context.request(acp.methods.agent.session.close, {
-                sessionId,
-              })
-            : undefined
-        )
+        .then(async ({ agent, sessionId }) => {
+          if (!agent.canClose || running !== agent) return;
+          // A session still winding down a cancelled prompt may never answer: stop waiting.
+          let timer: NodeJS.Timeout | undefined;
+          const unanswered = new Promise<"unanswered">((resolve) => {
+            timer = setTimeout(
+              () => resolve("unanswered"),
+              options.closeTimeoutMs ?? CLOSE_TIMEOUT_MS
+            );
+            timer.unref();
+          });
+          const outcome = await Promise.race([
+            agent.context
+              .request(acp.methods.agent.session.close, { sessionId })
+              .then(() => "closed" as const),
+            unanswered,
+          ]).finally(() => clearTimeout(timer));
+          if (outcome === "unanswered")
+            log(`session ${sessionId} didn't answer session/close; let go`);
+        })
         .catch(() => undefined);
     },
     async *reply({ sessionKey, text, signal, ask }) {

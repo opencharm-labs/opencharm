@@ -2,7 +2,8 @@
 // A stand-in ACP agent for tests, speaking real ACP over stdio through the official SDK. What it
 // does depends on the words in the prompt: "tool", "slow", "permission", "crash", "fail".
 // FAKE_ACP_LOG: a file that gets one JSON line per request; FAKE_ACP_AUTH=1: sessions need a login;
-// FAKE_ACP_DIRS=1: advertises additionalDirectories; FAKE_ACP_CLOSE=1: advertises session/close.
+// FAKE_ACP_DIRS=1: advertises additionalDirectories; FAKE_ACP_CLOSE=1: advertises session/close
+// (FAKE_ACP_CLOSE=hang: and never answers it).
 import { appendFileSync } from "node:fs";
 import { Readable, Writable } from "node:stream";
 
@@ -139,6 +140,7 @@ acp
   })
   .onRequest("session/close", (ctx) => {
     log("session/close", ctx.params);
+    if (process.env.FAKE_ACP_CLOSE === "hang") return new Promise(() => {});
     return {};
   })
   .onRequest("session/prompt", (ctx) => prompt(ctx.params, ctx.client))

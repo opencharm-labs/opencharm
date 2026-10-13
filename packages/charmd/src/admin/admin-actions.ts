@@ -42,7 +42,7 @@ type AdminActions = {
   look: (input: unknown) => Promise<Look & { connected: number }>;
   replies: (input: unknown) => Promise<{ speak: boolean }>;
   // A new conversation with the agent (spec 003): the named charm, every paired charm when none is
-  // named, or (source "agent", the charm tool) the charm whose turn is running.
+  // named, or (source "agent", the charm tool) the charm whose turn the agent is answering, if any.
   newConversation: (input: unknown) => Promise<{ charms: string[] }>;
 };
 type AdminDeps = {
@@ -274,14 +274,16 @@ function createAdminActions({
         let charms: CharmRecord[];
         if (ref !== undefined) charms = [requireCharm(ref)];
         else if (source === "agent") {
-          // The agent's tool names no charm: the one talking to it now, else the newest unlocked.
-          const talking = [...sessions()].filter(
-            (s) => s.state === "unlocked" && s.busy
-          );
-          const ids = new Set(
-            (talking.length > 0 ? talking : requireLive()).map((s) => s.charmId)
-          );
-          charms = store.list().filter((charm) => ids.has(charm.id));
+          // The agent's tool names no charm: only the one whose turn the agent is answering (the
+          // newest if several), never one just listening; with none, nothing changes.
+          let latest:
+            { order: number; charmId: string | undefined } | undefined;
+          for (const s of sessions()) {
+            const order = s.state === "unlocked" ? s.answering : undefined;
+            if (order !== undefined && (!latest || order > latest.order))
+              latest = { order, charmId: s.charmId };
+          }
+          charms = store.list().filter((charm) => charm.id === latest?.charmId);
         } else charms = store.list();
         for (const charm of charms) newConversation(sessionKeyOf(charm.id));
         return { charms: charms.map((charm) => charm.name) };

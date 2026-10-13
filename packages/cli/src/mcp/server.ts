@@ -179,8 +179,14 @@ const TOOLS: Tool[] = [
     // Strict: the charm that asked is the one talking; the agent can't start over someone else's.
     args: z.object({}).strict(),
     run: async (_args, send) => {
-      await send({ cmd: "newConversation", source: "agent" });
-      return "Done: when this reply ends, the next thing they say starts a new conversation.";
+      const answer = (await send({
+        cmd: "newConversation",
+        source: "agent",
+      })) as { charms?: unknown[] };
+      // charmd acts only on a charm whose turn you're answering; with none, nothing changed.
+      return answer.charms?.length
+        ? "Done: when this reply ends, the next thing they say starts a new conversation."
+        : "No conversation is running on a charm right now: nothing was changed.";
     },
   },
 ];

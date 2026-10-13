@@ -10,7 +10,11 @@ import { CharmLook } from "../look";
 import { StateStore } from "../store/state-store";
 import { createAdminActions } from "./admin-actions";
 
-type FakeSession = { charmId: string; state: string; busy: boolean };
+type FakeSession = {
+  charmId: string;
+  state: string;
+  answering: number | undefined;
+};
 
 function setup(live: FakeSession[] = []) {
   const store = new StateStore(
@@ -64,10 +68,11 @@ describe("the admin command newConversation", () => {
     );
   });
 
-  it("from the agent's tool, starts over the charm whose turn is running", async () => {
+  it("from the agent's tool, starts over the charm the agent is answering, not one just listening", async () => {
     const { actions, started } = setup([
-      { charmId: "c_aaaaaa", state: "unlocked", busy: true },
-      { charmId: "c_bbbbbb", state: "unlocked", busy: false },
+      { charmId: "c_aaaaaa", state: "unlocked", answering: 7 },
+      // Key held on the other charm: listening, which isn't an agent turn.
+      { charmId: "c_bbbbbb", state: "unlocked", answering: undefined },
     ]);
     expect(await actions.newConversation({ source: "agent" })).toEqual({
       charms: ["pip"],
@@ -75,20 +80,26 @@ describe("the admin command newConversation", () => {
     expect(started).toEqual(["opencharm-c_aaaaaa"]);
   });
 
-  it("from the agent's tool with no turn running, starts over the newest unlocked charm", async () => {
+  it("from the agent's tool with two charms being answered, starts over only the newest turn's", async () => {
     const { actions, started } = setup([
-      { charmId: "c_aaaaaa", state: "unlocked", busy: false },
-      { charmId: "c_bbbbbb", state: "unlocked", busy: false },
+      { charmId: "c_aaaaaa", state: "unlocked", answering: 9 },
+      { charmId: "c_bbbbbb", state: "unlocked", answering: 4 },
     ]);
     expect(await actions.newConversation({ source: "agent" })).toEqual({
-      charms: ["desk"],
+      charms: ["pip"],
     });
-    expect(started).toEqual(["opencharm-c_bbbbbb"]);
-    const none = setup();
-    await expect(
-      none.actions.newConversation({ source: "agent" })
-    ).rejects.toThrow(/No charm is connected/);
-    expect(none.started).toEqual([]);
+    expect(started).toEqual(["opencharm-c_aaaaaa"]);
+  });
+
+  it("from the agent's tool with no agent turn running, changes nothing", async () => {
+    const { actions, started } = setup([
+      { charmId: "c_aaaaaa", state: "unlocked", answering: undefined },
+      { charmId: "c_bbbbbb", state: "locked", answering: 3 },
+    ]);
+    expect(await actions.newConversation({ source: "agent" })).toEqual({
+      charms: [],
+    });
+    expect(started).toEqual([]);
   });
 
   it("refuses anything it doesn't know, rather than starting over every charm", async () => {

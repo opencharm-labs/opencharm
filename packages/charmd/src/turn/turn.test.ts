@@ -107,6 +107,37 @@ describe("a full turn", () => {
     expect(kinds()).toContain("tts:stop");
   });
 
+  it("counts as answering only while the agent's turn runs, not while listening or idle, newest turns last", async () => {
+    const waiting: Array<() => void> = [];
+    const agent: AgentAdapter = {
+      name: "slow",
+      async *reply() {
+        await new Promise<void>((resolve) => waiting.push(resolve));
+        yield "Done.";
+      },
+    };
+    const first = setup({ agent }).turn;
+    const second = setup({ agent }).turn;
+    expect(first.answering).toBeUndefined();
+    first.listenStart();
+    expect(first.answering).toBeUndefined();
+    first.audio(Buffer.from([0xf8, 0]));
+    const done = first.listenStop();
+    const order = first.answering;
+    expect(order).toBeTypeOf("number");
+    second.listenStart();
+    second.audio(Buffer.from([0xf8, 0]));
+    const secondDone = second.listenStop();
+    expect(second.answering).toBeGreaterThan(order ?? Infinity);
+    await expect.poll(() => waiting.length).toBe(2);
+    for (const finish of waiting) finish();
+    await Promise.all([done, secondDone]);
+    expect(first.answering).toBeUndefined();
+    expect(second.answering).toBeUndefined();
+    await first.say("Hello there.");
+    expect(first.answering).toBeUndefined();
+  });
+
   it("logs timings without transcripts by default", async () => {
     const { turn, logs } = setup();
     await speak(turn);

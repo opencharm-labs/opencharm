@@ -193,6 +193,24 @@ describe("acp agent", () => {
     SLOW
   );
 
+  it(
+    "stops waiting for a session/close the agent never answers",
+    async () => {
+      const { agent, logged, notes } = setup(
+        { FAKE_ACP_CLOSE: "hang" },
+        { closeTimeoutMs: 100 }
+      );
+      await collect(agent, "one");
+      agent.reset?.("opencharm-c_1");
+      await expect
+        .poll(() => notes.some((n) => n.includes("session/close")), PROCESS)
+        .toBe(true);
+      expect(logged().some((l) => l.method === "session/close")).toBe(true);
+      expect(await collect(agent, "two")).toBe("You said: two.");
+    },
+    SLOW
+  );
+
   it("does nothing on a reset for a charm it has no session for", () => {
     const { agent, logged } = setup();
     agent.reset?.("opencharm-nobody");

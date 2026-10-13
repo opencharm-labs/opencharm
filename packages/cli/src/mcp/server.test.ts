@@ -190,6 +190,18 @@ describe("the charm's MCP server", () => {
     });
   });
 
+  it("new_conversation says nothing changed when no charm's turn is running", async () => {
+    const { call } = setup(() => ({ charms: [] }));
+    expect((await call("new_conversation", {})).result).toEqual({
+      content: [
+        {
+          type: "text",
+          text: "No conversation is running on a charm right now: nothing was changed.",
+        },
+      ],
+    });
+  });
+
   it("new_conversation can't name another charm", async () => {
     const { call, calls } = setup();
     expect(

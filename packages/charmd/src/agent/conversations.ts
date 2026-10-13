@@ -1,13 +1,16 @@
 import type { AgentAdapter } from "./types";
 
 type ConversationOptions = {
-  // A charm whose last turn ended longer ago than this starts a new conversation; 0 = never.
+  // A charm whose last turn with the agent ended (answered, cancelled or failed) longer ago than
+  // this starts a new conversation; 0 = never.
   afterMinutes: number;
   now?: () => number;
   log?: (entry: Record<string, unknown>) => void;
 };
 type Conversation = {
-  turns: number;
+  // Each turn by its signal: a turn cancelled or superseded (a new key hold, a typed line) no longer
+  // counts, though its stream may still be winding down.
+  turns: Set<AbortSignal>;
   lastEnded: number | undefined;
   asked: boolean;
 };
@@ -32,10 +35,14 @@ function withConversations(
   function of(sessionKey: string): Conversation {
     let conversation = charms.get(sessionKey);
     if (!conversation) {
-      conversation = { turns: 0, lastEnded: undefined, asked: false };
+      conversation = { turns: new Set(), lastEnded: undefined, asked: false };
       charms.set(sessionKey, conversation);
     }
     return conversation;
+  }
+
+  function running(conversation: Conversation): boolean {
+    return [...conversation.turns].some((signal) => !signal.aborted);
   }
 
   function reset(sessionKey: string, reason: "asked" | "idle"): void {
@@ -49,7 +56,7 @@ function withConversations(
   // Before a turn, or the warm-up for one: an ask still waiting, or a long enough pause, starts over.
   function settle(sessionKey: string): void {
     const conversation = of(sessionKey);
-    if (conversation.turns > 0) return;
+    if (running(conversation)) return;
     if (conversation.asked) reset(sessionKey, "asked");
     else if (
       afterMs > 0 &&
@@ -62,7 +69,7 @@ function withConversations(
   return {
     startNew(sessionKey) {
       const conversation = of(sessionKey);
-      if (conversation.turns > 0) {
+      if (running(conversation)) {
         conversation.asked = true;
         return "after-turn";
       }
@@ -79,14 +86,14 @@ function withConversations(
       async *reply(input) {
         settle(input.sessionKey);
         const conversation = of(input.sessionKey);
-        conversation.turns += 1;
+        conversation.turns.add(input.signal);
         try {
           yield* agent.reply(input);
         } finally {
-          conversation.turns -= 1;
+          conversation.turns.delete(input.signal);
           conversation.lastEnded = now();
           // Asked during the turn (the agent's own tool, mid-reply): the turn has ended, so now.
-          if (conversation.turns === 0 && conversation.asked)
+          if (!running(conversation) && conversation.asked)
             reset(input.sessionKey, "asked");
         }
       },

@@ -42,9 +42,10 @@ Listening and speaking are the main way to use the charm, so the defaults must b
 charmd keeps one agent session per charm; until now only a charmd restart started a fresh one. The person can now start over, and a long pause starts over by itself. charmd only lets go of the session: memory and what a fresh start means stay the agent's.
 
 - **The adapter interface** gets `reset(sessionKey)`: forget this charm's conversation. `acp` drops the charm's ACP session (closing it with `session/close` when the agent offers it), so the next turn opens a new one in the same agent process; `hermes` moves the charm to a new `conversation` name and keeps `X-Hermes-Session-Key` (the charm's long-term memory in Hermes); `openai-compatible` and `openclaw` send a new `user`, so OpenClaw derives a new session. HTTP names are random (`opencharm-<charm id>-<8 hex>`) and held in memory: after a charmd restart a charm is back on `opencharm-<charm id>`.
-- **Never mid-turn:** a reset asked for during a charm's turn applies when that turn ends; the turn finishes as it started.
+- **Never mid-turn:** a reset asked for during a charm's turn applies when that turn ends; the turn finishes as it started. A turn cancelled or superseded (a new key hold, a typed line) no longer counts: the new turn already starts in the new conversation.
+- **The agent's tool acts on one charm only:** the one whose turn the agent is answering (thinking or speaking, not just listening; the newest such turn if several). With none, nothing changes and the tool says so.
 - **By voice, through the agent:** the charm tool `new_conversation` (spec 012), which the agent calls when the person asks ("let's start over").
-- **After a long pause:** `newConversationAfterMinutes` in `opencharm.json` (default 120; 0 = never): a charm whose last turn ended longer ago starts its next turn (and the warm-up when the key goes down) in a new conversation.
+- **After a long pause:** `newConversationAfterMinutes` in `opencharm.json` (default 120; 0 = never): a charm whose last turn with the agent ended (answered, cancelled or failed) longer ago starts its next turn (and the warm-up when the key goes down) in a new conversation.
 - **From the computer:** the admin command `newConversation` (`charm` names one; none = every paired charm), `opencharm new [charm]`, and the desktop app's menu item "New conversation" (spec 013).
 - Each new conversation is a line in charmd's log (`new-conversation`, with the reason: `asked` or `idle`). No new gesture and no change on the charm.
 
@@ -75,7 +76,7 @@ Voice that sounds right:
 
 A new conversation:
 
-- [x] Unit tests: after `reset`, the ACP adapter opens a new session for that charm only (and sends `session/close` when the agent offers it); the HTTP adapters send a new conversation name (Hermes keeps its memory key); a reset asked for mid-turn applies when the turn ends; the idle rule with a fake clock (exactly the limit keeps the conversation, past it starts over, 0 never); the config option; the admin command (all charms, a named one, the agent's own charm, strict input); the MCP tool (tools/list and tools/call); `opencharm new`; the desktop app's admin request.
+- [x] Unit tests: after `reset`, the ACP adapter opens a new session for that charm only (and sends `session/close` when the agent offers it); the HTTP adapters send a new conversation name (Hermes keeps its memory key); a reset asked for mid-turn applies when the turn ends; the idle rule with a fake clock (exactly the limit keeps the conversation, past it starts over, 0 never); the config option; a turn that supersedes the one that asked starts in the new conversation; ACP stops waiting for an unanswered `session/close` (5 s); the admin command (all charms, a named one, only the charm whose agent turn is newest, nothing when no agent turn runs, strict input); the MCP tool (tools/list and tools/call); `opencharm new`; the desktop app's admin request.
 - [x] Over a real socket: a pause longer than `newConversationAfterMinutes` starts a new conversation, and the admin command does too.
 - [ ] By hand: asking Claude Code on the desktop charm for a new conversation, then asking what was said before (it doesn't know).
 

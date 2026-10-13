@@ -68,6 +68,28 @@ describe("new conversations", () => {
     expect(await ask(agent)).toBe(`${KEY}#1`);
   });
 
+  it("starts over before a turn that supersedes the one that asked, while it's still winding down", async () => {
+    const inner = counting();
+    const { agent, startNew } = withConversations(inner.agent, {
+      afterMinutes: 0,
+    });
+    const first = new AbortController();
+    const iterator = agent
+      .reply({ sessionKey: KEY, text: "wait", signal: first.signal })
+      [Symbol.asyncIterator]();
+    const pending = iterator.next();
+    await Promise.resolve();
+    expect(startNew(KEY)).toBe("after-turn");
+    // A typed line cancels the turn and asks again in the same tick, as TurnController.typed does.
+    first.abort();
+    expect(await ask(agent, "typed")).toBe(`${KEY}#1`);
+    expect(inner.resets).toEqual([KEY]);
+    inner.release();
+    await pending;
+    await iterator.return?.(undefined);
+    expect(inner.resets).toEqual([KEY]);
+  });
+
   it("starts over after a pause longer than newConversationAfterMinutes", async () => {
     let clock = 0;
     const inner = counting();

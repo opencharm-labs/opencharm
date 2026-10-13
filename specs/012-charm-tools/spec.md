@@ -14,7 +14,7 @@ So far the agent can only answer when spoken to. With tools it can use the charm
   - `show_face(face, line?)`: one of the agent states (`done`, `thinking`, `stuck`, `asleep`…), with an optional short line
   - `ask(question, yes?, no?)`: a yes/no question on the charm (hold = yes, press = no, 30 s silence = no); returns `yes` or `no`
   - `notify(text)`: the orange "it needs you" face with a short line, until the person presses the key
-  - `new_conversation()` (approved by the maintainer, 13 October 2026; spec 003): when the person asks to start over ("let's start over", "new conversation"), never on the agent's own initiative. The reply finishes first; once it ends, the next turn starts a fresh agent session. It acts on the charm whose turn is running (else the newest unlocked one) and names no other.
+  - `new_conversation()` (approved by the maintainer, 13 October 2026; spec 003): when the person asks to start over ("let's start over", "new conversation"), never on the agent's own initiative. The reply finishes first; once it ends, the next turn starts a fresh agent session. It acts only on the charm whose turn the agent is answering (thinking or speaking, not a charm just listening; the newest turn if several) and names no other; with no such turn it changes nothing and answers "No conversation is running on a charm right now: nothing was changed."
 - **Which charm:** the tools act on the charm that is connected and unlocked. If several are, the latest one wins. If none is, the tool returns an error the agent can read ("No charm is connected and unlocked").
 - **ACP agents get it automatically:** charmd adds `opencharm mcp` to every ACP session (`mcpServers`, stdio), with charmd's admin socket (`--socket`). It's off with `"agent": { …, "charmTools": false }`.
 - **Other agents** running as the same user (outside ACP): add `opencharm mcp --config <file>` to the agent's own MCP settings. Documented, not automated. Never across a user boundary such as the droplet: the admin socket can also unlock a charm without its PIN.
@@ -30,7 +30,7 @@ Readable signals (picked up, battery…), MCP over HTTP (charmd behind Caddy mus
 - [x] ACP sessions carry the `charm` MCP server (fake agent log); `charmTools: false` leaves it out.
 - [x] Real Claude Code over ACP calls `show_face` and `ask` on a charm and acts on the answer.
 - [x] `npm run check` green; docs in sync (SPEC, charmd and CLI READMEs, skills, starter).
-- [x] `new_conversation`: listed with a description that says when to use it, `tools/call` sends `newConversation` with `source: "agent"`, a charm name is refused; the admin command picks the charm whose turn is running (13 October 2026).
+- [x] `new_conversation`: listed with a description that says when to use it, `tools/call` sends `newConversation` with `source: "agent"`, a charm name is refused; the admin command picks only the charm with the newest agent turn, never one just listening, and nothing when no agent turn runs (13 October 2026).
 - [ ] Real Claude Code over ACP calls `new_conversation` when asked to start over, and the next turn doesn't know the last one.
 
 ## Notes (1 October 2026)

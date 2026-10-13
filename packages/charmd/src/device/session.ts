@@ -110,9 +110,10 @@ class Session {
     return this.#charmId;
   }
 
-  // In the middle of a turn: listening, thinking or answering.
-  get busy(): boolean {
-    return this.#turn?.busy ?? false;
+  // A turn the agent may be at work on (thinking or answering, not just listening): its place in the
+  // order turns began, else undefined.
+  get answering(): number | undefined {
+    return this.#turn?.answering;
   }
 
   #send(message: ServerMessage): void {
