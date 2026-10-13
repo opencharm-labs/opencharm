@@ -18,6 +18,8 @@ const LISTEN_MODEL = "scribe_v2";
 // Low latency and 90+ languages (ElevenLabs' model page, 13 October 2026).
 const SPEAK_MODEL = "eleven_v4_turbo";
 const SAMPLE_RATE = 24000;
+// The voice list is shared by every sentence waiting on it, so it has its own deadline, not theirs.
+const VOICES_TIMEOUT_MS = 5000;
 
 function settings(options: ElevenLabsOptions): {
   apiKey: string;
@@ -74,11 +76,11 @@ function createElevenLabsSpeaker(options: ElevenLabsOptions): Speaker {
   let voice: Promise<string> | undefined = options.voice
     ? Promise.resolve(options.voice)
     : undefined;
-  function voiceId(signal?: AbortSignal): Promise<string> {
+  function voiceId(): Promise<string> {
     voice ??= (async () => {
       const response = await fetch(`${baseUrl}/v1/voices`, {
         headers: { "xi-api-key": apiKey },
-        ...(signal ? { signal } : {}),
+        signal: AbortSignal.timeout(VOICES_TIMEOUT_MS),
       });
       if (!response.ok) return failed("voices", response);
       const { voices } = (await response.json()) as {
@@ -100,7 +102,7 @@ function createElevenLabsSpeaker(options: ElevenLabsOptions): Speaker {
     signal: AbortSignal,
     language?: string
   ): AsyncIterable<Buffer> {
-    const id = await voiceId(signal);
+    const id = await voiceId();
     const response = await fetch(
       `${baseUrl}/v1/text-to-speech/${encodeURIComponent(id)}/stream?output_format=pcm_${SAMPLE_RATE}`,
       {

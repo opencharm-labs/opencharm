@@ -18,7 +18,7 @@ function runHelp(ctx: CliContext): void {
     opencharm setup --domain <d>    install charmd as a service (Linux, sudo)   [--dry-run]
     opencharm serve                 start charmd   [--config <file>]
     opencharm sim                   the emulator, for developing the charm [--url <ws>] [--port <n>]
-    opencharm voice                 the local voice's models   [install: download them now]
+    opencharm voice                 the local voice's models (other voices: Microsoft, macOS, OpenAI, ElevenLabs)   [install: download them now]
     opencharm pair [code]           pair the charm showing [code]; no code: the charms waiting   [--name <name>]
     opencharm status                paired charms and their state
     opencharm lock <charm>          lock a charm now

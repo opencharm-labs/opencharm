@@ -561,12 +561,12 @@ $("save-key").addEventListener("click", async () => {
 });
 
 if (await invoke("has_elevenlabs_key"))
-  $("elevenlabs-key").placeholder = "Saved in your keychain";
+  $("elevenlabs-key").placeholder = "ElevenLabs key saved in your keychain";
 $("save-elevenlabs-key").addEventListener("click", async () => {
   try {
     await invoke("set_elevenlabs_key", { key: $("elevenlabs-key").value });
     $("elevenlabs-key").value = "";
-    $("elevenlabs-key").placeholder = "Saved in your keychain";
+    $("elevenlabs-key").placeholder = "ElevenLabs key saved in your keychain";
     status.textContent = "KEY SAVED";
     react("joy");
   } catch (error) {

@@ -41,13 +41,13 @@ const LANGUAGES: [&str; 6] = ["en", "it", "es", "fr", "de", "pt"];
 pub const COLOURS: [&str; 6] = ["white", "cobalt", "lime", "lilac", "sun", "coal"];
 const MOTIONS: [&str; 2] = ["full", "calm"];
 
-/// A Microsoft voice for a language Settings offers, named exactly as charmd's config takes it
-/// (packages/charmd/src/config/config.ts, /^[A-Za-z]{2,3}-[A-Za-z]{2,4}-\w+$/), or charmd won't start.
 /// An ElevenLabs voice ID as its site shows them: letters and digits (spec 003).
 fn elevenlabs_voice_ok(voice: &str) -> bool {
     (1..=64).contains(&voice.len()) && voice.chars().all(|c| c.is_ascii_alphanumeric())
 }
 
+/// A Microsoft voice for a language Settings offers, named exactly as charmd's config takes it
+/// (packages/charmd/src/config/config.ts, /^[A-Za-z]{2,3}-[A-Za-z]{2,4}-\w+$/), or charmd won't start.
 fn microsoft_voice_ok(language: &str, voice: &str) -> bool {
     let parts: Vec<&str> = voice.splitn(3, '-').collect();
     let letters = |p: &str, min: usize, max: usize| {

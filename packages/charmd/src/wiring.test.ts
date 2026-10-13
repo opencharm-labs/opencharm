@@ -28,6 +28,34 @@ describe("wiring", () => {
     expect(createAgentFromConfig(config).name).toBe("hermes");
   });
 
+  it("finds the ElevenLabs key in ELEVENLABS_API_KEY or the variable the config names", () => {
+    const eleven = (voice: object) =>
+      createVoiceFromConfig(
+        parseConfig({
+          voice: {
+            listen: { provider: "elevenlabs", ...voice },
+            speak: { provider: "elevenlabs", ...voice },
+          },
+        })
+      );
+    const saved = process.env.ELEVENLABS_API_KEY;
+    delete process.env.ELEVENLABS_API_KEY;
+    try {
+      expect(() => eleven({})).toThrow(/ELEVENLABS_API_KEY/);
+      process.env.ELEVENLABS_API_KEY = "from-env";
+      expect(eleven({}).name).toBe("elevenlabs");
+      delete process.env.ELEVENLABS_API_KEY;
+      process.env.OPENCHARM_TEST_KEY = "named";
+      expect(eleven({ apiKeyEnv: "OPENCHARM_TEST_KEY" }).name).toBe(
+        "elevenlabs"
+      );
+    } finally {
+      delete process.env.OPENCHARM_TEST_KEY;
+      if (saved === undefined) delete process.env.ELEVENLABS_API_KEY;
+      else process.env.ELEVENLABS_API_KEY = saved;
+    }
+  });
+
   it("reads the agent key from the environment when the config has none", () => {
     process.env.OPENCHARM_TEST_KEY = "from-env";
     const config = parseConfig({

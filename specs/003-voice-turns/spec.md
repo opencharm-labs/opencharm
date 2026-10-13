@@ -121,5 +121,5 @@ Proposals:
 ElevenLabs:
 
 - [ ] Unit tests against a local server: the config (both sides, key from the file or the environment, strict fields); Scribe gets the Ogg, the model and sound tags off, with the key header; speaking streams PCM into Opus packets (an odd byte split across chunks kept), sends the model, the language and the voice, picks the first account voice when none is set and asks once; an HTTP error names the status, never the key.
-- [ ] The desktop app: both options, the key saved to and read from the keychain into `ELEVENLABS_API_KEY`, the voice field written to the config (Rust tests).
+- [ ] The desktop app: both options and the voice field written to the config, a bad voice ID refused, an older `opencharm` given the default on that side (Rust tests); the key saved in the keychain and handed to charmd as `ELEVENLABS_API_KEY` (by hand, with the real key).
 - [ ] By hand with a real key on the maintainer's charm: a spoken question in English and Italian heard by Scribe and answered with an ElevenLabs voice, with the timing line recorded.

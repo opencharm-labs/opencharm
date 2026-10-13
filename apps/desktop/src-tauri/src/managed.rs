@@ -14,7 +14,7 @@ use std::time::{Duration, Instant};
 use serde::Serialize;
 use serde_json::{json, Value};
 
-use crate::settings::{Look, Settings, PRESETS};
+use crate::settings::{Look, Settings, DEFAULT_LISTEN, DEFAULT_SPEAK, PRESETS};
 
 /// Windows has no Unix sockets for the admin channel: a named pipe, with a fresh random name for
 /// each start of charmd, so another user on the computer can't create it first (pipe names are
@@ -493,6 +493,8 @@ pub struct CliFeatures {
     pub replies: bool,
     /// The charm's speaker volume (spec 014): `charm.volume` (`opencharm look --volume`).
     pub volume: bool,
+    /// ElevenLabs for listening and speaking (spec 003), named in `opencharm voice`'s help.
+    pub elevenlabs: bool,
 }
 
 impl CliFeatures {
@@ -501,6 +503,7 @@ impl CliFeatures {
             voice: help.contains("opencharm voice"),
             replies: help.contains("opencharm replies"),
             volume: help.contains("--volume"),
+            elevenlabs: help.contains("ElevenLabs"),
         }
     }
 }
@@ -514,6 +517,7 @@ pub fn cli_features(cli: &Cli, env: &HashMap<String, String>) -> CliFeatures {
         voice: true,
         replies: true,
         volume: true,
+        elevenlabs: true,
     };
     let modified = std::fs::metadata(cli.file())
         .and_then(|m| m.modified())
@@ -538,6 +542,7 @@ pub fn cli_features(cli: &Cli, env: &HashMap<String, String>) -> CliFeatures {
             voice: false,
             replies: false,
             volume: false,
+            elevenlabs: false,
         },
         Ok(mut child) => {
             let deadline = Instant::now() + Duration::from_secs(5);
@@ -618,6 +623,16 @@ fn voice_sides(voice: &Value) -> Value {
             },
         }),
         _ => json!({}),
+    }
+}
+
+/// For an `opencharm` from before ElevenLabs: that side gets the default (Parakeet listening,
+/// Microsoft's voices speaking) instead of a config charmd would refuse.
+pub fn without_elevenlabs(voice: &mut Value) {
+    for (side, default) in [("listen", DEFAULT_LISTEN), ("speak", DEFAULT_SPEAK)] {
+        if voice[side]["provider"] == json!("elevenlabs") {
+            voice[side] = json!({ "provider": default });
+        }
     }
 }
 
@@ -1730,7 +1745,8 @@ mod tests {
             CliFeatures {
                 voice: false,
                 replies: false,
-                volume: false
+                volume: false,
+                elevenlabs: false
             }
         );
         let voice = "opencharm voice                 the local voice's models\n";
@@ -1739,7 +1755,8 @@ mod tests {
             CliFeatures {
                 voice: true,
                 replies: false,
-                volume: false
+                volume: false,
+                elevenlabs: false
             }
         );
         let both = format!("{voice}    opencharm replies on|off        …\n");
@@ -1748,9 +1765,33 @@ mod tests {
             CliFeatures {
                 voice: true,
                 replies: true,
-                volume: false
+                volume: false,
+                elevenlabs: false
             }
         );
+    }
+
+    #[test]
+    fn an_opencharm_without_elevenlabs_gets_the_default_voice_on_that_side() {
+        assert!(CliFeatures::from_help("    opencharm voice   … OpenAI, ElevenLabs)\n").elevenlabs);
+        assert!(
+            !CliFeatures::from_help("    opencharm voice   the local voice's models\n").elevenlabs
+        );
+        let mut voice = json!({
+            "listen": { "provider": "elevenlabs" },
+            "speak": { "provider": "elevenlabs", "voice": "AbC" },
+            "language": "it"
+        });
+        without_elevenlabs(&mut voice);
+        assert_eq!(
+            voice,
+            json!({ "listen": { "provider": "local" }, "speak": { "provider": "microsoft" }, "language": "it" })
+        );
+        let mut openai =
+            json!({ "listen": { "provider": "openai" }, "speak": { "provider": "system" } });
+        let before = openai.clone();
+        without_elevenlabs(&mut openai);
+        assert_eq!(openai, before);
     }
 
     #[test]
