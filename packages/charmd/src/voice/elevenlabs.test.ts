@@ -225,6 +225,8 @@ describe("ElevenLabs voices", () => {
           },
           { voice_id: "b2", name: "", preview_url: "http://example.com/b.mp3" },
           { name: "no id" },
+          null,
+          { voice_id: "../x", name: "Not an ID" },
         ],
       },
     }));

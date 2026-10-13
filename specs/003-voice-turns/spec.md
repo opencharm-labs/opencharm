@@ -59,7 +59,7 @@ ElevenLabs is the voice platform people ask for by name, and its API isn't OpenA
 - **When it fails:** like any paid voice, speaking falls back to the macOS voice only (no model download you didn't ask for). Speech and the reply's text go to ElevenLabs; Settings says so.
 - **Settings** (spec 013): ElevenLabs in LISTENING and SPEAKING, and its key. The CLI config takes the same fields.
 - **Your voices, by name** (maintainer, 13 October 2026, "full support"): once charmd speaks with ElevenLabs, Settings lists the voices in the person's account by name (the admin command `voices`, which charmd answers from ElevenLabs with its key; the window never holds the key), first "Your first voice" (no voice set). **Try it** plays the voice's own preview from ElevenLabs (no credits used). A voice saved before that isn't in the list stays selectable by its ID.
-- **The model** (same day): Settings offers Fastest (`eleven_flash_v2_5`), Balanced (`eleven_v4_turbo`, the default) and Best quality (`eleven_v4`), written as `voice.speak.model`.
+- **The model** (same day): Settings offers Fastest (`eleven_flash_v2_5`), Balanced (`eleven_v4_turbo`, the default) and Best quality (`eleven_v4`), written as `voice.speak.model`; the speed and quality ranks are ElevenLabs' own (its model page, 13 October 2026), unverified here.
 
 ## Not in scope
 

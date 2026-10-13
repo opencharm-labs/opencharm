@@ -1,6 +1,8 @@
 // ElevenLabs for listening (Scribe) and speaking (spec 003), with the person's key. Its API isn't
 // OpenAI's, so it has its own client. Speech streams as 24 kHz PCM, encoded to Opus as it arrives,
 // so a sentence starts playing before ElevenLabs has finished it. Errors name the status, never the key.
+import { z } from "zod";
+
 import { writeOggOpus } from "../audio/ogg-opus";
 import { createOpusEncoder } from "../audio/opus-codec";
 import type { Listener, Speaker, VoiceChoice } from "./types";
@@ -52,6 +54,14 @@ function describe(labels: unknown): string | undefined {
 
 // The voices in the person's account, in ElevenLabs' order. A preview is kept only over https: the
 // settings window plays it.
+// One entry of ElevenLabs' list; IDs are letters and digits, as the desktop app accepts them.
+const voiceEntry = z.object({
+  voice_id: z.string().regex(/^[A-Za-z0-9]{1,64}$/),
+  name: z.string().optional(),
+  preview_url: z.string().optional(),
+  labels: z.record(z.string(), z.unknown()).nullish(),
+});
+
 async function listVoices(
   baseUrl: string,
   apiKey: string
@@ -63,17 +73,19 @@ async function listVoices(
   if (!response.ok) return failed("voices", response);
   const { voices } = (await response.json()) as { voices?: unknown };
   if (!Array.isArray(voices)) return [];
-  return voices.flatMap((v: Record<string, unknown>) => {
-    if (typeof v.voice_id !== "string" || v.voice_id === "") return [];
-    const preview =
-      typeof v.preview_url === "string" && v.preview_url.startsWith("https://")
-        ? v.preview_url
-        : undefined;
+  // An entry that isn't a voice is skipped, never the whole list.
+  return voices.flatMap((entry: unknown) => {
+    const parsed = voiceEntry.safeParse(entry);
+    if (!parsed.success) return [];
+    const v = parsed.data;
+    const preview = v.preview_url?.startsWith("https://")
+      ? v.preview_url
+      : undefined;
     const description = describe(v.labels);
     return [
       {
         id: v.voice_id,
-        name: typeof v.name === "string" && v.name ? v.name : v.voice_id,
+        name: v.name || v.voice_id,
         ...(preview ? { preview } : {}),
         ...(description ? { description } : {}),
       },

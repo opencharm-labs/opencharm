@@ -490,6 +490,7 @@ fn has_elevenlabs_key() -> Result<bool, String> {
 #[tauri::command]
 fn set_elevenlabs_key(app: AppHandle, key: String) -> Result<(), String> {
     pairing::set_secret("elevenlabs", key.trim())?;
+    app.state::<Managed>().charmd.mark_starting();
     apply_managed(&app);
     Ok(())
 }
@@ -499,7 +500,13 @@ fn set_elevenlabs_key(app: AppHandle, key: String) -> Result<(), String> {
 #[tauri::command]
 async fn elevenlabs_voices(app: AppHandle) -> Result<serde_json::Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let answer = admin_blocking(app, serde_json::json!({ "cmd": "voices" }))?;
+        // charmd gives ElevenLabs 5 s for the list: this waits a little longer.
+        let socket = own_admin(&app)?;
+        let answer = pairing::admin_within(
+            &socket,
+            &serde_json::json!({ "cmd": "voices" }),
+            std::time::Duration::from_secs(8),
+        )?;
         Ok(answer["voices"].clone())
     })
     .await
@@ -972,6 +979,8 @@ fn save_settings(app: AppHandle, saved: State<Saved>, next: Settings) -> Result<
     *saved.settings.lock().unwrap() = next.clone();
     let state = app.state::<Managed>().charmd.status().state;
     if managed::restart_after_save(charmd_fields(&next) != charmd_fields(&previous), &state) {
+        // Under way from now: a window asking the running charmd (its voices) waits for the new one.
+        app.state::<Managed>().charmd.mark_starting();
         apply_managed(&app);
     } else if next.speak_replies != previous.speak_replies {
         apply_replies(&app, next.speak_replies);

@@ -180,10 +180,13 @@ async function loadElevenLabsVoices(charmdState) {
     $("elevenlabs-voice-note").textContent = elevenLabsVoices.length
       ? "The voices in your ElevenLabs account. Try it plays ElevenLabs' sample."
       : "Your ElevenLabs account has no voices yet: add one on elevenlabs.io.";
-  } catch {
+  } catch (error) {
     elevenLabsVoices = [];
-    $("elevenlabs-voice-note").textContent =
-      "Save your ElevenLabs key below to see your voices.";
+    // Asked again on a later poll, not stuck on one failure.
+    setTimeout(() => (elevenLabsAsked = false), 10_000);
+    $("elevenlabs-voice-note").textContent = /401|403/.test(String(error))
+      ? "ElevenLabs refused the key: save it again below."
+      : "Couldn't get your ElevenLabs voices just now; trying again shortly.";
   }
   fillElevenLabsVoices();
 }
@@ -207,6 +210,8 @@ function fillElevenLabsVoices() {
 
 async function save(change) {
   const next = { ...settings, ...change };
+  // A change may restart charmd: its voices are asked again from the new one.
+  elevenLabsAsked = false;
   status.textContent = "SAVING…";
   try {
     await invoke("save_settings", { next });
@@ -609,6 +614,7 @@ if (await invoke("has_elevenlabs_key"))
 $("save-elevenlabs-key").addEventListener("click", async () => {
   try {
     await invoke("set_elevenlabs_key", { key: $("elevenlabs-key").value });
+    elevenLabsAsked = false;
     $("elevenlabs-key").value = "";
     $("elevenlabs-key").placeholder = "ElevenLabs key saved in your keychain";
     status.textContent = "KEY SAVED";

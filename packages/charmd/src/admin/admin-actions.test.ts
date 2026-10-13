@@ -110,7 +110,7 @@ describe("the admin command newConversation", () => {
   });
 });
 
-describe("voices", () => {
+describe("the admin command voices", () => {
   it("passes on the speaking voice's choices", async () => {
     const store = new StateStore(
       join(mkdtempSync(join(tmpdir(), "oc-actions-")), "state.json")
