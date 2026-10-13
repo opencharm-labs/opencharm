@@ -104,6 +104,8 @@ _Later:_ a browser flasher for OpenCharm OS (nothing to install).
 
 Missed a macOS prompt? The charm then says "No charmd". Allow OpenCharm in System Settings → Privacy & Security → Local Network and node in System Settings → Network → Firewall → Options, then quit and reopen OpenCharm. Keep the firewall on, but leave **Block all incoming connections** off, or the charm can't reach charmd. Use **Charms on this network** on networks you trust, such as home: the charm talks to charmd unencrypted on your Wi-Fi.
 
+Stuck on "Connecting…" after it worked? The charm finds your Mac by its local hostname (System Settings → General → Sharing → Local hostname). If macOS has changed it (an added `-2` or `-3`), edit it back to the name the charm saved and it reconnects by itself. Older OpenCharm releases could cause that rename by announcing the name alongside macOS: update the app first.
+
 **By hand** (a charmd you run, or on a server):
 
 1. On the agent's machine, install and start charmd (`npm i -g opencharm`, then `opencharm serve`). On a server, follow [deploy.md](deploy.md) (a system service behind Caddy for HTTPS). For a board on your home network, give charmd a network listener: `"network": { "port": 8787 }` and `"allowInsecureRemote": true` in its config; it then announces itself on the network.

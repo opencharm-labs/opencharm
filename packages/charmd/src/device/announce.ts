@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { hostname, platform } from "node:os";
 
-import { Bonjour } from "bonjour-service";
+import { Bonjour, type Service } from "bonjour-service";
 
 // Stops announcing; resolves once the goodbye has gone out.
 type StopAnnouncing = () => Promise<void>;
@@ -31,6 +31,16 @@ function localHost(): string {
   return `${label}.local`;
 }
 
+// On a Mac, macOS answers for `<LocalHostName>.local` itself. The library would claim that name
+// too, with every address of this computer, which macOS takes as a clash: it renames the computer
+// ("uno-2.local"), so a board that saved the old name can't find it, and the goodbye on stop would
+// tell the network the name is gone. So there only the service is announced and macOS keeps its name.
+function leaveHostToSystem(service: Service): void {
+  const records = service.records.bind(service);
+  service.records = () =>
+    records().filter((record) => record.type !== "A" && record.type !== "AAAA");
+}
+
 const announceOnNetwork: Announce = (port) => {
   // The library throws on a network error by default (one interface that can't multicast, a VPN):
   // here it's logged once and charmd carries on.
@@ -48,6 +58,7 @@ const announceOnNetwork: Announce = (port) => {
     port,
     txt: { path: "/charm" },
   });
+  if (platform() === "darwin") leaveHostToSystem(service);
   service.on("error", (error: unknown) => {
     console.error(
       `charmd: couldn't announce itself on the network: ${String(error)}`
@@ -62,5 +73,5 @@ const announceOnNetwork: Announce = (port) => {
     });
 };
 
-export { announceOnNetwork };
+export { announceOnNetwork, leaveHostToSystem };
 export type { Announce, StopAnnouncing };
