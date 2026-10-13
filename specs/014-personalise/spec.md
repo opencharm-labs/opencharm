@@ -20,7 +20,7 @@ A companion should feel like yours. Today every charm looks the same on screen (
 - **OpenCharm OS applies it** at runtime: the glyph colour (eyes, mouth, z's; orange stays reserved for "it needs you"), the greeting text, the sleep delay, calm motion and the speaker's volume (through the HAL's `set_volume`: the board's codec, a gain on playback in the emulator and the desktop charm; 85 until a look says otherwise). The emulator and the desktop charm get it for free, since they run the same core.
 - **Voice**: the local voice's macOS voice (`sayVoice`, Samantha when unset, so English text never gets the system language's voice) gets a picker. The OpenAI voice already has `voice` (13 voices); it gets a picker too.
 - **The desktop charm's Settings, "Your charm"** (spec 013's settings window):
-  - name, colour (the six swatches, and a seventh that opens the system colour picker, with a field to type `#RRGGBB`), greeting, voice (the macOS voices that speak the system language, with a "Try it" button), volume (a slider, 0–100 in steps of 5), sleep delay, calm motion
+  - name, colour (the six swatches, and a seventh that opens the system colour picker, with a field to type `#RRGGBB`), greeting, voice (the macOS voices that speak the system language, with a "Try it" button), volume (a slider, 0–100), sleep delay, calm motion
   - changes are written to the workspace's `opencharm.json` and applied at once
   - for a folder that isn't a workspace, they're kept in the app's own config instead
 - **The agent can change its own look** through a new charm tool, `set_look` (spec 012), within the same limits: for example, "make yourself blue" (or "speak more quietly") works by voice.
@@ -33,7 +33,7 @@ A companion should feel like yours. Today every charm looks the same on screen (
 - Any colour, not only the six: a swatch for the system picker and a hex field, kept simple (maintainer, 5 October 2026). Orange and colours too dark to see stay refused (the face rules).
 - The agent may change its own look with `set_look`, as a try-on until charmd restarts; `agentCanChangeLook: false` turns it off (maintainer, 2 October 2026).
 - Orange is never an identity colour: on screen it only means "it needs you" (OPENCHARM.md, the face rules).
-- The speaker's volume is part of the look: one setting in `opencharm.json`, 0–100, default 85 (the board was fixed at 70 before), sent with the look and applied at once, also by the agent's `set_look` (maintainer, 13 October 2026). The guided setup doesn't ask for it: its "Your charm" step is the name and colour.
+- The speaker's volume is part of the look: one setting in `opencharm.json`, 0–100, default 85 (the board was fixed at 70 before), sent with the look and applied at once, also by the agent's `set_look` (maintainer, 13 October 2026). The guided setup doesn't ask for it: its "Your charm" step is the name and colour. The desktop app writes `volume` only when it differs from 85, and sends it only to an `opencharm` that knows it (its help shows `--volume`): an older one refuses keys it doesn't know, which would stop charmd or drop the whole look (review, 13 October 2026).
 - The charm holds the look only in memory; charmd sends it before every unlock. Nothing new is stored on the device (the board keeps no settings beyond its token).
 
 ## Not in scope

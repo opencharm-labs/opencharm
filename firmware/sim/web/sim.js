@@ -107,7 +107,9 @@ window.charmSim = {
   },
   volume: (percent) => {
     volume = Math.min(Math.max(percent, 0), 100) / 100;
-    if (speaker) speaker.gain.value = volume;
+    // Eased over a few milliseconds: a jump mid-reply clicks.
+    if (speaker && playCtx)
+      speaker.gain.setTargetAtTime(volume, playCtx.currentTime, 0.02);
   },
   brightness: (percent) => {
     canvas.style.filter = `brightness(${Math.max(percent, 25) / 100})`;
