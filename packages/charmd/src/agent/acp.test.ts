@@ -5,7 +5,12 @@ import { fileURLToPath } from "node:url";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { type AcpAgentOptions, createAcpAgent, describeAction } from "./acp";
+import {
+  type AcpAgentOptions,
+  agentEnvironment,
+  createAcpAgent,
+  describeAction,
+} from "./acp";
 import type { AgentAdapter } from "./types";
 
 type Logged = { pid: number; method: string; params: Record<string, unknown> };
@@ -432,5 +437,23 @@ describe("describeAction", () => {
     expect(describeAction("mcp__gmail__send_email", "/w")).toBe(
       "use the gmail tool send_email"
     );
+  });
+});
+
+describe("agentEnvironment", () => {
+  it("keeps charmd's voice keys from the agent, and the agent's own keys with it", () => {
+    expect(
+      agentEnvironment({
+        PATH: "/bin",
+        OPENAI_API_KEY: "the agent's",
+        OPENCHARM_OPENAI_API_KEY: "the voice's",
+        OPENCHARM_ELEVENLABS_API_KEY: "the voice's",
+        OPENCHARM_DATA: "/tmp/x",
+      })
+    ).toEqual({
+      PATH: "/bin",
+      OPENAI_API_KEY: "the agent's",
+      OPENCHARM_DATA: "/tmp/x",
+    });
   });
 });

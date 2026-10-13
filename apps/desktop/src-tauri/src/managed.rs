@@ -442,8 +442,19 @@ pub fn build_config(settings: &Settings, folder: &Folder, data: &Path) -> (Value
             .cloned()
             .unwrap_or_else(|| json!({ "provider": chosen }))
     };
-    let listen = side("listen", &settings.listen);
+    let mut listen = side("listen", &settings.listen);
     let mut speak = side("speak", &settings.speak);
+    // A key from the keychain reaches charmd under its own name (apply_managed), unless the
+    // workspace says where its key is.
+    for block in [&mut listen, &mut speak] {
+        let provider = block["provider"].as_str().unwrap_or("").to_string();
+        let own = block.get("apiKey").is_some() || block.get("apiKeyEnv").is_some();
+        if let Some((_, name)) = VOICE_KEYS.iter().find(|(p, _)| *p == provider) {
+            if !own {
+                block["apiKeyEnv"] = json!(name);
+            }
+        }
+    }
     // Microsoft voices picked in Settings, per language, over the workspace's own for that language.
     if settings.speak == "microsoft" && !settings.microsoft_voices.is_empty() {
         let mut voices = speak["voices"].as_object().cloned().unwrap_or_default();
@@ -625,6 +636,13 @@ fn voice_sides(voice: &Value) -> Value {
         _ => json!({}),
     }
 }
+
+/// The voices that take a key from the keychain, and the variable charmd reads it from: charmd's
+/// own names, which it keeps from the agent (packages/charmd/src/agent/acp.ts, agentEnvironment).
+pub const VOICE_KEYS: [(&str, &str); 2] = [
+    ("openai", "OPENCHARM_OPENAI_API_KEY"),
+    ("elevenlabs", "OPENCHARM_ELEVENLABS_API_KEY"),
+];
 
 /// For an `opencharm` from before ElevenLabs: that side gets the default (Parakeet listening,
 /// Microsoft's voices speaking) instead of a config charmd would refuse.
@@ -1392,7 +1410,7 @@ mod tests {
         );
         assert_eq!(
             config["voice"],
-            json!({ "listen": { "provider": "openai" }, "speak": { "provider": "openai" }, "language": "en" })
+            json!({ "listen": { "provider": "openai", "apiKeyEnv": "OPENCHARM_OPENAI_API_KEY" }, "speak": { "provider": "openai", "apiKeyEnv": "OPENCHARM_OPENAI_API_KEY" }, "language": "en" })
         );
     }
 
@@ -1599,7 +1617,10 @@ mod tests {
             ..mine
         };
         let (config, _) = build_config(&openai, &repo, Path::new("/d"));
-        assert_eq!(config["voice"]["speak"], json!({ "provider": "openai" }));
+        assert_eq!(
+            config["voice"]["speak"],
+            json!({ "provider": "openai", "apiKeyEnv": "OPENCHARM_OPENAI_API_KEY" })
+        );
     }
 
     #[test]
@@ -1614,11 +1635,11 @@ mod tests {
         let (config, _) = build_config(&eleven, &repo, Path::new("/d"));
         assert_eq!(
             config["voice"]["listen"],
-            json!({ "provider": "elevenlabs" })
+            json!({ "provider": "elevenlabs", "apiKeyEnv": "OPENCHARM_ELEVENLABS_API_KEY" })
         );
         assert_eq!(
             config["voice"]["speak"],
-            json!({ "provider": "elevenlabs", "voice": "AbC123" })
+            json!({ "provider": "elevenlabs", "apiKeyEnv": "OPENCHARM_ELEVENLABS_API_KEY", "voice": "AbC123" })
         );
         // No voice picked: charmd uses the account's first.
         let first = Settings {
@@ -1628,7 +1649,7 @@ mod tests {
         let (config, _) = build_config(&first, &repo, Path::new("/d"));
         assert_eq!(
             config["voice"]["speak"],
-            json!({ "provider": "elevenlabs" })
+            json!({ "provider": "elevenlabs", "apiKeyEnv": "OPENCHARM_ELEVENLABS_API_KEY" })
         );
         // The voice ID stays out of another voice's block.
         let microsoft = Settings {
