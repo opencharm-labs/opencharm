@@ -24,7 +24,7 @@ describe("the desktop app", () => {
   });
 
   it("finds every element its windows' scripts look up, so a page never stops halfway", () => {
-    for (const page of ["settings", "setup"]) {
+    for (const page of ["settings", "setup", "add-charm"]) {
       const html = read(APP, "web", `${page}.html`);
       const ids = new Set(
         [...html.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1])
@@ -35,6 +35,23 @@ describe("the desktop app", () => {
       for (const id of used)
         expect(ids, `${page}.js uses #${id}`).toContain(id);
     }
+  });
+
+  it("gives the emulator's script every element it looks up on the charm's page", () => {
+    // The notch runs the emulator's sim.js: a control added to the emulator's page and not here
+    // stops the charm before it starts (desktop 0.14 to 0.15.2: an empty notch).
+    const html = read(APP, "web", "desktop.html");
+    const ids = new Set([...html.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1]));
+    const used = [
+      ...read(REPO, "firmware", "sim", "web", "sim.js").matchAll(
+        /(?:getElementById\(|querySelector(?:All)?\(["'`]#)["'`]?([\w-]+)["'`]\)/g
+      ),
+    ].map((m) => m[1] ?? "");
+    // The build line is the emulator's own, and sim.js checks for it before using it.
+    const optional = new Set(["build"]);
+    expect(used.length).toBeGreaterThan(5);
+    for (const id of used.filter((id) => !optional.has(id)))
+      expect(ids, `sim.js uses #${id}`).toContain(id);
   });
 
   it("lets the setup window use the app's commands and the folder picker", () => {
