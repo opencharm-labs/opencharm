@@ -316,6 +316,8 @@ summary {
   margin-top: 6px;
 }
 #say-section,
+#key-row:not([hidden]),
+#elevenlabs-row:not([hidden]),
 #elevenlabs-voice-row:not([hidden]) {
   display: flex;
   flex-direction: column;
