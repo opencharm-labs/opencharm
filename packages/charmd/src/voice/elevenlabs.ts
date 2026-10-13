@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { writeOggOpus } from "../audio/ogg-opus";
 import { createOpusDecoder, createOpusEncoder } from "../audio/opus-codec";
+import { toBuffer } from "../device/raw-data";
 import type {
   Listener,
   LiveTranscription,
@@ -105,6 +106,15 @@ async function listVoices(
   });
 }
 
+// What Scribe sends back, whole or live. Live messages it may add later are ignored; an error is any
+// message with an `error` (auth_error, quota_exceeded, …).
+const transcript = z.object({ text: z.string() });
+const liveMessage = z.object({
+  message_type: z.string(),
+  text: z.string().optional(),
+  error: z.unknown().optional(),
+});
+
 // Scribe's realtime model over a WebSocket, opened when the hold is confirmed: the charm's packets are
 // decoded to 16 kHz PCM and sent as they come; letting go sends the last of it with a commit, and the
 // committed transcript is the answer. One packet is held back so the commit carries audio.
@@ -149,20 +159,23 @@ function liveTranscription(
     for (const message of waiting.splice(0)) socket.send(message);
   });
   socket.on("message", (data: WebSocket.RawData) => {
-    let message: { message_type?: unknown; text?: unknown; error?: unknown };
+    let json: unknown;
     try {
-      message = JSON.parse(String(data)) as typeof message;
+      json = JSON.parse(toBuffer(data).toString("utf8"));
     } catch {
       return;
     }
-    if (
+    const parsed = liveMessage.safeParse(json);
+    if (!parsed.success) return;
+    const message = parsed.data;
+    if (message.error !== undefined) fail(message.message_type);
+    else if (
       message.message_type === "committed_transcript" &&
-      typeof message.text === "string"
+      message.text !== undefined
     ) {
       texts.push(message.text);
       settle?.();
-    } else if (message.error !== undefined)
-      fail(String(message.message_type ?? "error"));
+    }
   });
   socket.on("error", (error: Error) => fail(error.message));
   socket.on("close", () => fail("closed"));
@@ -183,7 +196,12 @@ function liveTranscription(
           signal.removeEventListener("abort", onAbort);
           settle = undefined;
           close();
-          if (signal.aborted) reject(signal.reason);
+          if (signal.aborted)
+            reject(
+              signal.reason instanceof Error
+                ? signal.reason
+                : new Error("cancelled")
+            );
           else if (texts.length > 0) resolve(texts.join(" ").trim());
           else
             reject(
@@ -191,7 +209,7 @@ function liveTranscription(
             );
         };
         settle = end;
-        if (failure || over) return end();
+        if (failure || over || signal.aborted) return end();
         signal.addEventListener("abort", onAbort, { once: true });
         send(held ?? Buffer.alloc(0), true);
         held = undefined;
@@ -228,8 +246,10 @@ function createElevenLabsListener(options: ElevenLabsOptions): Listener {
         signal,
       });
       if (!response.ok) return failed("speech-to-text", response);
-      const { text } = (await response.json()) as { text?: unknown };
-      return typeof text === "string" ? text.trim() : "";
+      const parsed = transcript.safeParse(await response.json());
+      if (!parsed.success)
+        throw new Error("ElevenLabs speech-to-text sent no transcript");
+      return parsed.data.text.trim();
     },
   };
 }

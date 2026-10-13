@@ -967,3 +967,83 @@ describe("a reply read as text, with questions in the middle", () => {
     expect(ended).toBe(800 + 3000 + 3000 + 1533 + 2000);
   });
 });
+
+describe("hearing you while you hold the key (spec 003)", () => {
+  function liveVoice(finish: (signal: AbortSignal) => Promise<string>) {
+    const fake = createFakeVoice({ transcript: "from the whole clip" });
+    const seen = { pushed: 0, cancelled: 0, opened: 0, batch: 0 };
+    const voice: VoiceProvider = {
+      ...fake,
+      transcribe: (ogg, signal) => {
+        seen.batch += 1;
+        return fake.transcribe(ogg, signal);
+      },
+      live: () => {
+        seen.opened += 1;
+        return {
+          push: () => {
+            seen.pushed += 1;
+          },
+          finish,
+          cancel: () => {
+            seen.cancelled += 1;
+          },
+        };
+      },
+    };
+    return { voice, seen };
+  }
+
+  function asking() {
+    const asked: string[] = [];
+    const agent = createFakeAgent({
+      reply: (text) => {
+        asked.push(text);
+        return "Done.";
+      },
+    });
+    return { agent, asked };
+  }
+
+  it("uses the live transcript and never sends the whole clip", async () => {
+    const { voice, seen } = liveVoice(() => Promise.resolve("lights on"));
+    const { agent, asked } = asking();
+    const { turn } = setup({ voice, agent });
+    await speak(turn, 4);
+    expect(asked).toEqual(["lights on"]);
+    expect(seen).toMatchObject({ opened: 1, pushed: 4, batch: 0 });
+  });
+
+  it("sends the whole clip the usual way when the live transcript fails, and logs why", async () => {
+    const { voice, seen } = liveVoice(() =>
+      Promise.reject(new Error("ElevenLabs live speech-to-text: closed"))
+    );
+    const { agent, asked } = asking();
+    const { turn, logs } = setup({ voice, agent });
+    await speak(turn);
+    expect(asked).toEqual(["from the whole clip"]);
+    expect(seen.batch).toBe(1);
+    expect(logs).toContainEqual(
+      expect.objectContaining({
+        event: "live-stt-failed",
+        reason: "ElevenLabs live speech-to-text: closed",
+      })
+    );
+  });
+
+  it("closes the live transcript when the key was only tapped", async () => {
+    const { voice, seen } = liveVoice(() => Promise.resolve("never"));
+    const { turn } = setup({ voice });
+    await speak(turn, 0);
+    expect(seen).toMatchObject({ opened: 1, cancelled: 1, batch: 0 });
+  });
+
+  it("closes the live transcript when the hold is stopped", () => {
+    const { voice, seen } = liveVoice(() => Promise.resolve("never"));
+    const { turn } = setup({ voice });
+    turn.listenStart();
+    turn.audio(Buffer.from([0xf8, 1, 2, 3]));
+    turn.abort();
+    expect(seen.cancelled).toBe(1);
+  });
+});
