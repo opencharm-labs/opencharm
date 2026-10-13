@@ -108,6 +108,16 @@ function friendly(error: unknown, program: string): Error {
 // charm, each charm gets its own session. charmd offers no file or terminal access: the agent uses
 // its own tools, and its own rules decide what it may do. A permission request during a turn becomes
 // a question on the charm (spec 011); outside a turn nobody can answer, so it's refused.
+// The voice keys the desktop app hands charmd (OPENCHARM_ELEVENLABS_API_KEY, …) aren't passed on to
+// the agent, so it and its tools don't use, log or dump them by accident (an agent running as the
+// same user could still read charmd's environment). Any case: Windows names ignore it. The agent's
+// own keys (OPENAI_API_KEY for Codex) still pass.
+function agentEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  return Object.fromEntries(
+    Object.entries(env).filter(([name]) => !/^OPENCHARM_\w*_KEY$/i.test(name))
+  );
+}
+
 function createAcpAgent(options: AcpAgentOptions): AgentAdapter {
   const [program = "", ...args] = options.command;
   const log = options.log ?? (() => undefined);
@@ -126,7 +136,7 @@ function createAcpAgent(options: AcpAgentOptions): AgentAdapter {
   async function launch(): Promise<Agent> {
     const proc = spawn(program, args, {
       cwd: home(),
-      env: { ...process.env, ...options.env },
+      env: { ...agentEnvironment(process.env), ...options.env },
       // npx and friends are .cmd files on Windows, which only start through a shell.
       shell: process.platform === "win32",
     });
@@ -397,5 +407,5 @@ function createAcpAgent(options: AcpAgentOptions): AgentAdapter {
   };
 }
 
-export { createAcpAgent, describeAction };
+export { agentEnvironment, createAcpAgent, describeAction };
 export type { AcpAgentOptions };

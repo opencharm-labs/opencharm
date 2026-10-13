@@ -798,17 +798,16 @@ fn apply_managed(app: &AppHandle) {
         if let Some(dir) = cli.node_dir() {
             managed::node_first(&mut env, dir);
         }
-        if settings.listen == "openai" || settings.speak == "openai" {
-            if let Ok(Some(key)) = pairing::secret("openai") {
-                env.insert("OPENAI_API_KEY".into(), key);
-            }
-        }
-        if settings.listen == "elevenlabs" || settings.speak == "elevenlabs" {
-            if let Ok(Some(key)) = pairing::secret("elevenlabs") {
-                env.insert("ELEVENLABS_API_KEY".into(), key);
+        // Voice keys under charmd's own names, which it never passes on to the agent.
+        for (service, name) in managed::VOICE_KEYS {
+            if settings.listen == service || settings.speak == service {
+                if let Ok(Some(key)) = pairing::secret(service) {
+                    env.insert(name.into(), key);
+                }
             }
         }
         let (mut config, label) = managed::build_config(&settings, &folder, &managed.data);
+        managed::keys_from(&mut config["voice"], &env);
         let features = managed::cli_features(&cli, &env);
         // Settings charmd depends on may have changed while the CLI was asked: the newer apply
         // wins, this one stops. Spoken replies are read now, the latest value.
@@ -820,8 +819,14 @@ fn apply_managed(app: &AppHandle) {
         if !features.voice {
             let has_key = matches!(pairing::secret("openai"), Ok(Some(_)));
             config["voice"] = managed::older_voice(&config, has_key);
+            // Its one-provider voice reads OpenAI's key from the usual name only.
+            if let Some(key) = env.get("OPENCHARM_OPENAI_API_KEY").cloned() {
+                env.insert("OPENAI_API_KEY".into(), key);
+            }
         } else if !features.elevenlabs {
             managed::without_elevenlabs(&mut config["voice"]);
+            // A key it can't use isn't handed over at all.
+            env.remove("OPENCHARM_ELEVENLABS_API_KEY");
         }
         managed
             .volume_ok
