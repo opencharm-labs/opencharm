@@ -1,11 +1,17 @@
 // ElevenLabs for listening (Scribe) and speaking (spec 003), with the person's key. Its API isn't
 // OpenAI's, so it has its own client. Speech streams as 24 kHz PCM, encoded to Opus as it arrives,
 // so a sentence starts playing before ElevenLabs has finished it. Errors name the status, never the key.
+import WebSocket from "ws";
 import { z } from "zod";
 
 import { writeOggOpus } from "../audio/ogg-opus";
-import { createOpusEncoder } from "../audio/opus-codec";
-import type { Listener, Speaker, VoiceChoice } from "./types";
+import { createOpusDecoder, createOpusEncoder } from "../audio/opus-codec";
+import type {
+  Listener,
+  LiveTranscription,
+  Speaker,
+  VoiceChoice,
+} from "./types";
 
 type ElevenLabsOptions = {
   apiKey?: string;
@@ -13,10 +19,16 @@ type ElevenLabsOptions = {
   baseUrl?: string;
   model?: string;
   voice?: string;
+  // How long the live transcript may take once the key is let go; tests shorten it.
+  liveFinishMs?: number;
 };
 
 const BASE_URL = "https://api.elevenlabs.io";
 const LISTEN_MODEL = "scribe_v2";
+const LIVE_MODEL = "scribe_v2_realtime";
+// Past this the clip goes to Scribe whole instead: a slow live answer never holds up a turn.
+const LIVE_FINISH_MS = 3000;
+const LIVE_RATE = 16000;
 // Low latency and 90+ languages (ElevenLabs' model page, 13 October 2026).
 const SPEAK_MODEL = "eleven_v4_turbo";
 const SAMPLE_RATE = 24000;
@@ -93,10 +105,112 @@ async function listVoices(
   });
 }
 
+// Scribe's realtime model over a WebSocket, opened when the hold is confirmed: the charm's packets are
+// decoded to 16 kHz PCM and sent as they come; letting go sends the last of it with a commit, and the
+// committed transcript is the answer. One packet is held back so the commit carries audio.
+function liveTranscription(
+  baseUrl: string,
+  apiKey: string,
+  finishMs: number
+): LiveTranscription {
+  const url = `${baseUrl.replace(/^http/, "ws")}/v1/speech-to-text/realtime?model_id=${LIVE_MODEL}&audio_format=pcm_${LIVE_RATE}&commit_strategy=manual`;
+  const socket = new WebSocket(url, {
+    headers: { "xi-api-key": apiKey },
+    handshakeTimeout: finishMs,
+  });
+  const decoder = createOpusDecoder(LIVE_RATE);
+  const waiting: string[] = [];
+  const texts: string[] = [];
+  let held: Buffer | undefined;
+  let failure: Error | undefined;
+  let settle: (() => void) | undefined;
+  let over = false;
+  const fail = (why: string) => {
+    failure ??= new Error(`ElevenLabs live speech-to-text: ${why}`);
+    settle?.();
+  };
+  const send = (pcm: Buffer, commit: boolean) => {
+    const message = JSON.stringify({
+      message_type: "input_audio_chunk",
+      audio_base_64: pcm.toString("base64"),
+      commit,
+      sample_rate: LIVE_RATE,
+    });
+    if (socket.readyState === WebSocket.OPEN) socket.send(message);
+    else if (socket.readyState === WebSocket.CONNECTING) waiting.push(message);
+  };
+  const close = () => {
+    if (over) return;
+    over = true;
+    decoder.free();
+    socket.terminate();
+  };
+  socket.on("open", () => {
+    for (const message of waiting.splice(0)) socket.send(message);
+  });
+  socket.on("message", (data: WebSocket.RawData) => {
+    let message: { message_type?: unknown; text?: unknown; error?: unknown };
+    try {
+      message = JSON.parse(String(data)) as typeof message;
+    } catch {
+      return;
+    }
+    if (
+      message.message_type === "committed_transcript" &&
+      typeof message.text === "string"
+    ) {
+      texts.push(message.text);
+      settle?.();
+    } else if (message.error !== undefined)
+      fail(String(message.message_type ?? "error"));
+  });
+  socket.on("error", (error: Error) => fail(error.message));
+  socket.on("close", () => fail("closed"));
+  return {
+    push(frame) {
+      if (over) return;
+      const pcm = decoder.decode(frame);
+      if (pcm.length === 0) return;
+      if (held) send(held, false);
+      held = pcm;
+    },
+    finish(signal) {
+      return new Promise<string>((resolve, reject) => {
+        const timer = setTimeout(() => fail("no transcript in time"), finishMs);
+        const onAbort = () => fail("cancelled");
+        const end = () => {
+          clearTimeout(timer);
+          signal.removeEventListener("abort", onAbort);
+          settle = undefined;
+          close();
+          if (signal.aborted) reject(signal.reason);
+          else if (texts.length > 0) resolve(texts.join(" ").trim());
+          else
+            reject(
+              failure ?? new Error("ElevenLabs live speech-to-text: nothing")
+            );
+        };
+        settle = end;
+        if (failure || over) return end();
+        signal.addEventListener("abort", onAbort, { once: true });
+        send(held ?? Buffer.alloc(0), true);
+        held = undefined;
+      });
+    },
+    cancel: close,
+  };
+}
+
 function createElevenLabsListener(options: ElevenLabsOptions): Listener {
   const { apiKey, baseUrl } = settings(options);
   return {
     name: "elevenlabs",
+    live: () =>
+      liveTranscription(
+        baseUrl,
+        apiKey,
+        options.liveFinishMs ?? LIVE_FINISH_MS
+      ),
     async transcribe(ogg, signal) {
       const form = new FormData();
       form.append("model_id", options.model ?? LISTEN_MODEL);

@@ -1,9 +1,19 @@
 // Speech in, text out; text in, speech out. Audio is always Ogg Opus, the format the charm's
 // packets are wrapped in and unwrapped from (src/audio/ogg-opus.ts). Listening and speaking are
 // chosen separately (spec 003); a VoiceProvider is the pair a turn uses.
+// Speech heard while the key is still down (spec 003): what's said goes out as it comes, so the words
+// are ready soon after the key is let go.
+type LiveTranscription = {
+  // One of the charm's 16 kHz Opus packets.
+  push: (frame: Buffer) => void;
+  // The whole transcript, once the last of it is heard.
+  finish: (signal: AbortSignal) => Promise<string>;
+  cancel: () => void;
+};
 type Listener = {
   name: string;
   transcribe: (ogg: Buffer, signal: AbortSignal) => Promise<string>;
+  live?: () => LiveTranscription;
   // Loads what it needs ahead of the first turn (a local model), so that turn isn't the slow one.
   warm?: () => Promise<void>;
 };
@@ -41,6 +51,7 @@ type Speaker = {
 type VoiceProvider = {
   name: string;
   transcribe: Listener["transcribe"];
+  live?: Listener["live"];
   synthesize: Speaker["synthesize"];
   stream?: Speaker["stream"];
   warm?: () => Promise<void>;
@@ -50,4 +61,10 @@ type VoiceProvider = {
   language?: string;
 };
 
-export type { Listener, Speaker, VoiceChoice, VoiceProvider };
+export type {
+  Listener,
+  LiveTranscription,
+  Speaker,
+  VoiceChoice,
+  VoiceProvider,
+};

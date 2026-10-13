@@ -109,6 +109,7 @@ function createVoiceFromConfig(config: CharmdConfig): VoiceProvider {
         ? listener.name
         : `${listener.name}+${speaker.name}`,
     transcribe: listener.transcribe,
+    ...(listener.live ? { live: listener.live } : {}),
     synthesize: speaker.synthesize,
     ...(speaker.stream ? { stream: speaker.stream } : {}),
     language: config.voice.language,
