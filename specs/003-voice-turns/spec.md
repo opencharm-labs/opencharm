@@ -1,6 +1,6 @@
 # 003: Voice and agent turns
 
-Status: Done
+Status: Approved
 Depends on: 002
 
 ## Why
@@ -37,6 +37,17 @@ Listening and speaking are the main way to use the charm, so the defaults must b
 - **Faster to the first word** (target: charmd's own share under 1 s when warm, that is speech-to-text plus the first audio once the agent's first clause arrives; the agent's own time, about 2–3 s with Claude Code today, is outside charmd): the models and the agent are warmed when the charm unlocks; the first clause is spoken as soon as it's long enough (about 20 characters at `,` `;` `:`); speech is streamed where the provider streams; the timing log has one line per stage (speech-to-text, the agent's first words, first audio).
 - **No clipped first word:** the charm keeps the audio from the moment the key goes down, in memory, and sends it once the hold is confirmed (200 ms); a press throws it away and sends nothing. This changes the written mic rule ("the mic opens only while the key is held, after 200 ms") to "the mic is on only while the key is down; nothing leaves the charm unless it's a hold", in the firmware core (spec 005) and its tests. Never on a question (hold = yes).
 
+### A new conversation (approved by the maintainer, 13 October 2026)
+
+charmd keeps one agent session per charm; until now only a charmd restart started a fresh one. The person can now start over, and a long pause starts over by itself. charmd only lets go of the session: memory and what a fresh start means stay the agent's.
+
+- **The adapter interface** gets `reset(sessionKey)`: forget this charm's conversation. `acp` drops the charm's ACP session (closing it with `session/close` when the agent offers it), so the next turn opens a new one in the same agent process; `hermes` moves the charm to a new `conversation` name and keeps `X-Hermes-Session-Key` (the charm's long-term memory in Hermes); `openai-compatible` and `openclaw` send a new `user`, so OpenClaw derives a new session. HTTP names are random (`opencharm-<charm id>-<8 hex>`) and held in memory: after a charmd restart a charm is back on `opencharm-<charm id>`.
+- **Never mid-turn:** a reset asked for during a charm's turn applies when that turn ends; the turn finishes as it started.
+- **By voice, through the agent:** the charm tool `new_conversation` (spec 012), which the agent calls when the person asks ("let's start over").
+- **After a long pause:** `newConversationAfterMinutes` in `opencharm.json` (default 120; 0 = never): a charm whose last turn ended longer ago starts its next turn (and the warm-up when the key goes down) in a new conversation.
+- **From the computer:** the admin command `newConversation` (`charm` names one; none = every paired charm), `opencharm new [charm]`, and the desktop app's menu item "New conversation" (spec 013).
+- Each new conversation is a line in charmd's log (`new-conversation`, with the reason: `asked` or `idle`). No new gesture and no change on the charm.
+
 ## Not in scope
 
 MCP charm tools (012), the permissions engine and questions on the charm (011), notifications. In the voice update: ElevenLabs and Azure as their own options (the `openai` voice takes any OpenAI-compatible service), follow-up listening, wake words, speech-to-speech models, voice cloning.
@@ -62,13 +73,19 @@ Voice that sounds right:
 - [x] A typed question gets a text reply (unit and real-socket tests, and the emulator end to end in Chrome); with Speak replies off, a spoken question does too; the physical charm (emulator) always speaks.
 - [x] The docs the change makes wrong are updated in the same PR: `OPENCHARM.md` (controls and the mic rule, charmd's voice plumbing, Security: what leaves the computer by default, the reply's text to Microsoft, and the CLI's new native and runtime dependencies), `firmware/README.md`, the website FAQ (`apps/web/src/app/_lib/faq.ts`), `apps/desktop/README.md`, CONTRIBUTING.
 
+A new conversation:
+
+- [x] Unit tests: after `reset`, the ACP adapter opens a new session for that charm only (and sends `session/close` when the agent offers it); the HTTP adapters send a new conversation name (Hermes keeps its memory key); a reset asked for mid-turn applies when the turn ends; the idle rule with a fake clock (exactly the limit keeps the conversation, past it starts over, 0 never); the config option; the admin command (all charms, a named one, the agent's own charm, strict input); the MCP tool (tools/list and tools/call); `opencharm new`; the desktop app's admin request.
+- [x] Over a real socket: a pause longer than `newConversationAfterMinutes` starts a new conversation, and the admin command does too.
+- [ ] By hand: asking Claude Code on the desktop charm for a new conversation, then asking what was said before (it doesn't know).
+
 ## Next
 
 Not approved. Decided against (maintainer, 5 October 2026; the charm stays lean and works with any agent):
 
 - **ElevenLabs and Azure as their own options:** any speech service that speaks the OpenAI API already works through the `openai` voice with its key, `baseUrl` and `model`.
 - **A follow-up window after an answer:** the mic is on only while the key is held.
-- **Memory across restarts:** it belongs to the agent (its own files and memory); charmd keeps one agent session per charm while it runs and adds none of its own.
+- **Memory across restarts:** it belongs to the agent (its own files and memory); charmd keeps one agent session per charm while it runs (until a new conversation, above) and adds none of its own.
 
 Observed in the first real test on the maintainer's Mac (1 October 2026); latency, language and recognition are now in Scope above:
 
@@ -77,7 +94,7 @@ Observed in the first real test on the maintainer's Mac (1 October 2026); latenc
 - **Long answers** are too long for a voice and a small screen, even with scrolling captions.
 - **Language and voice don't match by default:** the system voice follows the Mac's language; the persona and whisper model are English.
 - **Mishearing:** whisper `base.en` gets names and short commands wrong ("hello world" → "lowered").
-- **Memory is a notes file:** the conversation ends when charmd restarts (a new ACP session).
+- **Memory is a notes file:** the conversation ends when charmd restarts (a new ACP session). Now also when the person asks, or after a long pause (above, 13 October 2026).
 - **No quality measure:** timings are logged, not misheard, interrupted, too long or failed turns.
 
 Proposals:

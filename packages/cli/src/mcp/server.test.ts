@@ -61,7 +61,7 @@ describe("the charm's MCP server", () => {
     expect((await rpc("ping")).result).toEqual({});
   });
 
-  it("lists say, show_face, ask, notify and set_look, each with an input schema", async () => {
+  it("lists say, show_face, ask, notify, set_look and new_conversation, each with an input schema", async () => {
     const { rpc } = setup();
     const { result } = await rpc("tools/list");
     const tools = result?.tools as Array<{
@@ -75,6 +75,7 @@ describe("the charm's MCP server", () => {
       "ask",
       "notify",
       "set_look",
+      "new_conversation",
     ]);
     for (const tool of tools) {
       expect(tool.description.length).toBeGreaterThan(20);
@@ -166,6 +167,34 @@ describe("the charm's MCP server", () => {
       -32602
     );
     expect((await call("set_look", { name: "Bob" })).error?.code).toBe(-32602);
+    expect(calls).toEqual([]);
+  });
+
+  it("new_conversation starts over the charm that's talking, after this reply", async () => {
+    const { call, calls, rpc } = setup(() => ({ charms: ["pip"] }));
+    const { result } = await rpc("tools/list");
+    const tool = (
+      result?.tools as Array<{ name: string; description: string }>
+    ).find((t) => t.name === "new_conversation");
+    expect(tool?.description).toMatch(/when the person asks/i);
+    expect(tool?.description).toMatch(/never call it on your own/i);
+    const called = await call("new_conversation", {});
+    expect(calls).toEqual([{ cmd: "newConversation", source: "agent" }]);
+    expect(called.result).toEqual({
+      content: [
+        {
+          type: "text",
+          text: "Done: when this reply ends, the next thing they say starts a new conversation.",
+        },
+      ],
+    });
+  });
+
+  it("new_conversation can't name another charm", async () => {
+    const { call, calls } = setup();
+    expect(
+      (await call("new_conversation", { charm: "desk" })).error?.code
+    ).toBe(-32602);
     expect(calls).toEqual([]);
   });
 

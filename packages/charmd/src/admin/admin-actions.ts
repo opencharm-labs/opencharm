@@ -2,9 +2,9 @@ import { FACE_STATES } from "@opencharm-labs/protocol/constants";
 import { z } from "zod";
 
 import type { PairingRegistry } from "../auth/pairing";
-import type { Session } from "../device/session";
+import { type Session, sessionKeyOf } from "../device/session";
 import { type CharmLook, type Look, lookFields } from "../look";
-import type { StateStore } from "../store/state-store";
+import type { CharmRecord, StateStore } from "../store/state-store";
 import type {
   CharmBattery,
   CharmBuild,
@@ -41,6 +41,9 @@ type AdminActions = {
   devAsk: (input: unknown) => Promise<{ answer: "yes" | "no" }>;
   look: (input: unknown) => Promise<Look & { connected: number }>;
   replies: (input: unknown) => Promise<{ speak: boolean }>;
+  // A new conversation with the agent (spec 003): the named charm, every paired charm when none is
+  // named, or (source "agent", the charm tool) the charm whose turn is running.
+  newConversation: (input: unknown) => Promise<{ charms: string[] }>;
 };
 type AdminDeps = {
   store: StateStore;
@@ -55,9 +58,19 @@ type AdminDeps = {
   voice?: () => string;
   // Whether the desktop charm speaks its replies (spec 003); absent where nothing can change it.
   replies?: { speak: boolean };
+  // Starts a charm's next conversation (agent/conversations.ts); absent where there's no agent.
+  newConversation?: (sessionKey: string) => unknown;
 };
 
 const repliesInput = z.object({ speak: z.boolean() }).strict();
+
+// Strict: a misspelt "charm" must not quietly start every charm's conversation over.
+const newConversationInput = z
+  .object({
+    charm: z.string().min(1).optional(),
+    source: z.literal("agent").optional(),
+  })
+  .strict();
 
 const pairInput = z.object({
   code: z.string().regex(/^\d{6}$/, "the code has 6 digits"),
@@ -121,6 +134,7 @@ function createAdminActions({
   starter,
   voice,
   replies,
+  newConversation,
 }: AdminDeps): AdminActions {
   function sessionsOf(charmId: string): Session[] {
     return [...sessions()].filter(
@@ -249,6 +263,28 @@ function createAdminActions({
           throw new Error("This charmd can't change how replies are given.");
         replies.speak = speak;
         return { speak };
+      });
+    },
+    // A charm in the middle of a turn starts over when that turn ends.
+    newConversation(input) {
+      return settled(() => {
+        const { charm: ref, source } = parseInput(newConversationInput, input);
+        if (!newConversation)
+          throw new Error("This charmd can't start a new conversation.");
+        let charms: CharmRecord[];
+        if (ref !== undefined) charms = [requireCharm(ref)];
+        else if (source === "agent") {
+          // The agent's tool names no charm: the one talking to it now, else the newest unlocked.
+          const talking = [...sessions()].filter(
+            (s) => s.state === "unlocked" && s.busy
+          );
+          const ids = new Set(
+            (talking.length > 0 ? talking : requireLive()).map((s) => s.charmId)
+          );
+          charms = store.list().filter((charm) => ids.has(charm.id));
+        } else charms = store.list();
+        for (const charm of charms) newConversation(sessionKeyOf(charm.id));
+        return { charms: charms.map((charm) => charm.name) };
       });
     },
     waiting() {

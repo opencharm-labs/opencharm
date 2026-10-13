@@ -30,6 +30,8 @@ type Agent = {
   child: ChildProcessWithoutNullStreams;
   context: acp.ClientContext;
   canAttach: boolean;
+  // ACP's optional session/close: the agent frees a session charmd let go of.
+  canClose: boolean;
   failure: () => Error;
   // Prefer the process's own exit reason over the "connection closed" that reaches us first.
   explain: (error: unknown) => Promise<Error>;
@@ -212,6 +214,7 @@ function createAcpAgent(options: AcpAgentOptions): AgentAdapter {
           canAttach: Boolean(
             init.agentCapabilities?.sessionCapabilities?.additionalDirectories
           ),
+          canClose: Boolean(init.agentCapabilities?.sessionCapabilities?.close),
           failure: () => failure ?? new Error("the agent stopped"),
           explain,
         };
@@ -297,6 +300,22 @@ function createAcpAgent(options: AcpAgentOptions): AgentAdapter {
         log(`agent not ready: ${error.message}`)
       ),
     dispose: () => child?.kill(),
+    // A new conversation: the charm's next turn opens a new session. The old one is closed where the
+    // agent offers session/close; otherwise it stays in the agent process until that one stops.
+    reset: (sessionKey) => {
+      const old = sessions.get(sessionKey);
+      if (!old) return;
+      sessions.delete(sessionKey);
+      void old
+        .then(({ agent, sessionId }) =>
+          agent.canClose && running === agent
+            ? agent.context.request(acp.methods.agent.session.close, {
+                sessionId,
+              })
+            : undefined
+        )
+        .catch(() => undefined);
+    },
     async *reply({ sessionKey, text, signal, ask }) {
       const { agent, sessionId } = await session(sessionKey);
       // Cancelled while the agent was starting: never send the question at all.

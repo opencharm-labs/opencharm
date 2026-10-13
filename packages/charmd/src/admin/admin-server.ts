@@ -22,6 +22,7 @@ const COMMANDS = [
   "devAsk",
   "look",
   "replies",
+  "newConversation",
 ] as const;
 
 function isCommand(value: unknown): value is (typeof COMMANDS)[number] {

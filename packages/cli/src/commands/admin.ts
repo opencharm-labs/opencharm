@@ -57,6 +57,14 @@ type LookRow = {
   connected: number;
 };
 
+// The names of the charms that start over, checked before they reach the terminal.
+const newConversationAnswer = z.object({
+  charms: z.array(z.string().regex(/^[a-z0-9][a-z0-9-]{0,39}$/i)),
+});
+
+const NEW_USAGE =
+  "Usage: opencharm new [charm]   (a new conversation with your agent; every charm when none is named)";
+
 const DONE: Record<string, string> = {
   lock: "Locked",
   unlock: "Unblocked and unlocked",
@@ -208,6 +216,38 @@ async function look(
   );
 }
 
+// `opencharm new [charm]`: a new conversation with the agent (spec 003), for one charm or all of them.
+async function newConversation(
+  ctx: CliContext,
+  args: readonly string[],
+  deps: AdminDeps
+): Promise<void> {
+  const [charm, extra] = positionals(args);
+  if (extra !== undefined) {
+    fail(ctx, NEW_USAGE);
+    return;
+  }
+  const answer = newConversationAnswer.safeParse(
+    await deps.send(deps.socket, {
+      cmd: "newConversation",
+      ...(charm ? { charm } : {}),
+    })
+  );
+  if (!answer.success) {
+    fail(
+      ctx,
+      "Unexpected answer from charmd: is it the same version as this CLI?"
+    );
+    return;
+  }
+  const { charms } = answer.data;
+  ctx.out.write(
+    charms.length === 0
+      ? "No charms paired yet: nothing to start over.\n"
+      : `New conversation for ${charms.join(", ")}: the next thing you say starts fresh (a reply in progress finishes first).\n`
+  );
+}
+
 function printStatus(
   ctx: CliContext,
   charms: CharmRow[],
@@ -285,6 +325,10 @@ async function runAdminCommand(
           ? "Replies are spoken, from the next one.\n"
           : "Replies show as text on the desktop charm, from the next one (a charm on a board still speaks).\n"
       );
+      return;
+    }
+    if (command === "new") {
+      await newConversation(ctx, args, deps);
       return;
     }
     if (command === "status") {

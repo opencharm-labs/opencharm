@@ -56,6 +56,18 @@ fn start_typing(app: &AppHandle) {
     let _ = app.emit_to("charm", "charm-type", ());
 }
 
+/// The menu's "New conversation" (spec 003): the app's charmd lets go of every charm's session, so
+/// the next thing said starts fresh. Off the menu's thread; with no charmd running, only a log line.
+fn start_new_conversation(app: &AppHandle) {
+    let app = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        match own_admin(&app).and_then(|socket| pairing::new_conversation(&socket)) {
+            Ok(charms) => eprintln!("[charmd] new conversation for {}", charms.join(", ")),
+            Err(error) => eprintln!("[charmd] no new conversation: {error}"),
+        }
+    });
+}
+
 /// The field closed (sent or dismissed): the app you were in gets the keyboard back.
 #[tauri::command]
 fn typing_done() {
@@ -1231,6 +1243,8 @@ pub fn run() {
             let add_item = MenuItem::with_id(app, "add-charm", "Add a charm…", true, None::<&str>)?;
             let speak_on = app.state::<Saved>().settings.lock().unwrap().speak_replies;
             let type_item = MenuItem::with_id(app, "type", "Type to your charm…", true, None::<&str>)?;
+            let new_item =
+                MenuItem::with_id(app, "new-conversation", "New conversation", true, None::<&str>)?;
             let speak_item = CheckMenuItem::with_id(
                 app,
                 "speak",
@@ -1245,6 +1259,7 @@ pub fn run() {
                 app,
                 &[
                     &type_item,
+                    &new_item,
                     &speak_item,
                     &separator,
                     &settings_item,
@@ -1276,6 +1291,7 @@ pub fn run() {
                         }
                     }
                     "type" => start_typing(app),
+                    "new-conversation" => start_new_conversation(app),
                     "speak" => {
                         let saved = app.state::<Saved>();
                         let speak = {
