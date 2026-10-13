@@ -12,9 +12,10 @@ type Announce = (port: number) => StopAnnouncing;
 // keeps the computer's `.local` name (spec 009), so its pairing survives a new IP. Its name says
 // which computer; a clash on the network is logged, never fatal.
 // The name a board can resolve: `<label>.local`. A board's mDNS only takes `.local` names, and a
-// Mac's hostname may be a DHCP one ("mikes-mbp.fritz.box"), so on a Mac its LocalHostName (what
+// Mac's hostname may be a DHCP one ("my-mac.fritz.box"), so on a Mac its LocalHostName (what
 // macOS answers for), elsewhere the first label of the hostname.
-function localHost(): string {
+// `system`: the name is macOS's own LocalHostName, which macOS answers for.
+function localHost(): { host: string; system: boolean } {
   let label = "";
   if (platform() === "darwin") {
     try {
@@ -26,14 +27,14 @@ function localHost(): string {
       label = "";
     }
   }
-  if (!/^[A-Za-z0-9-]{1,63}$/.test(label))
-    label = hostname().split(".")[0] ?? "";
-  return `${label}.local`;
+  if (/^[A-Za-z0-9-]{1,63}$/.test(label))
+    return { host: `${label}.local`, system: true };
+  return { host: `${hostname().split(".")[0] ?? ""}.local`, system: false };
 }
 
 // On a Mac, macOS answers for `<LocalHostName>.local` itself. The library would claim that name
 // too, with every address of this computer, which macOS takes as a clash: it renames the computer
-// ("uno-2.local"), so a board that saved the old name can't find it, and the goodbye on stop would
+// ("my-mac-2.local"), so a board that saved the old name can't find it, and the goodbye on stop would
 // tell the network the name is gone. So there only the service is announced and macOS keeps its name.
 function leaveHostToSystem(service: Service): void {
   const records = service.records.bind(service);
@@ -51,14 +52,16 @@ const announceOnNetwork: Announce = (port) => {
     console.error(`charmd: mDNS: ${String(error)}`);
   });
   const computer = hostname().replace(/\.local$/, "");
+  const { host, system } = localHost();
   const service = bonjour.publish({
     name: `OpenCharm on ${computer}`,
-    host: localHost(),
+    host,
     type: "opencharm",
     port,
     txt: { path: "/charm" },
   });
-  if (platform() === "darwin") leaveHostToSystem(service);
+  // In time: with probing (the default) the library reads the records only after publish returns.
+  if (system) leaveHostToSystem(service);
   service.on("error", (error: unknown) => {
     console.error(
       `charmd: couldn't announce itself on the network: ${String(error)}`
