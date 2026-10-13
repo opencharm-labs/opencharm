@@ -2,6 +2,7 @@
    drawn boxes, mono labels, pill buttons. Colour only on the charm itself. */
 :root {
   --paper: #f6f6f4;
+  --card: #ffffff;
   --ink: #0a0a0a;
   --ink-2: #3a3a3a;
   --dim: #6e6e6e;
@@ -345,7 +346,7 @@ input[type="range"]::-webkit-slider-thumb {
   margin-top: -7.25px;
   border: 1.5px solid var(--ink);
   border-radius: 50%;
-  background: #fff;
+  background: var(--card);
 }
 #volume-value {
   width: 4.5ch;
