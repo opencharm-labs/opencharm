@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "add-charm",
+  "description": "The Add a charm window may close itself (its Done and Close buttons).",
+  "windows": ["add-charm"],
+  "permissions": ["core:window:allow-close"]
+}

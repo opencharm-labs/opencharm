@@ -30,8 +30,12 @@
         </div>
         <p class="note" id="network-note"></p>
         <p class="note" id="mac-note" hidden>
-          macOS asks whether OpenCharm may find devices on your local network:
-          choose Allow, so the charm can find this Mac by itself.
+          macOS asks whether OpenCharm may find devices on your local network,
+          and, with the firewall on, whether "node" may accept incoming
+          connections: that's OpenCharm's charmd. Choose Allow both times.
+          Missed one? Allow OpenCharm in System Settings → Privacy &amp;
+          Security → Local Network, and node in System Settings → Network →
+          Firewall → Options, then quit and reopen OpenCharm.
         </p>
       </section>
 
@@ -55,8 +59,8 @@
         <details>
           <summary>If it says "No charmd" after a minute</summary>
           <p class="note">
-            Hold its key for 5 seconds to open its Wi-Fi page again, and under
-            <b>Advanced → Custom OTA URL</b> type:
+            Hold its key for 5 seconds to open its Wi-Fi page again, open
+            <b>charmd address</b> at the bottom, and type:
           </p>
           <div class="row">
             <span class="mono" id="address">…</span>
