@@ -1,6 +1,7 @@
 // Speech in, text out; text in, speech out. Audio is always Ogg Opus, the format the charm's
 // packets are wrapped in and unwrapped from (src/audio/ogg-opus.ts). Listening and speaking are
 // chosen separately (spec 003); a VoiceProvider is the pair a turn uses.
+
 // Speech heard while the key is still down (spec 003): what's said goes out as it comes, so the words
 // are ready soon after the key is let go.
 type LiveTranscription = {

@@ -41,6 +41,12 @@ function oggOpusToPcm(
   }
 }
 
+type OpusDecoder = {
+  // 16-bit mono PCM for one packet; an undecodable packet gives none.
+  decode: (packet: Buffer) => Buffer;
+  free: () => void;
+};
+
 type OpusEncoder = {
   // 16-bit mono PCM in any chunk size (an odd byte waits for its pair); whole frames come out.
   push: (pcm: Buffer) => Buffer[];
@@ -89,12 +95,6 @@ function createOpusEncoder(
     },
   };
 }
-
-type OpusDecoder = {
-  // 16-bit mono PCM for one packet; an undecodable packet gives none.
-  decode: (packet: Buffer) => Buffer;
-  free: () => void;
-};
 
 // For speech that leaves as PCM while it's heard (ElevenLabs' live transcription). Freed once.
 function createOpusDecoder(

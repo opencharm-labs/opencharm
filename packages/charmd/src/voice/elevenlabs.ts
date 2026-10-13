@@ -35,6 +35,14 @@ const SPEAK_MODEL = "eleven_v4_turbo";
 const SAMPLE_RATE = 24000;
 // The voice list is shared by every sentence waiting on it, so it has its own deadline, not theirs.
 const VOICES_TIMEOUT_MS = 5000;
+// What Scribe sends back, whole or live. Live messages it may add later are ignored; an error is any
+// message with an `error` (auth_error, quota_exceeded, …), named by its type when it has one.
+const transcript = z.object({ text: z.string() });
+const liveMessage = z.object({
+  message_type: z.string().optional(),
+  text: z.string().optional(),
+  error: z.unknown().optional(),
+});
 
 function settings(options: ElevenLabsOptions): {
   apiKey: string;
@@ -106,15 +114,6 @@ async function listVoices(
   });
 }
 
-// What Scribe sends back, whole or live. Live messages it may add later are ignored; an error is any
-// message with an `error` (auth_error, quota_exceeded, …).
-const transcript = z.object({ text: z.string() });
-const liveMessage = z.object({
-  message_type: z.string(),
-  text: z.string().optional(),
-  error: z.unknown().optional(),
-});
-
 // Scribe's realtime model over a WebSocket, opened when the hold is confirmed: the charm's packets are
 // decoded to 16 kHz PCM and sent as they come; letting go sends the last of it with a commit, and the
 // committed transcript is the answer. One packet is held back so the commit carries audio.
@@ -168,7 +167,8 @@ function liveTranscription(
     const parsed = liveMessage.safeParse(json);
     if (!parsed.success) return;
     const message = parsed.data;
-    if (message.error !== undefined) fail(message.message_type);
+    if (message.error !== undefined && message.error !== null)
+      fail(message.message_type ?? "error");
     else if (
       message.message_type === "committed_transcript" &&
       message.text !== undefined
@@ -178,7 +178,12 @@ function liveTranscription(
     }
   });
   socket.on("error", (error: Error) => fail(error.message));
-  socket.on("close", () => fail("closed"));
+  // A refusal may come only as the close frame's code and reason.
+  socket.on("close", (code: number, reason: Buffer) =>
+    fail(
+      `closed (${code}${reason.length > 0 ? ` ${reason.toString("utf8")}` : ""})`
+    )
+  );
   return {
     push(frame) {
       if (over) return;

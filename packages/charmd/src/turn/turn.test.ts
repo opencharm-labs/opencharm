@@ -1038,6 +1038,38 @@ describe("hearing you while you hold the key (spec 003)", () => {
     expect(seen).toMatchObject({ opened: 1, cancelled: 1, batch: 0 });
   });
 
+  it("stops waiting for it, and never sends the clip, when the turn is cancelled after release", async () => {
+    let started!: () => void;
+    const waiting = new Promise<void>((resolve) => (started = resolve));
+    const { voice, seen } = liveVoice(
+      (signal) =>
+        new Promise((_, reject) => {
+          started();
+          signal.addEventListener("abort", () =>
+            reject(new Error("cancelled"))
+          );
+        })
+    );
+    const { agent, asked } = asking();
+    const { turn } = setup({ voice, agent });
+    turn.listenStart();
+    turn.audio(Buffer.from([0xf8, 1, 2, 3]));
+    const done = turn.listenStop();
+    await waiting;
+    turn.abort();
+    await done;
+    expect(seen.batch).toBe(0);
+    expect(asked).toEqual([]);
+  });
+
+  it("closes the first live transcript when a new hold starts", () => {
+    const { voice, seen } = liveVoice(() => Promise.resolve("never"));
+    const { turn } = setup({ voice });
+    turn.listenStart();
+    turn.listenStart();
+    expect(seen).toMatchObject({ opened: 2, cancelled: 1 });
+  });
+
   it("closes the live transcript when the hold is stopped", () => {
     const { voice, seen } = liveVoice(() => Promise.resolve("never"));
     const { turn } = setup({ voice });

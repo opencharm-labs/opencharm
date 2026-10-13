@@ -235,6 +235,22 @@ describe("ElevenLabs live listening", () => {
     await expect(live?.finish(signal)).rejects.toThrow(/in time/);
   });
 
+  it("fails without waiting when the service refuses while the transcript is awaited", async () => {
+    const api = await realtime((chunk, socket) => {
+      if (chunk.commit) socket.close(4001, "quota");
+    });
+    const listener = createElevenLabsListener({
+      apiKey: "k",
+      baseUrl: api.url,
+      liveFinishMs: 5000,
+    });
+    const live = listener.live?.();
+    for (const packet of packets(1)) live?.push(packet);
+    const started = Date.now();
+    await expect(live?.finish(signal)).rejects.toThrow(/closed \(4001 quota\)/);
+    expect(Date.now() - started).toBeLessThan(1000);
+  });
+
   it("fails at once when the service can't be reached", async () => {
     const listener = createElevenLabsListener({
       apiKey: "k",
