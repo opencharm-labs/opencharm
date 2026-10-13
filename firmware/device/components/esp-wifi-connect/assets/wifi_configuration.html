@@ -502,6 +502,8 @@
         }
         const list = $("saved");
         list.textContent = "";
+        $("saved-note").textContent =
+          "Couldn't read the saved networks: one of their names can't be shown here.";
         $("saved-note").hidden = !unreadable;
         $("saved-card").hidden =
           !unreadable && (!Array.isArray(names) || names.length === 0);
@@ -538,10 +540,16 @@
       async function savedAction(path, index) {
         for (const b of $("saved").querySelectorAll("button"))
           b.disabled = true;
+        let failed = false;
         try {
           await fetch(path + "?index=" + index);
-        } finally {
-          loadSaved();
+        } catch {
+          failed = true;
+        }
+        await loadSaved();
+        if (failed) {
+          $("saved-note").textContent = "That didn't work. Try again.";
+          $("saved-note").hidden = false;
         }
       }
 

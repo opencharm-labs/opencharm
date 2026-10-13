@@ -27,6 +27,25 @@
 extern const char index_html_start[] asm("_binary_wifi_configuration_html_start");
 extern const char done_html_start[] asm("_binary_wifi_configuration_done_html_start");
 
+// OpenCharm: network names go into JSON escaped. A name with a quote or a backslash broke the
+// page's lists, and one with "," split into two saved entries, shifting every index after it.
+static std::string json_escape(const std::string &text) {
+    std::string out;
+    for (unsigned char c : text) {
+        if (c == '"' || c == '\\') {
+            out += '\\';
+            out += static_cast<char>(c);
+        } else if (c < 0x20) {
+            char hex[8];
+            snprintf(hex, sizeof(hex), "\\u%04x", c);
+            out += hex;
+        } else {
+            out += static_cast<char>(c);
+        }
+    }
+    return out;
+}
+
 WifiConfigurationAp::WifiConfigurationAp()
 {
     event_group_ = xEventGroupCreate();
@@ -252,7 +271,7 @@ void WifiConfigurationAp::StartWebServer()
             auto ssid_list = SsidManager::GetInstance().GetSsidList();
             std::string json_str = "[";
             for (const auto& ssid : ssid_list) {
-                json_str += "\"" + ssid.ssid + "\",";
+                json_str += "\"" + json_escape(ssid.ssid) + "\",";
             }
             if (json_str.length() > 1) {
                 json_str.pop_back(); // Remove the last comma
@@ -336,10 +355,11 @@ void WifiConfigurationAp::StartWebServer()
             for (int i = 0; i < this_->ap_records_.size(); i++) {
                 ESP_LOGI(TAG, "SSID: %s, RSSI: %d, Authmode: %d",
                     (char *)this_->ap_records_[i].ssid, this_->ap_records_[i].rssi, this_->ap_records_[i].authmode);
-                char buf[128];
-                snprintf(buf, sizeof(buf), "{\"ssid\":\"%s\",\"rssi\":%d,\"authmode\":%d}",
-                    (char *)this_->ap_records_[i].ssid, this_->ap_records_[i].rssi, this_->ap_records_[i].authmode);
-                httpd_resp_sendstr_chunk(req, buf);
+                std::string item = "{\"ssid\":\"" +
+                    json_escape(reinterpret_cast<const char *>(this_->ap_records_[i].ssid)) +
+                    "\",\"rssi\":" + std::to_string(this_->ap_records_[i].rssi) +
+                    ",\"authmode\":" + std::to_string(this_->ap_records_[i].authmode) + "}";
+                httpd_resp_sendstr_chunk(req, item.c_str());
                 if (i < this_->ap_records_.size() - 1) {
                     httpd_resp_sendstr_chunk(req, ",");
                 }

@@ -183,6 +183,7 @@ std::string connect_url(const std::string& ws_url) {
   std::string authority = host_of(ws_url);
   size_t colon = authority.rfind(':');
   std::string name = authority.substr(0, colon);
+  if (!name.empty() && name.back() == '.') name.pop_back();  // "mac.local." is "mac.local"
   const std::string suffix = ".local";
   if (name.size() <= suffix.size() ||
       strcasecmp(name.c_str() + name.size() - suffix.size(), suffix.c_str()) != 0 || !mdns_ready())
