@@ -83,13 +83,12 @@ type CharmdFields = (
     String,
     String,
     String,
-    String,
-    String,
-    String,
-    String,
+    VoiceFields,
     Option<String>,
     bool,
 );
+/// Listening, speaking, the fallback language, the ElevenLabs voice and model.
+type VoiceFields = (String, String, String, String, String);
 
 fn charmd_fields(s: &Settings) -> CharmdFields {
     (
@@ -99,10 +98,13 @@ fn charmd_fields(s: &Settings) -> CharmdFields {
         s.agent_command.clone(),
         s.server_url.clone(),
         s.server_model.clone(),
-        s.listen.clone(),
-        s.speak.clone(),
-        s.language.clone(),
-        s.elevenlabs_voice.clone(),
+        (
+            s.listen.clone(),
+            s.speak.clone(),
+            s.language.clone(),
+            s.elevenlabs_voice.clone(),
+            s.elevenlabs_model.clone(),
+        ),
         s.cli_path.clone(),
         s.network,
     )
@@ -488,8 +490,27 @@ fn has_elevenlabs_key() -> Result<bool, String> {
 #[tauri::command]
 fn set_elevenlabs_key(app: AppHandle, key: String) -> Result<(), String> {
     pairing::set_secret("elevenlabs", key.trim())?;
+    app.state::<Managed>().charmd.mark_starting();
     apply_managed(&app);
     Ok(())
+}
+
+/// The voices in the ElevenLabs account, asked from the app's charmd, which holds the key (spec 003):
+/// the window gets names, IDs and sample links, never the key.
+#[tauri::command]
+async fn elevenlabs_voices(app: AppHandle) -> Result<serde_json::Value, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        // charmd gives ElevenLabs 5 s for the list: this waits a little longer.
+        let socket = own_admin(&app)?;
+        let answer = pairing::admin_within(
+            &socket,
+            &serde_json::json!({ "cmd": "voices" }),
+            std::time::Duration::from_secs(8),
+        )?;
+        Ok(answer["voices"].clone())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// A new workspace in an empty folder: `opencharm init`, which clones the starter. charmd starts
@@ -958,6 +979,8 @@ fn save_settings(app: AppHandle, saved: State<Saved>, next: Settings) -> Result<
     *saved.settings.lock().unwrap() = next.clone();
     let state = app.state::<Managed>().charmd.status().state;
     if managed::restart_after_save(charmd_fields(&next) != charmd_fields(&previous), &state) {
+        // Under way from now: a window asking the running charmd (its voices) waits for the new one.
+        app.state::<Managed>().charmd.mark_starting();
         apply_managed(&app);
     } else if next.speak_replies != previous.speak_replies {
         apply_replies(&app, next.speak_replies);
@@ -1214,6 +1237,7 @@ pub fn run() {
             set_openai_key,
             has_elevenlabs_key,
             set_elevenlabs_key,
+            elevenlabs_voices,
             create_workspace,
             setup_state,
             setup_step_done,

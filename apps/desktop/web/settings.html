@@ -110,6 +110,22 @@
             </p>
           </div>
 
+          <div id="elevenlabs-voice-row" hidden>
+            <label class="mono" for="elevenlabs-voice">ITS VOICE</label>
+            <div class="row">
+              <select id="elevenlabs-voice"></select>
+              <button type="button" class="pill ghost" id="try-elevenlabs">
+                Try it
+              </button>
+            </div>
+            <select id="elevenlabs-model" aria-label="The ElevenLabs model">
+              <option value="">Balanced (v4 Turbo)</option>
+              <option value="eleven_flash_v2_5">Fastest (Flash v2.5)</option>
+              <option value="eleven_v4">Best quality (v4)</option>
+            </select>
+            <p class="note" id="elevenlabs-voice-note"></p>
+          </div>
+
           <label class="mono" for="language">LANGUAGE</label>
           <select id="language">
             <option value="en">English</option>
@@ -139,14 +155,6 @@
             <button type="button" class="pill" id="save-elevenlabs-key">
               Save
             </button>
-          </div>
-          <div class="row" id="elevenlabs-voice-row" hidden>
-            <input
-              id="elevenlabs-voice"
-              spellcheck="false"
-              placeholder="ElevenLabs voice ID (empty: your first voice)"
-              aria-label="The ElevenLabs voice ID"
-            />
           </div>
           <p class="note" id="voice-note">
             It answers in the language you speak; this one is for when it can't

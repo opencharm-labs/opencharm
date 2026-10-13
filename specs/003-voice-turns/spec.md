@@ -57,7 +57,9 @@ ElevenLabs is the voice platform people ask for by name, and its API isn't OpenA
 - **Speaking:** `voice.speak` `{ "provider": "elevenlabs", "voice"?: …, "model"?: … }`: streamed (`POST /v1/text-to-speech/<voice>/stream`, 24 kHz PCM, encoded to Opus as it arrives), so a sentence starts playing before it's synthesized; default model `eleven_v4_turbo` (low latency, 90+ languages per ElevenLabs' model page, unverified here), with each sentence's language sent along. With no voice set, charmd uses the first voice in the person's ElevenLabs account (`GET /v1/voices`), so nothing is hard-coded that ElevenLabs may retire.
 - **The key:** `apiKey` or `apiKeyEnv` like the `openai` voice, default `ELEVENLABS_API_KEY`; the desktop app keeps it in the system keychain. Each side can be ElevenLabs alone.
 - **When it fails:** like any paid voice, speaking falls back to the macOS voice only (no model download you didn't ask for). Speech and the reply's text go to ElevenLabs; Settings says so.
-- **Settings** (spec 013): ElevenLabs in LISTENING and SPEAKING, its key, and a voice ID field (empty: your first voice). The CLI config takes the same fields.
+- **Settings** (spec 013): ElevenLabs in LISTENING and SPEAKING, and its key. The CLI config takes the same fields.
+- **Your voices, by name** (maintainer, 13 October 2026, "full support"): once charmd speaks with ElevenLabs, Settings lists the voices in the person's account by name (the admin command `voices`, which charmd answers from ElevenLabs with its key; the window never holds the key), first "Your first voice" (no voice set). **Try it** plays the voice's own preview from ElevenLabs (no credits used). A voice saved before that isn't in the list stays selectable by its ID.
+- **The model** (same day): Settings offers Fastest (`eleven_flash_v2_5`), Balanced (`eleven_v4_turbo`, the default) and Best quality (`eleven_v4`), written as `voice.speak.model`; the speed and quality ranks are ElevenLabs' own (its model page, 13 October 2026), unverified here.
 
 ## Not in scope
 
@@ -122,4 +124,5 @@ ElevenLabs:
 
 - [ ] Unit tests against a local server: the config (both sides, key from the file or the environment, strict fields); Scribe gets the Ogg, the model and sound tags off, with the key header; speaking streams PCM into Opus packets (an odd byte split across chunks kept), sends the model, the language and the voice, picks the first account voice when none is set and asks once; an HTTP error names the status, never the key.
 - [ ] The desktop app: both options and the voice field written to the config, a bad voice ID refused, an older `opencharm` given the default on that side (Rust tests); the key saved in the keychain and handed to charmd as `ELEVENLABS_API_KEY` (by hand, with the real key).
+- [ ] Your voices and the model: unit tests for the voice list (names, previews only over https, an error named by status) and the `voices` admin command (empty for a voice with no list); Rust tests for the model setting (only the three, written only for ElevenLabs); the Settings page with a stand-in list, rendered and checked by eye.
 - [ ] By hand with a real key on the maintainer's charm: a spoken question in English and Italian heard by Scribe and answered with an ElevenLabs voice, with the timing line recorded.

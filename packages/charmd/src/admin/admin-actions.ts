@@ -5,6 +5,7 @@ import type { PairingRegistry } from "../auth/pairing";
 import { type Session, sessionKeyOf } from "../device/session";
 import { type CharmLook, type Look, lookFields } from "../look";
 import type { CharmRecord, StateStore } from "../store/state-store";
+import type { VoiceChoice } from "../voice/types";
 import type {
   CharmBattery,
   CharmBuild,
@@ -44,6 +45,9 @@ type AdminActions = {
   // A new conversation with the agent (spec 003): the named charm, every paired charm when none is
   // named, or (source "agent", the charm tool) the charm whose turn the agent is answering, if any.
   newConversation: (input: unknown) => Promise<{ charms: string[] }>;
+  // The speaking voice's choices (ElevenLabs: the account's voices), for Settings; none for a voice
+  // that has no list.
+  voices: () => Promise<{ voices: VoiceChoice[] }>;
 };
 type AdminDeps = {
   store: StateStore;
@@ -60,6 +64,7 @@ type AdminDeps = {
   replies?: { speak: boolean };
   // Starts a charm's next conversation (agent/conversations.ts); absent where there's no agent.
   newConversation?: (sessionKey: string) => unknown;
+  voices?: () => Promise<VoiceChoice[]>;
 };
 
 const repliesInput = z.object({ speak: z.boolean() }).strict();
@@ -135,6 +140,7 @@ function createAdminActions({
   voice,
   replies,
   newConversation,
+  voices,
 }: AdminDeps): AdminActions {
   function sessionsOf(charmId: string): Session[] {
     return [...sessions()].filter(
@@ -288,6 +294,9 @@ function createAdminActions({
         for (const charm of charms) newConversation(sessionKeyOf(charm.id));
         return { charms: charms.map((charm) => charm.name) };
       });
+    },
+    async voices() {
+      return { voices: voices ? await voices() : [] };
     },
     waiting() {
       const live = new Map(

@@ -115,7 +115,8 @@ function fill() {
   $("elevenlabs-row").hidden =
     settings.listen !== "elevenlabs" && settings.speak !== "elevenlabs";
   $("elevenlabs-voice-row").hidden = settings.speak !== "elevenlabs";
-  $("elevenlabs-voice").value = settings.elevenlabsVoice ?? "";
+  $("elevenlabs-model").value = settings.elevenlabsModel ?? "";
+  fillElevenLabsVoices();
   $("listen-note").textContent = {
     local:
       "Understood on this computer: your voice never leaves it. The first start downloads about 490 MB.",
@@ -132,7 +133,7 @@ function fill() {
     system: "The voice below, from macOS. Nothing leaves this Mac.",
     openai: "OpenAI's voices. The key stays in your keychain.",
     elevenlabs:
-      "ElevenLabs' voices: the text of each spoken reply goes to ElevenLabs. Paste a voice ID from My Voices on elevenlabs.io. The key stays in your keychain.",
+      "ElevenLabs' voices: the text of each spoken reply goes to ElevenLabs. The key stays in your keychain.",
     fake: "No speaker: a soft tone stands in for speech. For trying.",
   }[settings.speak];
 
@@ -162,8 +163,55 @@ async function look(path) {
   folder = path ? await invoke("inspect_folder", { path }) : null;
 }
 
+// The voices in your ElevenLabs account, asked from the app's charmd (it holds the key); asked again
+// when charmd restarts with ElevenLabs, so a key saved just now shows them.
+let elevenLabsVoices = [];
+let elevenLabsAsked = false;
+async function loadElevenLabsVoices(charmdState) {
+  // Asked once per start of charmd that speaks with ElevenLabs.
+  if (settings.speak !== "elevenlabs" || charmdState !== "running") {
+    elevenLabsAsked = false;
+    return;
+  }
+  if (elevenLabsAsked) return;
+  elevenLabsAsked = true;
+  try {
+    elevenLabsVoices = await invoke("elevenlabs_voices");
+    $("elevenlabs-voice-note").textContent = elevenLabsVoices.length
+      ? "The voices in your ElevenLabs account. Try it plays ElevenLabs' sample."
+      : "Your ElevenLabs account has no voices yet: add one on elevenlabs.io.";
+  } catch (error) {
+    elevenLabsVoices = [];
+    // Asked again on a later poll, not stuck on one failure.
+    setTimeout(() => (elevenLabsAsked = false), 10_000);
+    $("elevenlabs-voice-note").textContent = /401|403/.test(String(error))
+      ? "ElevenLabs refused the key: save it again below."
+      : "Couldn't get your ElevenLabs voices just now; trying again shortly.";
+  }
+  fillElevenLabsVoices();
+}
+
+function fillElevenLabsVoices() {
+  const select = $("elevenlabs-voice");
+  const saved = settings.elevenlabsVoice ?? "";
+  select.replaceChildren(new Option("Your first voice", ""));
+  for (const voice of elevenLabsVoices)
+    select.append(
+      new Option(
+        voice.description ? `${voice.name} · ${voice.description}` : voice.name,
+        voice.id
+      )
+    );
+  // A voice saved earlier but not in the list stays, by its ID.
+  if (saved && !elevenLabsVoices.some((v) => v.id === saved))
+    select.append(new Option(saved, saved));
+  select.value = saved;
+}
+
 async function save(change) {
   const next = { ...settings, ...change };
+  // A change may restart charmd: its voices are asked again from the new one.
+  elevenLabsAsked = false;
   status.textContent = "SAVING…";
   try {
     await invoke("save_settings", { next });
@@ -222,6 +270,7 @@ async function poll() {
   polling = true;
   try {
     const s = await invoke("charmd_status");
+    void loadElevenLabsVoices(s.state);
     // The first start downloads the voice models (about 600 MB): say how far it is.
     const models = s.state === "running" ? await invoke("voice_progress") : [];
     const [dot, text] = STATES[s.state] ?? ["needs", ""];
@@ -565,6 +614,7 @@ if (await invoke("has_elevenlabs_key"))
 $("save-elevenlabs-key").addEventListener("click", async () => {
   try {
     await invoke("set_elevenlabs_key", { key: $("elevenlabs-key").value });
+    elevenLabsAsked = false;
     $("elevenlabs-key").value = "";
     $("elevenlabs-key").placeholder = "ElevenLabs key saved in your keychain";
     status.textContent = "KEY SAVED";
@@ -576,8 +626,32 @@ $("save-elevenlabs-key").addEventListener("click", async () => {
 });
 $("elevenlabs-voice").addEventListener(
   "change",
-  (e) => void save({ elevenlabsVoice: e.target.value.trim() })
+  (e) => void save({ elevenlabsVoice: e.target.value })
 );
+$("elevenlabs-model").addEventListener(
+  "change",
+  (e) => void save({ elevenlabsModel: e.target.value })
+);
+// ElevenLabs' own sample of the voice, played here: no credits used.
+let sample;
+$("try-elevenlabs").addEventListener("click", async () => {
+  const id = $("elevenlabs-voice").value || elevenLabsVoices[0]?.id;
+  const preview = elevenLabsVoices.find((v) => v.id === id)?.preview;
+  if (!preview) {
+    status.textContent = "NO SAMPLE FOR THIS VOICE";
+    react("oops", 2200);
+    return;
+  }
+  sample?.pause();
+  sample = new Audio(preview);
+  try {
+    await sample.play();
+    react("cute", 2400);
+  } catch (error) {
+    status.textContent = String(error).toUpperCase();
+    react("oops", 2200);
+  }
+});
 
 // A newer release found by the charm's daily check: download it from GitHub.
 const offered = await invoke("update_offered");

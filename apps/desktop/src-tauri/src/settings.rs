@@ -41,6 +41,10 @@ const LANGUAGES: [&str; 6] = ["en", "it", "es", "fr", "de", "pt"];
 pub const COLOURS: [&str; 6] = ["white", "cobalt", "lime", "lilac", "sun", "coal"];
 const MOTIONS: [&str; 2] = ["full", "calm"];
 
+/// The ElevenLabs models Settings offers: "" is charmd's default (`eleven_v4_turbo`, balanced), then
+/// the fastest and the best quality (spec 003).
+const ELEVENLABS_MODELS: [&str; 3] = ["", "eleven_flash_v2_5", "eleven_v4"];
+
 /// An ElevenLabs voice ID as its site shows them: letters and digits (spec 003).
 fn elevenlabs_voice_ok(voice: &str) -> bool {
     (1..=64).contains(&voice.len()) && voice.chars().all(|c| c.is_ascii_alphanumeric())
@@ -197,6 +201,8 @@ pub struct Settings {
     pub say_voice: String,
     /// The ElevenLabs voice's ID ("" = the first voice in the person's account).
     pub elevenlabs_voice: String,
+    /// The ElevenLabs model ("" = charmd's default, balanced).
+    pub elevenlabs_model: String,
     /// The Microsoft voice for each language ("it" → "it-IT-DiegoNeural"), over the workspace's.
     pub microsoft_voices: BTreeMap<String, String>,
     /// The guided setup's progress: the highest step finished (0 = not started, 6 = done).
@@ -231,6 +237,7 @@ impl Default for Settings {
             look: Look::default(),
             say_voice: String::new(),
             elevenlabs_voice: String::new(),
+            elevenlabs_model: String::new(),
             microsoft_voices: BTreeMap::new(),
             setup_step: 0,
             setup_location: None,
@@ -281,6 +288,9 @@ impl Settings {
         if !self.elevenlabs_voice.is_empty() && !elevenlabs_voice_ok(&self.elevenlabs_voice) {
             self.elevenlabs_voice.clear();
         }
+        if !ELEVENLABS_MODELS.contains(&self.elevenlabs_model.as_str()) {
+            self.elevenlabs_model.clear();
+        }
         // A hand-edited voice charmd would refuse is dropped: charmd keeps starting, saves work.
         self.microsoft_voices
             .retain(|language, voice| microsoft_voice_ok(language, voice));
@@ -317,6 +327,9 @@ impl Settings {
         }
         if !self.elevenlabs_voice.is_empty() && !elevenlabs_voice_ok(&self.elevenlabs_voice) {
             return Err("an ElevenLabs voice ID is letters and digits".into());
+        }
+        if !ELEVENLABS_MODELS.contains(&self.elevenlabs_model.as_str()) {
+            return Err("choose one of the ElevenLabs models offered".into());
         }
         if self.type_key.trim().is_empty() || self.type_key == self.key {
             return Err("choose a typing key other than the talk key".into());
@@ -575,6 +588,24 @@ mod tests {
         assert_eq!(s.look.sleep_after_minutes, 4);
         assert_eq!(s.look.volume, 85);
         assert_eq!(s.say_voice, "Alice");
+    }
+
+    #[test]
+    fn only_the_elevenlabs_models_offered_are_kept() {
+        let with = |model: &str| Settings {
+            elevenlabs_model: model.into(),
+            ..Settings::default()
+        };
+        for model in ["", "eleven_flash_v2_5", "eleven_v4"] {
+            assert!(with(model).valid().is_ok());
+        }
+        assert!(with("eleven_v4_turbo").valid().is_err());
+        assert!(with("anything").valid().is_err());
+        let dir = std::env::temp_dir().join(format!("oc-settings-em-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("settings.json");
+        std::fs::write(&path, r#"{"elevenlabsModel":"made_up"}"#).unwrap();
+        assert_eq!(Settings::load(&path).elevenlabs_model, "");
     }
 
     #[test]

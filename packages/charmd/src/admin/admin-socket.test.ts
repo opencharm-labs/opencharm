@@ -29,6 +29,11 @@ afterEach(async () => {
 });
 
 describe("admin socket", () => {
+  it("lists no voices for a speaking voice that has no list", async () => {
+    await start();
+    expect(await sendAdmin(socket, { cmd: "voices" })).toEqual({ voices: [] });
+  });
+
   it("pairs a charm and reports it in status", async () => {
     const d = await start();
     const charm = await connectFakeCharm(d.url);

@@ -315,7 +315,8 @@ summary {
 #say-section .mono {
   margin-top: 6px;
 }
-#say-section {
+#say-section,
+#elevenlabs-voice-row:not([hidden]) {
   display: flex;
   flex-direction: column;
   gap: 8px;

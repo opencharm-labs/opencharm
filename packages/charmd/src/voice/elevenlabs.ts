@@ -1,9 +1,11 @@
 // ElevenLabs for listening (Scribe) and speaking (spec 003), with the person's key. Its API isn't
 // OpenAI's, so it has its own client. Speech streams as 24 kHz PCM, encoded to Opus as it arrives,
 // so a sentence starts playing before ElevenLabs has finished it. Errors name the status, never the key.
+import { z } from "zod";
+
 import { writeOggOpus } from "../audio/ogg-opus";
 import { createOpusEncoder } from "../audio/opus-codec";
-import type { Listener, Speaker } from "./types";
+import type { Listener, Speaker, VoiceChoice } from "./types";
 
 type ElevenLabsOptions = {
   apiKey?: string;
@@ -42,6 +44,55 @@ async function failed(what: string, response: Response): Promise<never> {
   );
 }
 
+function describe(labels: unknown): string | undefined {
+  if (typeof labels !== "object" || labels === null) return undefined;
+  const words = Object.values(labels).filter(
+    (value): value is string => typeof value === "string" && value.length > 0
+  );
+  return words.length > 0 ? words.join(" · ") : undefined;
+}
+
+// The voices in the person's account, in ElevenLabs' order. A preview is kept only over https: the
+// settings window plays it.
+// One entry of ElevenLabs' list; IDs are letters and digits, as the desktop app accepts them.
+const voiceEntry = z.object({
+  voice_id: z.string().regex(/^[A-Za-z0-9]{1,64}$/),
+  name: z.string().optional(),
+  preview_url: z.string().optional(),
+  labels: z.record(z.string(), z.unknown()).nullish(),
+});
+
+async function listVoices(
+  baseUrl: string,
+  apiKey: string
+): Promise<VoiceChoice[]> {
+  const response = await fetch(`${baseUrl}/v1/voices`, {
+    headers: { "xi-api-key": apiKey },
+    signal: AbortSignal.timeout(VOICES_TIMEOUT_MS),
+  });
+  if (!response.ok) return failed("voices", response);
+  const { voices } = (await response.json()) as { voices?: unknown };
+  if (!Array.isArray(voices)) return [];
+  // An entry that isn't a voice is skipped, never the whole list.
+  return voices.flatMap((entry: unknown) => {
+    const parsed = voiceEntry.safeParse(entry);
+    if (!parsed.success) return [];
+    const v = parsed.data;
+    const preview = v.preview_url?.startsWith("https://")
+      ? v.preview_url
+      : undefined;
+    const description = describe(v.labels);
+    return [
+      {
+        id: v.voice_id,
+        name: v.name || v.voice_id,
+        ...(preview ? { preview } : {}),
+        ...(description ? { description } : {}),
+      },
+    ];
+  });
+}
+
 function createElevenLabsListener(options: ElevenLabsOptions): Listener {
   const { apiKey, baseUrl } = settings(options);
   return {
@@ -78,18 +129,9 @@ function createElevenLabsSpeaker(options: ElevenLabsOptions): Speaker {
     : undefined;
   function voiceId(): Promise<string> {
     voice ??= (async () => {
-      const response = await fetch(`${baseUrl}/v1/voices`, {
-        headers: { "xi-api-key": apiKey },
-        signal: AbortSignal.timeout(VOICES_TIMEOUT_MS),
-      });
-      if (!response.ok) return failed("voices", response);
-      const { voices } = (await response.json()) as {
-        voices?: { voice_id?: unknown }[];
-      };
-      const id = voices?.find((v) => typeof v.voice_id === "string")?.voice_id;
-      if (typeof id !== "string")
-        throw new Error("ElevenLabs: this account has no voices");
-      return id;
+      const [first] = await listVoices(baseUrl, apiKey);
+      if (!first) throw new Error("ElevenLabs: this account has no voices");
+      return first.id;
     })().catch((error: unknown) => {
       voice = undefined;
       throw error;
@@ -146,6 +188,7 @@ function createElevenLabsSpeaker(options: ElevenLabsOptions): Speaker {
     async warm() {
       await voiceId().catch(() => undefined);
     },
+    voices: () => listVoices(baseUrl, apiKey),
   };
 }
 

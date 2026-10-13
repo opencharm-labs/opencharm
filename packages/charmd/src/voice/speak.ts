@@ -105,6 +105,7 @@ function speakWithFallback(
     prime: () => {
       if ((resting.get(first) ?? 0) <= now()) first.prime?.();
     },
+    ...(first.voices ? { voices: first.voices } : {}),
   };
 }
 
