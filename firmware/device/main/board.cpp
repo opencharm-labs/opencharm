@@ -158,7 +158,12 @@ void init_touch(Board& b) {
   config.y_max = kHeight - 1;
   config.rst_gpio_num = kTouchReset;
   config.int_gpio_num = kTouchInt;
-  config.flags.mirror_x = 1;
+  // Measured on the board (13 October 2026), tapping the PIN pad's 1, 3, 7 and 9: the touch panel
+  // sits a quarter turn from the screen (raw x runs down the screen, raw y right to left). The
+  // driver mirrors y, then swaps: screen x = 479 - raw y, screen y = raw x. XiaoZhi's S3 config
+  // (mirror x and y, no swap) is off on this board; its C6 config of the same board matches.
+  config.flags.swap_xy = 1;
+  config.flags.mirror_x = 0;
   config.flags.mirror_y = 1;
   ESP_ERROR_CHECK(esp_lcd_touch_new_i2c_cst9217(io, &config, &b.touch));
   lv_indev_t* pointer = lv_indev_create();

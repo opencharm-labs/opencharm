@@ -46,6 +46,9 @@ const AGENT_LABELS: Record<string, string> = {
   ),
 };
 
+// Orders turns across every charm, so the newest agent turn can be told apart (newConversation).
+let turnsStarted = 0;
+
 class TurnTimeout extends Error {}
 
 class StageError extends Error {
@@ -95,6 +98,8 @@ class TurnController {
   #asking:
     ((text: string, options: AskOptions) => Promise<boolean>) | undefined;
   #endFace: { state: string; text?: string } | undefined;
+  // When this charm's current turn began, in turnsStarted's order; undefined between turns.
+  #runOrder: number | undefined;
   readonly #deps: TurnDeps;
 
   constructor(deps: TurnDeps) {
@@ -116,6 +121,14 @@ class TurnController {
 
   get busy(): boolean {
     return this.#state !== "idle";
+  }
+
+  // A turn past listening (thinking or answering), the only time the agent can be at work for this
+  // charm: its place in the order turns began, else undefined.
+  get answering(): number | undefined {
+    return this.#state === "thinking" || this.#state === "speaking"
+      ? this.#runOrder
+      : undefined;
   }
 
   // A face from the agent's tools: shown now and, during a turn, kept when the turn ends.
@@ -196,6 +209,7 @@ class TurnController {
     const live = () => this.#generation === generation;
     const controller = new AbortController();
     this.#controller = controller;
+    this.#runOrder = ++turnsStarted;
     const { signal } = controller;
     const now = this.#deps.now ?? Date.now;
     const started = now();
@@ -483,6 +497,8 @@ class TurnController {
     const live = () => this.#generation === generation;
     const controller = new AbortController();
     this.#controller = controller;
+    // Speaking on its own, not answering: no agent turn is running.
+    this.#runOrder = undefined;
     const startClock = () =>
       setTimeout(
         () => controller.abort(new TurnTimeout()),

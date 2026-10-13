@@ -183,6 +183,24 @@ const TOOLS: Tool[] = [
       return `The charm is now ${look.colour}, ${look.motion} motion, volume ${look.volume}%, greeting "${look.greeting}".`;
     },
   },
+  {
+    name: "new_conversation",
+    description:
+      'Start a new conversation when the person asks for one ("let\'s start over", "new conversation", "forget this chat"). Finish your reply first, briefly: once it ends, this conversation is closed and their next words start a fresh one with no history of this one. Your own long-term memory and files stay. Never call it on your own initiative.',
+    inputSchema: { type: "object", properties: {} },
+    // Strict: the charm that asked is the one talking; the agent can't start over someone else's.
+    args: z.object({}).strict(),
+    run: async (_args, send) => {
+      const answer = (await send({
+        cmd: "newConversation",
+        source: "agent",
+      })) as { charms?: unknown[] };
+      // charmd acts only on a charm whose turn you're answering; with none, nothing changed.
+      return answer.charms?.length
+        ? "Done: when this reply ends, the next thing they say starts a new conversation."
+        : "No conversation is running on a charm right now: nothing was changed.";
+    },
+  },
 ];
 
 const reply = (id: Rpc["id"], result: unknown) =>

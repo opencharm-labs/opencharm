@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { WebSocket } from "ws";
 
+import { sendAdmin } from "./admin/admin-client";
 import { parseConfig } from "./config/config";
 import { type Daemon, startDaemon } from "./daemon";
 import {
@@ -579,6 +580,64 @@ describe("typed text over a real socket (spec 013)", () => {
     charm.send({ type: "charm", op: "text", text: "hello?" });
     await expect(charm.next((m) => m.type === "tts", 1500)).rejects.toThrow();
   });
+});
+
+describe("new conversations over a real socket (spec 003)", () => {
+  it("starts over after a long pause, and when asked from the computer", async () => {
+    let clock = 0;
+    const entries: Record<string, unknown>[] = [];
+    const dir = mkdtempSync(join(tmpdir(), "oc-daemon-"));
+    const config = parseConfig({
+      listen: { port: 0 },
+      statePath: join(dir, "state.json"),
+      newConversationAfterMinutes: 30,
+    });
+    const d = await startDaemon(config, {
+      quiet: true,
+      now: () => clock,
+      log: (entry) => entries.push(entry),
+    });
+    daemon = d;
+    const charm = await connectFakeCharm(d.url, undefined, {
+      build: { kind: "desktop", version: "desktop@0.0.0", commit: "abc1234" },
+    });
+    const code = await charm.next(isOp("pair_code"));
+    if (code.type !== "charm" || code.op !== "pair_code")
+      throw new Error("no code");
+    const { id } = await d.admin.pair({
+      code: code.code,
+      pin: "482913",
+      name: "desk",
+    });
+    await charm.next(isOp("locked"));
+    charm.send({ type: "charm", op: "unlock", pin: "482913" });
+    await charm.next(isOp("unlocked"));
+    // Each typed reply stays on screen for its reading time (2 s, real time), hence the test's 30 s.
+    const turn = async () => {
+      charm.send({ type: "charm", op: "text", text: "hello?" });
+      await charm.next((m) => m.type === "tts" && m.state === "stop", 10_000);
+    };
+    const started = () => entries.filter((e) => e.event === "new-conversation");
+
+    await turn();
+    clock += 30 * 60_000;
+    await turn();
+    expect(started()).toEqual([]);
+    clock += 30 * 60_000 + 1;
+    await turn();
+    expect(started()).toEqual([
+      {
+        event: "new-conversation",
+        session: `opencharm-${id}`,
+        reason: "idle",
+      },
+    ]);
+
+    expect(
+      await sendAdmin(config.adminSocket, { cmd: "newConversation" })
+    ).toEqual({ charms: ["desk"] });
+    expect(started().at(-1)).toMatchObject({ reason: "asked" });
+  }, 30_000);
 });
 
 describe("the charm's battery (spec 009)", () => {

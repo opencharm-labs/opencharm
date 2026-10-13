@@ -102,6 +102,7 @@ async function main(argv: readonly string[]): Promise<void> {
     case "dev":
     case "look":
     case "replies":
+    case "new":
       await runAdminCommand(ctx, command, rest, {
         socket: loadConfig(flagValue(rest, "--config")).adminSocket,
         send: sendAdmin,

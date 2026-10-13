@@ -22,6 +22,20 @@ describe("parseConfig", () => {
     expect(config.allowInsecureRemote).toBe(false);
   });
 
+  it("starts a new conversation after two quiet hours by default, never with 0", () => {
+    expect(parseConfig({}).newConversationAfterMinutes).toBe(120);
+    expect(
+      parseConfig({ newConversationAfterMinutes: 0 })
+        .newConversationAfterMinutes
+    ).toBe(0);
+    expect(() => parseConfig({ newConversationAfterMinutes: -1 })).toThrow(
+      /newConversationAfterMinutes/
+    );
+    expect(() => parseConfig({ newConversationAfterMinutes: 1.5 })).toThrow(
+      /newConversationAfterMinutes/
+    );
+  });
+
   it("names the field that is wrong", () => {
     expect(() => parseConfig({ listen: { port: "eighty" } })).toThrow(
       /listen\.port/

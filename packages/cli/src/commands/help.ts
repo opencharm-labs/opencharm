@@ -24,6 +24,7 @@ function runHelp(ctx: CliContext): void {
     opencharm lock <charm>          lock a charm now
     opencharm unlock <charm>        clear a block and unlock
     opencharm revoke <charm>        forget a charm (it must pair again)
+    opencharm new [charm]           a new conversation with your agent (every charm when none is named)
     opencharm replies on|off        the desktop charm speaks its replies, or shows them as text
     opencharm look                  show or change the charm's look until charmd restarts   [--colour <c|#RRGGBB>] [--greeting <text>] [--motion full|calm] [--volume <0-100>]
     opencharm dev face <charm> <state> [text]   show a face (testing)

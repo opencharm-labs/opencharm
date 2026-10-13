@@ -14,6 +14,9 @@ type AgentAdapter = {
   reply: (input: ReplyInput) => AsyncIterable<string>;
   // Optional: start up while the user is still speaking, so the first answer comes sooner.
   warm?: (sessionKey: string) => void;
+  // Optional: forget this charm's conversation, so its next turn starts a fresh one in the agent.
+  // Never called during a turn of that charm (agent/conversations.ts waits for it to end).
+  reset?: (sessionKey: string) => void;
   // Optional: release long-lived resources (processes, sockets) when charmd stops.
   dispose?: () => void;
 };

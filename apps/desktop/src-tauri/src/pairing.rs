@@ -164,9 +164,55 @@ pub fn pair(socket: &Path, code: &str, pin: &str) -> Result<(), String> {
     }
 }
 
+/// A new conversation with the agent for every charm of this charmd (spec 003): a reply in
+/// progress finishes first. Returns the charms that start over.
+pub fn new_conversation(socket: &Path) -> Result<Vec<String>, String> {
+    let answer = admin(socket, &json!({ "cmd": "newConversation" }))?;
+    Ok(answer["charms"]
+        .as_array()
+        .map(|names| {
+            names
+                .iter()
+                .filter_map(|name| name.as_str().map(str::to_string))
+                .collect()
+        })
+        .unwrap_or_default())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn asks_charmd_for_a_new_conversation_for_every_charm() {
+        use std::io::BufRead;
+        use std::os::unix::net::UnixListener;
+
+        let socket = std::env::temp_dir().join(format!("oc-new-{}.sock", std::process::id()));
+        let _ = std::fs::remove_file(&socket);
+        let listener = UnixListener::bind(&socket).unwrap();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut line = String::new();
+            std::io::BufReader::new(&stream)
+                .read_line(&mut line)
+                .unwrap();
+            stream
+                .write_all(br#"{"ok":true,"result":{"charms":["desktop","pip"]}}"#)
+                .unwrap();
+            serde_json::from_str::<Value>(&line).unwrap()
+        });
+        assert_eq!(new_conversation(&socket).unwrap(), vec!["desktop", "pip"]);
+        assert_eq!(server.join().unwrap(), json!({ "cmd": "newConversation" }));
+        let _ = std::fs::remove_file(&socket);
+    }
+
+    #[test]
+    fn a_new_conversation_without_charmd_is_an_error_not_a_crash() {
+        let socket = std::env::temp_dir().join("oc-no-charmd-here.sock");
+        assert!(new_conversation(&socket).is_err());
+    }
 
     #[test]
     fn a_pin_is_twelve_digits() {

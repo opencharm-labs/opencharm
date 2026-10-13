@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "charm/offline_clock.h"
 #include "doctest/doctest.h"
 
 namespace fs = std::filesystem;
@@ -256,4 +257,22 @@ TEST_CASE("charmd's hello says whether it takes the battery") {
       R"({"type":"hello","transport":"websocket","session_id":"s1","audio_params":{"format":"opus","sample_rate":24000,"channels":1,"frame_duration":60}})",
       m));
   CHECK_FALSE(m.accepts_battery);
+}
+
+TEST_CASE("the board opens Wi-Fi setup after a minute offline, never right after setup closes") {
+  charm::OfflineClock clock;
+  CHECK_FALSE(clock.due(5000, false));  // no clock until Wi-Fi goes away
+  clock.offline(1000);
+  CHECK_FALSE(clock.due(60000, false));
+  CHECK(clock.due(61000, false));
+  // Setup opened at boot and stayed open four minutes; a network was saved and it closed.
+  charm::OfflineClock after_setup;
+  after_setup.offline(2000);
+  for (uint32_t t = 2000; t <= 227000; t += 500) CHECK_FALSE(after_setup.due(t, true));
+  CHECK_FALSE(after_setup.due(227500, false));  // the board gets its minute to join
+  CHECK_FALSE(after_setup.due(286000, false));
+  CHECK(after_setup.due(287000, false));
+  // On Wi-Fi the clock stops.
+  after_setup.online();
+  CHECK_FALSE(after_setup.due(900000, false));
 }

@@ -1,0 +1,685 @@
+<!doctype html>
+<!-- OpenCharm's Wi-Fi setup page (spec 009), served by the charm's own hotspot. DESIGN.md: paper,
+     grid, ink, mono labels, pills; no web fonts (the hotspot has no internet), so Geist falls back to
+     the system's. Same requests as the upstream page (78/esp-wifi-connect). Names from the air go in
+     as text, never as HTML. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OpenCharm · Wi-Fi</title>
+    <style>
+      :root {
+        --bg: #f6f6f4;
+        --card: #ffffff;
+        --ink: #0a0a0a;
+        --ink2: #3a3a3a;
+        --mute: #6e6e6e;
+        --faint: #a3a3a3;
+        --line: rgba(10, 10, 10, 0.22);
+        /* DESIGN.md tokens */
+        --glyph: #f4f3ee; /* identity-white-glyph */
+        --screen: #000000; /* charm-screen */
+        --grid-line: rgba(10, 10, 10, 0.03);
+        --grid-line-major: rgba(10, 10, 10, 0.07);
+        --hairline: rgba(0, 0, 0, 0.12);
+        --grid-minor: 20px;
+        --grid-major: 160px;
+        --gap: 14px;
+        --half: calc(var(--gap) / 2);
+        --gutter: 40px;
+        --r-tag: 3px;
+        --r-control: 10px;
+        --r-pill: 999px;
+        /* DESIGN.md components: button-primary and filter */
+        --pad-button: 16px 26px;
+        --pad-filter: 9px 14px;
+        --sans:
+          Geist, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        --mono: "Geist Mono", ui-monospace, Menlo, Consolas, monospace;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        -webkit-text-size-adjust: 100%;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background-color: var(--bg);
+        background-image:
+          linear-gradient(var(--grid-line-major) 1px, transparent 1px),
+          linear-gradient(90deg, var(--grid-line-major) 1px, transparent 1px),
+          linear-gradient(var(--grid-line) 1px, transparent 1px),
+          linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+        background-size:
+          var(--grid-major) var(--grid-major),
+          var(--grid-major) var(--grid-major),
+          var(--grid-minor) var(--grid-minor),
+          var(--grid-minor) var(--grid-minor);
+        color: var(--ink);
+        font: 400 15px/1.55 var(--sans);
+      }
+      main {
+        max-width: 480px;
+        margin: 0 auto;
+        padding: var(--grid-minor) var(--gap) var(--gutter);
+      }
+      header {
+        display: flex;
+        align-items: center;
+        gap: var(--gap);
+        margin-bottom: var(--grid-minor);
+      }
+      .icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 22.37%;
+        background: var(--card);
+        box-shadow: 0 0 0 1px var(--hairline);
+        display: grid;
+        place-items: center;
+      }
+      .icon span {
+        width: 28px;
+        height: 28px;
+        border-radius: 31%;
+        background: var(--screen);
+        color: var(--glyph);
+        display: grid;
+        place-items: center;
+        font: 800 10px/1 var(--mono);
+        letter-spacing: 0.05em;
+      }
+      .wordmark {
+        font: 600 16px/1 var(--sans);
+        letter-spacing: 0.18em;
+      }
+      .card {
+        background: var(--card);
+        border: 1.5px solid var(--ink);
+        padding: var(--grid-minor);
+        margin-bottom: var(--grid-minor);
+      }
+      .head {
+        display: flex;
+        align-items: center;
+        gap: var(--half);
+        margin-bottom: var(--gap);
+      }
+      .num {
+        background: var(--ink);
+        color: var(--card);
+        border-radius: var(--r-tag);
+        padding: 3px 7px;
+        font: 600 12px/1.5 var(--mono);
+        letter-spacing: 0.12em;
+      }
+      .label {
+        color: var(--mute);
+        font: 400 12px/1.5 var(--mono);
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      .rule {
+        flex: 1;
+        border-top: 1px dashed var(--line);
+      }
+      h1 {
+        margin: 0 0 var(--half);
+        font: 600 22px/1.2 var(--sans);
+        letter-spacing: -0.01em;
+      }
+      p {
+        margin: 0 0 var(--gap);
+        color: var(--ink2);
+      }
+      .note {
+        color: var(--mute);
+        font: 400 11px/1.7 var(--mono);
+        letter-spacing: 0.06em;
+        margin: var(--half) 0 0;
+      }
+      label.label {
+        display: block;
+        margin: var(--gap) 0 var(--half);
+      }
+      input[type="text"],
+      input[type="password"] {
+        width: 100%;
+        padding: var(--gap) var(--gap);
+        border: 1.5px solid var(--ink);
+        border-radius: var(--r-control);
+        background: var(--card);
+        color: var(--ink);
+        font: 400 16px/1.3 var(--mono);
+        outline: none;
+      }
+      input:focus-visible,
+      button:focus-visible,
+      summary:focus-visible {
+        outline: 1.5px solid var(--ink);
+        outline-offset: 2px;
+      }
+      .row {
+        display: flex;
+        gap: var(--half);
+        align-items: center;
+      }
+      .row.even {
+        margin-top: var(--gap);
+      }
+      .row.even button {
+        flex: 1;
+      }
+      .row input {
+        flex: 1;
+        min-width: 0;
+      }
+      button {
+        cursor: pointer;
+        border-radius: var(--r-pill);
+        font: 600 16px/1 var(--sans);
+        padding: var(--pad-button);
+        border: 1.5px solid var(--ink);
+      }
+      button:disabled {
+        cursor: default;
+        opacity: 0.45;
+      }
+      .primary {
+        background: var(--ink);
+        color: var(--card);
+        width: 100%;
+        margin-top: var(--grid-minor);
+      }
+      .ghost {
+        background: var(--card);
+        color: var(--ink);
+      }
+      .small {
+        padding: var(--pad-filter);
+        font: 600 12px/1.5 var(--mono);
+        letter-spacing: 0.08em;
+      }
+      ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      .nets li {
+        border-top: 1px dashed var(--line);
+      }
+      .nets li:last-child {
+        border-bottom: 1px dashed var(--line);
+      }
+      .nets button {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        gap: var(--gap);
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        color: var(--ink);
+        padding: var(--gap) 0;
+        font: 400 15px/1.3 var(--sans);
+        text-align: left;
+      }
+      .nets button[aria-pressed="true"] {
+        font-weight: 600;
+      }
+      .nets .name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .nets .meta {
+        flex: none;
+        color: var(--mute);
+        font: 400 12px/1.3 var(--mono);
+        letter-spacing: 0.06em;
+      }
+      .saved li {
+        display: flex;
+        align-items: center;
+        gap: var(--half);
+        padding: var(--half) 0;
+        border-top: 1px dashed var(--line);
+      }
+      .saved .name {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .tag {
+        background: var(--ink);
+        color: var(--card);
+        border-radius: var(--r-tag);
+        padding: 2px 7px;
+        font: 600 11px/1.5 var(--mono);
+        letter-spacing: 0.12em;
+      }
+      .error {
+        display: flex;
+        gap: var(--half);
+        align-items: baseline;
+        margin-top: var(--gap);
+        color: var(--ink);
+      }
+      details summary {
+        cursor: pointer;
+        list-style: none;
+      }
+      details summary::-webkit-details-marker {
+        display: none;
+      }
+      details summary .label::after {
+        content: " +";
+      }
+      details[open] summary .label::after {
+        content: " −";
+      }
+      .busy {
+        position: fixed;
+        inset: 0;
+        background: rgba(246, 246, 244, 0.94);
+        display: none;
+        place-items: center;
+        text-align: center;
+        padding: var(--grid-minor);
+      }
+      .busy.on {
+        display: grid;
+      }
+      .face {
+        width: 120px;
+        height: 120px;
+        margin: 0 auto var(--grid-minor);
+        border-radius: 31%;
+        background: var(--screen);
+        color: var(--glyph);
+        display: grid;
+        place-items: center;
+        font: 800 34px/1 var(--mono);
+      }
+      [hidden] {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div class="icon" aria-hidden="true"><span>^ ^</span></div>
+        <span class="wordmark">OPENCHARM</span>
+      </header>
+
+      <section class="card" aria-labelledby="t1">
+        <div class="head">
+          <span class="num">01</span><span class="label">Wi-Fi</span
+          ><span class="rule"></span>
+        </div>
+        <h1 id="t1">Connect your charm</h1>
+        <p>
+          Pick your Wi-Fi and type its password. It needs a 2.4 GHz network.
+        </p>
+        <ul class="nets" id="nets" aria-label="Networks nearby"></ul>
+        <p class="note" id="scan-note">Looking for networks…</p>
+        <form id="wifi" autocomplete="off" novalidate>
+          <label class="label" for="ssid">Network</label>
+          <input
+            id="ssid"
+            type="text"
+            autocapitalize="off"
+            autocorrect="off"
+            spellcheck="false"
+            maxlength="32"
+            required
+          />
+          <label class="label" for="password">Password</label>
+          <div class="row">
+            <input
+              id="password"
+              type="password"
+              autocapitalize="off"
+              autocorrect="off"
+              spellcheck="false"
+              maxlength="64"
+            />
+            <button
+              type="button"
+              class="ghost small"
+              id="show"
+              aria-pressed="false"
+            >
+              SHOW
+            </button>
+          </div>
+          <div class="error" id="error" role="alert" hidden>
+            <span class="tag">!</span><span id="error-text"></span>
+          </div>
+          <button type="submit" class="primary" id="connect">Connect</button>
+        </form>
+      </section>
+
+      <section class="card" id="saved-card" aria-labelledby="t2" hidden>
+        <div class="head">
+          <span class="num">02</span
+          ><span class="label" id="t2">Saved networks</span
+          ><span class="rule"></span>
+        </div>
+        <p>It joins the first one it finds, from the top.</p>
+        <ul class="saved" id="saved"></ul>
+        <p class="note" id="saved-note" hidden>
+          Couldn't read the saved networks: one of their names can't be shown
+          here.
+        </p>
+      </section>
+
+      <section class="card" id="address-card" aria-labelledby="t3">
+        <details>
+          <summary>
+            <span class="head">
+              <span class="num">03</span
+              ><span class="label" id="t3">charmd address</span
+              ><span class="rule"></span>
+            </span>
+          </summary>
+          <p>
+            Leave it empty: your charm finds charmd on this network by itself.
+            If it says "No charmd", type the address the OpenCharm app shows.
+          </p>
+          <form id="address-form" autocomplete="off" novalidate>
+            <label class="label" for="address">Address</label>
+            <input
+              id="address"
+              type="text"
+              inputmode="url"
+              autocapitalize="off"
+              autocorrect="off"
+              spellcheck="false"
+              maxlength="256"
+              placeholder="http://your-computer.local:8787"
+            />
+            <div class="error" id="address-error" role="alert" hidden>
+              <span class="tag">!</span><span id="address-error-text"></span>
+            </div>
+            <p class="note" id="address-note"></p>
+            <div class="row even">
+              <button type="submit" class="ghost small" id="address-save">
+                SAVE ADDRESS
+              </button>
+              <button type="button" class="ghost small" id="address-clear">
+                CLEAR
+              </button>
+            </div>
+          </form>
+        </details>
+      </section>
+
+      <p class="note">The hotspot closes once your charm is on your Wi-Fi.</p>
+    </main>
+
+    <div class="busy" id="busy" role="status" aria-live="polite">
+      <div>
+        <div class="face" aria-hidden="true">o _ o</div>
+        <h1 id="busy-text">Connecting…</h1>
+        <p class="note">This takes up to half a minute.</p>
+      </div>
+    </div>
+
+    <script>
+      "use strict";
+      const $ = (id) => document.getElementById(id);
+      let picked = "";
+
+      // The board answers some failures in plain text: read JSON when it is, else say it plainly.
+      async function answer(response) {
+        try {
+          return await response.json();
+        } catch {
+          return { success: false, error: "" };
+        }
+      }
+
+      // While the overlay shows, the form behind it can't be reached with the keyboard either.
+      function busy(on) {
+        $("busy").classList.toggle("on", on);
+        document.querySelector("main").inert = on;
+      }
+
+      function fail(prefix, text) {
+        $(prefix + "-text").textContent = text;
+        $(prefix).hidden = !text;
+      }
+
+      // Bars from the signal (dBm), as text: the page draws, it doesn't load icons.
+      function bars(rssi) {
+        const n = rssi >= -55 ? 4 : rssi >= -67 ? 3 : rssi >= -78 ? 2 : 1;
+        return "▮".repeat(n) + "▯".repeat(4 - n);
+      }
+
+      function showNetworks(aps) {
+        const list = $("nets");
+        const seen = new Set();
+        list.textContent = "";
+        for (const ap of aps) {
+          if (!ap.ssid || seen.has(ap.ssid)) continue;
+          seen.add(ap.ssid);
+          const item = document.createElement("li");
+          const button = document.createElement("button");
+          button.type = "button";
+          button.setAttribute("aria-pressed", String(ap.ssid === picked));
+          const name = document.createElement("span");
+          name.className = "name";
+          name.textContent = ap.ssid;
+          const meta = document.createElement("span");
+          meta.className = "meta";
+          meta.textContent = (ap.authmode === 0 ? "OPEN " : "") + bars(ap.rssi);
+          button.append(name, meta);
+          button.addEventListener("click", () => {
+            picked = ap.ssid;
+            $("ssid").value = ap.ssid;
+            for (const b of list.querySelectorAll("button"))
+              b.setAttribute("aria-pressed", String(b === button));
+            $("password").focus();
+          });
+          item.append(button);
+          list.append(item);
+        }
+        $("scan-note").textContent = seen.size
+          ? "Not listed? Type its name below."
+          : "No networks found yet. Still looking…";
+      }
+
+      async function scan() {
+        try {
+          const response = await fetch("/scan");
+          const data = await response.json();
+          showNetworks(Array.isArray(data.aps) ? data.aps : []);
+        } catch {
+          // A network name the board can't spell out breaks its list (it isn't escaped there).
+          $("scan-note").textContent =
+            "Couldn't read the list of networks. Type your network's name below.";
+        }
+        setTimeout(scan, 6000);
+      }
+
+      async function loadSaved() {
+        let names = [];
+        let unreadable = false;
+        try {
+          names = await (await fetch("/saved/list")).json();
+        } catch {
+          unreadable = true;
+        }
+        const list = $("saved");
+        list.textContent = "";
+        $("saved-note").textContent =
+          "Couldn't read the saved networks: one of their names can't be shown here.";
+        $("saved-note").hidden = !unreadable;
+        $("saved-card").hidden =
+          !unreadable && (!Array.isArray(names) || names.length === 0);
+        if (unreadable || $("saved-card").hidden) return;
+        names.forEach((ssid, index) => {
+          const item = document.createElement("li");
+          const name = document.createElement("span");
+          name.className = "name";
+          name.textContent = ssid;
+          item.append(name);
+          if (index > 0) {
+            const top = document.createElement("button");
+            top.type = "button";
+            top.className = "ghost small";
+            top.textContent = "FIRST";
+            top.addEventListener("click", () =>
+              savedAction("/saved/set_default", index)
+            );
+            item.append(top);
+          }
+          const forget = document.createElement("button");
+          forget.type = "button";
+          forget.className = "ghost small";
+          forget.textContent = "FORGET";
+          forget.addEventListener("click", () =>
+            savedAction("/saved/delete", index)
+          );
+          item.append(forget);
+          list.append(item);
+        });
+      }
+
+      // By position, so nothing else is pressed until the list is read again.
+      async function savedAction(path, index) {
+        for (const b of $("saved").querySelectorAll("button"))
+          b.disabled = true;
+        let failed = false;
+        try {
+          await fetch(path + "?index=" + index);
+        } catch {
+          failed = true;
+        }
+        await loadSaved();
+        if (failed) {
+          $("saved-note").textContent = "That didn't work. Try again.";
+          $("saved-note").hidden = false;
+        }
+      }
+
+      $("show").addEventListener("click", () => {
+        const shown = $("password").type === "text";
+        $("password").type = shown ? "password" : "text";
+        $("show").textContent = shown ? "SHOW" : "HIDE";
+        $("show").setAttribute("aria-pressed", String(!shown));
+      });
+
+      $("wifi").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        // As typed or picked: a name may start or end with a space.
+        const ssid = $("ssid").value;
+        if (!ssid.trim()) return;
+        fail("error", "");
+        $("connect").disabled = true;
+        $("busy-text").textContent = "Connecting to " + ssid + "…";
+        busy(true);
+        try {
+          const response = await fetch("/submit", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ssid, password: $("password").value }),
+          });
+          const data = await answer(response);
+          if (!data.success) throw new Error(data.error || "");
+          location.href = "/done.html?ssid=" + encodeURIComponent(ssid);
+        } catch (error) {
+          busy(false);
+          fail(
+            "error",
+            "It couldn't join " +
+              ssid +
+              ". Check the password, and that it's a 2.4 GHz network." +
+              (error && error.message ? " (" + error.message + ")" : "")
+          );
+          $("connect").disabled = false;
+        }
+      });
+
+      // charmd's address: the board keeps only a plain host and port from it (network.cpp).
+      async function loadAddress() {
+        try {
+          const data = await (await fetch("/advanced/config")).json();
+          $("address-card").hidden = data.show_ota_config === false;
+          $("address").value = data.ota_url || "";
+          $("address-note").textContent = data.ota_url
+            ? "Saved: " + data.ota_url
+            : "";
+          if (data.ota_url)
+            $("address-card").querySelector("details").open = true;
+        } catch {
+          // The page works without it.
+        }
+      }
+
+      async function saveAddress(value) {
+        fail("address-error", "");
+        $("address-save").disabled = true;
+        try {
+          const response = await fetch("/advanced/submit", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ota_url: value }),
+          });
+          const data = await answer(response);
+          if (!data.success) throw new Error(data.error || "");
+          $("address").value = value;
+          $("address-note").textContent = value
+            ? "Saved: " + value
+            : "Cleared: it finds charmd by itself.";
+        } catch (error) {
+          fail(
+            "address-error",
+            "Not saved." +
+              (error && error.message ? " (" + error.message + ")" : "")
+          );
+        } finally {
+          $("address-save").disabled = false;
+        }
+      }
+
+      // What the board takes (charm_url in firmware/core/src/protocol.cpp): http, https, ws or wss
+      // (or none), a host name, an IPv4 or [IPv6] address, a port from 1 to 65535; a path is ignored.
+      function usable(address) {
+        let rest = address.replace(/^(https?|wss?):\/\//i, "");
+        if (rest.includes("://")) return false;
+        rest = rest.split(/[/?#]/)[0];
+        const m = /^(\[[0-9a-f:.]+\]|[a-z0-9.-]+)(?::(\d{1,5}))?$/i.exec(rest);
+        if (!m || m[1] === "[]") return false;
+        return (
+          m[2] === undefined || (Number(m[2]) >= 1 && Number(m[2]) <= 65535)
+        );
+      }
+
+      $("address-form").addEventListener("submit", (event) => {
+        event.preventDefault();
+        const value = $("address").value.trim();
+        if (value && !usable(value)) {
+          fail(
+            "address-error",
+            "Type a host and port, like http://your-computer.local:8787."
+          );
+          return;
+        }
+        saveAddress(value);
+      });
+      $("address-clear").addEventListener("click", () => saveAddress(""));
+
+      scan();
+      loadSaved();
+      loadAddress();
+    </script>
+  </body>
+</html>

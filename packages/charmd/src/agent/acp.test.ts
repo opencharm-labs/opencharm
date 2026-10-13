@@ -152,6 +152,71 @@ describe("acp agent", () => {
     expect(new Set(logged().map((l) => l.pid)).size).toBe(1);
   });
 
+  it("starts a new session for a charm after a reset, leaving other charms' alone", async () => {
+    const { agent, logged } = setup();
+    await collect(agent, "one", "opencharm-a");
+    await collect(agent, "two", "opencharm-b");
+    agent.reset?.("opencharm-a");
+    await collect(agent, "three", "opencharm-a");
+    await collect(agent, "four", "opencharm-b");
+    const prompts = logged().filter((l) => l.method === "session/prompt");
+    expect(prompts.map((p) => p.params.sessionId)).toEqual([
+      "s1",
+      "s2",
+      "s3",
+      "s2",
+    ]);
+    expect(new Set(logged().map((l) => l.pid)).size).toBe(1);
+    // This agent doesn't offer session/close, so none is sent.
+    expect(logged().some((l) => l.method === "session/close")).toBe(false);
+  });
+
+  it(
+    "closes the old session when the agent offers session/close",
+    async () => {
+      const { agent, logged } = setup({ FAKE_ACP_CLOSE: "1" });
+      await collect(agent, "one");
+      agent.reset?.("opencharm-c_1");
+      await expect
+        .poll(
+          () => logged().find((l) => l.method === "session/close")?.params,
+          PROCESS
+        )
+        .toEqual({ sessionId: "s1" });
+      await collect(agent, "two");
+      expect(
+        logged()
+          .filter((l) => l.method === "session/prompt")
+          .map((p) => p.params.sessionId)
+      ).toEqual(["s1", "s2"]);
+    },
+    SLOW
+  );
+
+  it(
+    "stops waiting for a session/close the agent never answers",
+    async () => {
+      const { agent, logged, notes } = setup(
+        { FAKE_ACP_CLOSE: "hang" },
+        { closeTimeoutMs: 100 }
+      );
+      await collect(agent, "one");
+      agent.reset?.("opencharm-c_1");
+      await expect
+        .poll(() => notes.some((n) => n.includes("session/close")), PROCESS)
+        .toBe(true);
+      expect(logged().some((l) => l.method === "session/close")).toBe(true);
+      expect(await collect(agent, "two")).toBe("You said: two.");
+    },
+    SLOW
+  );
+
+  it("does nothing on a reset for a charm it has no session for", () => {
+    const { agent, logged } = setup();
+    agent.reset?.("opencharm-nobody");
+    expect(logged()).toEqual([]);
+  });
+
   it(
     "warms up the session before the first question",
     async () => {

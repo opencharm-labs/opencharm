@@ -23,6 +23,8 @@ type AcpAgentOptions = {
   // MCP servers for every session, e.g. the charm's own tools (`opencharm mcp`).
   mcpServers?: acp.McpServer[];
   log?: (line: string) => void;
+  // How long a session/close may go unanswered before charmd stops waiting (default 5 s).
+  closeTimeoutMs?: number;
 };
 type Item = { text: string } | { end: true } | { error: Error };
 type Session = { agent: Agent; sessionId: string };
@@ -30,12 +32,15 @@ type Agent = {
   child: ChildProcessWithoutNullStreams;
   context: acp.ClientContext;
   canAttach: boolean;
+  // ACP's optional session/close: the agent frees a session charmd let go of.
+  canClose: boolean;
   failure: () => Error;
   // Prefer the process's own exit reason over the "connection closed" that reaches us first.
   explain: (error: unknown) => Promise<Error>;
 };
 
 const AUTH_REQUIRED = -32000;
+const CLOSE_TIMEOUT_MS = 5000;
 const NO_ACCESS: acp.ClientCapabilities = {
   fs: { readTextFile: false, writeTextFile: false },
   terminal: false,
@@ -212,6 +217,7 @@ function createAcpAgent(options: AcpAgentOptions): AgentAdapter {
           canAttach: Boolean(
             init.agentCapabilities?.sessionCapabilities?.additionalDirectories
           ),
+          canClose: Boolean(init.agentCapabilities?.sessionCapabilities?.close),
           failure: () => failure ?? new Error("the agent stopped"),
           explain,
         };
@@ -297,6 +303,35 @@ function createAcpAgent(options: AcpAgentOptions): AgentAdapter {
         log(`agent not ready: ${error.message}`)
       ),
     dispose: () => child?.kill(),
+    // A new conversation: the charm's next turn opens a new session. The old one is closed where the
+    // agent offers session/close; otherwise it stays in the agent process until that one stops.
+    reset: (sessionKey) => {
+      const old = sessions.get(sessionKey);
+      if (!old) return;
+      sessions.delete(sessionKey);
+      void old
+        .then(async ({ agent, sessionId }) => {
+          if (!agent.canClose || running !== agent) return;
+          // A session still winding down a cancelled prompt may never answer: stop waiting.
+          let timer: NodeJS.Timeout | undefined;
+          const unanswered = new Promise<"unanswered">((resolve) => {
+            timer = setTimeout(
+              () => resolve("unanswered"),
+              options.closeTimeoutMs ?? CLOSE_TIMEOUT_MS
+            );
+            timer.unref();
+          });
+          const outcome = await Promise.race([
+            agent.context
+              .request(acp.methods.agent.session.close, { sessionId })
+              .then(() => "closed" as const),
+            unanswered,
+          ]).finally(() => clearTimeout(timer));
+          if (outcome === "unanswered")
+            log(`session ${sessionId} didn't answer session/close; let go`);
+        })
+        .catch(() => undefined);
+    },
     async *reply({ sessionKey, text, signal, ask }) {
       const { agent, sessionId } = await session(sessionKey);
       // Cancelled while the agent was starting: never send the question at all.
