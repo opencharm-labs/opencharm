@@ -44,6 +44,9 @@ describe("wiring", () => {
       expect(() => eleven({})).toThrow(/ELEVENLABS_API_KEY/);
       process.env.ELEVENLABS_API_KEY = "from-env";
       expect(eleven({}).name).toBe("elevenlabs");
+      // ElevenLabs hears the hold as it goes; the voices that can't, don't claim to.
+      expect(eleven({}).live).toBeTypeOf("function");
+      expect(createVoiceFromConfig(parseConfig({})).live).toBeUndefined();
       delete process.env.ELEVENLABS_API_KEY;
       process.env.OPENCHARM_TEST_KEY = "named";
       expect(eleven({ apiKeyEnv: "OPENCHARM_TEST_KEY" }).name).toBe(

@@ -2,9 +2,11 @@ import { type IncomingMessage, createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 
 import { afterEach, describe, expect, it } from "vitest";
+import { type WebSocket, WebSocketServer } from "ws";
 
 import { readOggOpus } from "../audio/ogg-opus";
-import { pcmToOggOpus } from "../audio/opus-codec";
+import { createOpusEncoder, pcmToOggOpus } from "../audio/opus-codec";
+import { toBuffer } from "../device/raw-data";
 import {
   createElevenLabsListener,
   createElevenLabsSpeaker,
@@ -77,6 +79,50 @@ function tone(): Buffer {
 
 const signal = new AbortController().signal;
 
+type Chunk = {
+  message_type: string;
+  audio_base_64: string;
+  commit: boolean;
+  sample_rate: number;
+};
+
+// A stand-in for the realtime endpoint: records the URL, the key and every chunk, and answers each
+// chunk the way `answer` says.
+async function realtime(
+  answer: (chunk: Chunk, socket: WebSocket) => void
+): Promise<{ url: string; chunks: Chunk[]; urls: string[]; keys: string[] }> {
+  const chunks: Chunk[] = [];
+  const urls: string[] = [];
+  const keys: string[] = [];
+  const wss = new WebSocketServer({ port: 0, host: "127.0.0.1" });
+  wss.on("connection", (socket, request) => {
+    urls.push(request.url ?? "");
+    keys.push(String(request.headers["xi-api-key"] ?? ""));
+    socket.send(JSON.stringify({ message_type: "session_started" }));
+    socket.on("message", (data) => {
+      const chunk = JSON.parse(toBuffer(data).toString("utf8")) as Chunk;
+      chunks.push(chunk);
+      answer(chunk, socket);
+    });
+  });
+  await new Promise<void>((resolve) => wss.once("listening", resolve));
+  closers.push(() => wss.close());
+  return {
+    url: `http://127.0.0.1:${(wss.address() as AddressInfo).port}`,
+    chunks,
+    urls,
+    keys,
+  };
+}
+
+// The charm's packets: 16 kHz Opus, 60 ms each.
+function packets(count: number): Buffer[] {
+  const encoder = createOpusEncoder(16000);
+  const out = encoder.push(Buffer.alloc(960 * 2 * count));
+  encoder.end();
+  return out;
+}
+
 describe("ElevenLabs listening", () => {
   it("sends the charm's Ogg to Scribe with the key, the model and no sound tags", async () => {
     const api = await server(() => ({ json: { text: " Ciao, come stai? " } }));
@@ -113,6 +159,122 @@ describe("ElevenLabs listening", () => {
 
   it("refuses to start without a key", () => {
     expect(() => createElevenLabsListener({})).toThrow(/API key/);
+  });
+
+  it("rejects an answer with no transcript", async () => {
+    const api = await server(() => ({ json: { detail: "odd" } }));
+    const listener = createElevenLabsListener({
+      apiKey: "k",
+      baseUrl: api.url,
+    });
+    await expect(listener.transcribe(Buffer.alloc(0), signal)).rejects.toThrow(
+      /no transcript/
+    );
+  });
+});
+
+describe("ElevenLabs live listening", () => {
+  it("streams the hold as 16 kHz PCM and commits the last of it on release", async () => {
+    const api = await realtime((chunk, socket) => {
+      if (chunk.commit)
+        socket.send(
+          JSON.stringify({
+            message_type: "committed_transcript",
+            text: " Turn on the lights ",
+          })
+        );
+    });
+    const listener = createElevenLabsListener({
+      apiKey: "k-live",
+      baseUrl: api.url,
+    });
+    const live = listener.live?.();
+    for (const packet of packets(3)) live?.push(packet);
+    expect(await live?.finish(signal)).toBe("Turn on the lights");
+    expect(api.keys).toEqual(["k-live"]);
+    expect(api.urls[0]).toBe(
+      "/v1/speech-to-text/realtime?model_id=scribe_v2_realtime&audio_format=pcm_16000&commit_strategy=manual"
+    );
+    expect(api.chunks.map((c) => c.commit)).toEqual([false, false, true]);
+    for (const chunk of api.chunks) {
+      expect(chunk).toMatchObject({
+        message_type: "input_audio_chunk",
+        sample_rate: 16000,
+      });
+      // 60 ms of 16-bit mono at 16 kHz.
+      expect(Buffer.from(chunk.audio_base_64, "base64")).toHaveLength(1920);
+    }
+  });
+
+  it("fails on an error message, naming its type and never the key", async () => {
+    const api = await realtime((_chunk, socket) =>
+      socket.send(
+        JSON.stringify({ message_type: "auth_error", error: "bad key" })
+      )
+    );
+    const listener = createElevenLabsListener({
+      apiKey: "secret-key",
+      baseUrl: api.url,
+    });
+    const live = listener.live?.();
+    for (const packet of packets(2)) live?.push(packet);
+    const error = await live?.finish(signal).catch((e: Error) => e);
+    expect(String(error)).toMatch(/auth_error/);
+    expect(String(error)).not.toMatch(/secret-key/);
+  });
+
+  it("gives up when no transcript comes in time", async () => {
+    const api = await realtime(() => undefined);
+    const listener = createElevenLabsListener({
+      apiKey: "k",
+      baseUrl: api.url,
+      liveFinishMs: 100,
+    });
+    const live = listener.live?.();
+    for (const packet of packets(1)) live?.push(packet);
+    await expect(live?.finish(signal)).rejects.toThrow(/in time/);
+  });
+
+  it("fails without waiting when the service refuses while the transcript is awaited", async () => {
+    const api = await realtime((chunk, socket) => {
+      if (chunk.commit) socket.close(4001, "quota");
+    });
+    const listener = createElevenLabsListener({
+      apiKey: "k",
+      baseUrl: api.url,
+      liveFinishMs: 5000,
+    });
+    const live = listener.live?.();
+    for (const packet of packets(1)) live?.push(packet);
+    const started = Date.now();
+    await expect(live?.finish(signal)).rejects.toThrow(/closed \(4001 quota\)/);
+    expect(Date.now() - started).toBeLessThan(1000);
+  });
+
+  it("fails at once when the service can't be reached", async () => {
+    const listener = createElevenLabsListener({
+      apiKey: "k",
+      baseUrl: "http://127.0.0.1:9",
+      liveFinishMs: 5000,
+    });
+    const live = listener.live?.();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const started = Date.now();
+    await expect(live?.finish(signal)).rejects.toThrow(/live speech-to-text/);
+    expect(Date.now() - started).toBeLessThan(1000);
+  });
+
+  it("stops when the turn is cancelled", async () => {
+    const api = await realtime(() => undefined);
+    const listener = createElevenLabsListener({
+      apiKey: "k",
+      baseUrl: api.url,
+    });
+    const live = listener.live?.();
+    const controller = new AbortController();
+    const finished = live?.finish(controller.signal);
+    controller.abort(new Error("let go"));
+    await expect(finished).rejects.toThrow(/let go/);
   });
 });
 

@@ -5,7 +5,7 @@ import { opusPacketSamples48k, writeOggOpus } from "../audio/ogg-opus";
 import { guessLanguage } from "../voice/language";
 import { VoiceNotReady } from "../voice/models";
 import { PacketStream, packetsOf } from "../voice/packets";
-import type { VoiceProvider } from "../voice/types";
+import type { LiveTranscription, VoiceProvider } from "../voice/types";
 import { ACP_AGENTS } from "../agent/acp-agents";
 import { SentenceSplitter, cleanForSpeech } from "./sentences";
 
@@ -83,6 +83,8 @@ async function inStage<T>(stage: Stage, work: () => Promise<T>): Promise<T> {
 class TurnController {
   #state: TurnState = "idle";
   #frames: Buffer[] = [];
+  // The voice hearing this hold as it goes, when it can (ElevenLabs).
+  #live: LiveTranscription | undefined;
   #generation = 0;
   #controller: AbortController | undefined;
   #speaking = false;
@@ -147,6 +149,7 @@ class TurnController {
   }
 
   #cancel(): void {
+    this.#endLive();
     this.#endFace = undefined;
     this.#generation += 1;
     this.#controller?.abort();
@@ -166,6 +169,8 @@ class TurnController {
       this.#cancel();
     this.#state = "listening";
     this.#frames = [];
+    this.#endLive();
+    this.#live = this.#deps.voice.live?.();
     this.#face("listening");
     // The user is speaking for a few seconds anyway: a good moment for a slow agent to start up,
     // and for the voice to get ready to answer (when the answer will be spoken).
@@ -174,8 +179,15 @@ class TurnController {
   }
 
   audio(frame: Buffer): void {
-    if (this.#state === "listening" && this.#frames.length < MAX_FRAMES)
+    if (this.#state === "listening" && this.#frames.length < MAX_FRAMES) {
       this.#frames.push(frame);
+      this.#live?.push(frame);
+    }
+  }
+
+  #endLive(): void {
+    this.#live?.cancel();
+    this.#live = undefined;
   }
 
   abort(): void {
@@ -188,13 +200,39 @@ class TurnController {
   listenStop(): Promise<void> {
     if (this.#state !== "listening") return Promise.resolve();
     const frames = this.#frames;
+    const live = this.#live;
     this.#frames = [];
+    this.#live = undefined;
     if (frames.length === 0) {
+      live?.cancel();
       this.#state = "idle";
       this.#face("idle");
       return Promise.resolve();
     }
-    return this.#run({ frames });
+    return this.#run(live ? { frames, live } : { frames });
+  }
+
+  // The live transcript first: most of it is in by the time the key is let go. If it fails, the
+  // whole clip goes the usual way, so a turn never depends on it.
+  async #transcribe(
+    frames: Buffer[],
+    live: LiveTranscription | undefined,
+    signal: AbortSignal
+  ): Promise<string> {
+    if (live) {
+      try {
+        return await live.finish(signal);
+      } catch (error) {
+        if (signal.aborted) throw error;
+        this.#deps.log?.({
+          event: "live-stt-failed",
+          session: this.#deps.sessionKey,
+          reason: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+    const ogg = writeOggOpus(frames, { inputSampleRate: 16000 });
+    return this.#deps.voice.transcribe(ogg, signal);
   }
 
   // Typed text from the desktop charm (spec 013): no listening, and the answer comes as text, the way
@@ -204,7 +242,9 @@ class TurnController {
     return this.#run({ text: text.trim() });
   }
 
-  async #run(input: { frames: Buffer[] } | { text: string }): Promise<void> {
+  async #run(
+    input: { frames: Buffer[]; live?: LiveTranscription } | { text: string }
+  ): Promise<void> {
     const generation = ++this.#generation;
     const live = () => this.#generation === generation;
     const controller = new AbortController();
@@ -264,9 +304,9 @@ class TurnController {
       if ("text" in input) {
         heard = input.text;
       } else {
-        const ogg = writeOggOpus(input.frames, { inputSampleRate: 16000 });
+        const { frames, live: heardLive } = input;
         heard = await Promise.race([
-          inStage("stt", () => this.#deps.voice.transcribe(ogg, signal)),
+          inStage("stt", () => this.#transcribe(frames, heardLive, signal)),
           timeoutGuard,
         ]);
         timings.sttMs = now() - started;
