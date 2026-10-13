@@ -97,16 +97,18 @@ _Later:_ a browser flasher for OpenCharm OS (nothing to install).
 
 **With the desktop app** (the easy way; spec 013): install the [desktop charm](../apps/desktop/README.md) and go through its setup (your agent, its folder). Then **Add a charm…** (menu bar or Settings) walks you through it:
 
-1. Turn on **Charms on this network**: the app's charmd now also listens on your Wi-Fi (port 8787) and tells charms on the network where it is. On a Mac, macOS asks whether OpenCharm may find devices on your local network: choose Allow.
+1. Turn on **Charms on this network**: the app's charmd now also listens on your Wi-Fi (port 8787) and tells charms on the network where it is. On a Mac, macOS asks whether OpenCharm may find devices on your local network, and, with the firewall on, whether "node" may accept incoming connections (that's OpenCharm's charmd): choose Allow both times.
 2. The charm's screen says "Join Wi-Fi OpenCharm-XXXX". Join that network from your phone; a setup page opens (or go to `http://192.168.4.1`). Pick your Wi-Fi (2.4 GHz; an iPhone hotspot needs "Maximize Compatibility") and type its password. Leave the rest: the charm finds the app's charmd by itself ("Looking for charmd…") and remembers the computer by its `.local` name, so a new IP doesn't break it.
 3. The charm shows a 6-digit code. Type it in the window (it's never shown there: you read it off your charm, so nothing nearby can pair in its place), give it a name and choose a PIN.
 4. Type that PIN on the charm. The window says "All set", and Settings lists the charm with its battery.
+
+Missed a macOS prompt? The charm then says "No charmd". Allow OpenCharm in System Settings → Privacy & Security → Local Network and node in System Settings → Network → Firewall → Options, then quit and reopen OpenCharm. Keep the firewall on, but leave **Block all incoming connections** off, or the charm can't reach charmd. Use **Charms on this network** on networks you trust, such as home: the charm talks to charmd unencrypted on your Wi-Fi.
 
 **By hand** (a charmd you run, or on a server):
 
 1. On the agent's machine, install and start charmd (`npm i -g opencharm`, then `opencharm serve`). On a server, follow [deploy.md](deploy.md) (a system service behind Caddy for HTTPS). For a board on your home network, give charmd a network listener: `"network": { "port": 8787 }` and `"allowInsecureRemote": true` in its config; it then announces itself on the network.
 2. Point charmd at your agent (config: [`packages/charmd/README.md`](../packages/charmd/README.md)). On your computer charmd starts Claude Code, Codex, Gemini CLI, Hermes, OpenClaw or another ACP agent itself. On a server it talks to the agent's OpenAI-compatible API on localhost only: Hermes `API_SERVER_ENABLED=true` ([docs](https://hermes-agent.nousresearch.com/docs/user-guide/features/api-server)), or OpenClaw's chat completions endpoint ([docs](https://docs.openclaw.ai/gateway/openai-http-api)).
-3. Wi-Fi as above. To give the address yourself (a server, or when the charm doesn't find charmd), put it under **Advanced** in **Custom OTA URL**:
+3. Wi-Fi as above. To give the address yourself (a server, or when the charm doesn't find charmd), open **charmd address** at the bottom of the setup page, type it and tap **Save address**:
    - charmd on a server behind Caddy: its domain, for example `charm.yourdomain.com`. The charm connects with TLS, checked against the public certificate authorities.
    - charmd on your own computer: `http://<computer>.local:8787` (on a Mac, the name under System Settings → General → Sharing → Local hostname) or its IP. Without TLS the charm's token crosses your network unencrypted: fine at home, not on shared Wi-Fi.
 4. `opencharm pair` on the agent's machine: it says a charm is waiting and asks for the code on its screen; then choose the charm's PIN and type it on the charm.

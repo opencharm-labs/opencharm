@@ -1,5 +1,5 @@
 // Guards the desktop app's wiring that only shows up when it's built or released.
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -62,6 +62,31 @@ describe("the desktop app", () => {
         }
     );
     for (const cap of caps) expect(cap.windows).toContain("setup");
+  });
+
+  it("lets a window that closes itself do so, or its button silently does nothing", () => {
+    // Tauri's defaults don't include closing a window from its page.
+    const caps = readdirSync(join(APP, "src-tauri", "capabilities")).map(
+      (file) =>
+        JSON.parse(read(APP, "src-tauri", "capabilities", file)) as {
+          windows: string[];
+          permissions: string[];
+        }
+    );
+    const closers = readdirSync(join(APP, "web"))
+      .filter((f) => f.endsWith(".js"))
+      .filter((f) => read(APP, "web", f).includes("getCurrentWindow().close()"))
+      .map((f) => f.replace(/\.js$/, ""));
+    expect(closers).toContain("add-charm");
+    for (const label of closers)
+      expect(
+        caps.some(
+          (c) =>
+            c.windows.includes(label) &&
+            c.permissions.includes("core:window:allow-close")
+        ),
+        `${label} closes itself`
+      ).toBe(true);
   });
 
   it("takes its version from package.json, which CI stamps from the release tag", () => {
