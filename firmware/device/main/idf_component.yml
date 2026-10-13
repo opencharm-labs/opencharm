@@ -4,7 +4,11 @@ dependencies:
   espressif/esp_lcd_co5300: "^2.1.0"
   waveshare/esp_lcd_touch_cst9217: "^1.0.3"
   # Wi-Fi setup (hotspot and page) as XiaoZhi v2.5.2 uses it, and Espressif's WebSocket client.
-  78/esp-wifi-connect: "~3.3.1"
+  # Our copy of 3.3.1 (components/esp-wifi-connect): its code as published, its two pages ours,
+  # in OpenCharm's design (spec 009).
+  78/esp-wifi-connect:
+    version: "~3.3.1"
+    override_path: "../components/esp-wifi-connect"
   espressif/esp_websocket_client: "^1.8.0"
   # Finding charmd on the local network when no address was typed (spec 009).
   espressif/mdns: "^1.8.0"

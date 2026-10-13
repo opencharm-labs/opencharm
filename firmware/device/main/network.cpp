@@ -1,9 +1,12 @@
 #include "network.h"
 
+#include <strings.h>
+
 #include <atomic>
 #include <cstring>
 #include <mutex>
 
+#include "charm/offline_clock.h"
 #include "charm/protocol.h"
 #include "charm/view.h"
 #include "esp_crt_bundle.h"
@@ -28,7 +31,6 @@ constexpr int kCommandQueueLength = 8;
 // packet; anything bigger is not one of them.
 constexpr size_t kMaxMessage = 16 * 1024;
 constexpr uint32_t kRetryMs = 2000;                 // charmd unreachable: try again this often
-constexpr uint32_t kNoWifiSetupMs = 60 * 1000;      // no Wi-Fi this long: open the setup hotspot
 constexpr uint32_t kUnreachableHintMs = 30 * 1000;  // then say how to change the address
 // Sends never hold up the main loop for long: a socket this slow is about to be replaced anyway.
 constexpr TickType_t kSendTimeout = pdMS_TO_TICKS(100);
@@ -49,9 +51,10 @@ std::function<std::string()> token_of;
 // The worker's own state (only the worker task touches these).
 esp_websocket_client_handle_t client = nullptr;
 std::string url;
+std::string target;  // url with a `.local` name resolved: what the client connects to
 std::string headers;
 uint32_t generation = 0;
-uint32_t offline_since = 0;      // when Wi-Fi went away (0 = it's up, or setup is open)
+charm::OfflineClock offline;     // no Wi-Fi for a minute (outside setup): open setup
 uint32_t unreachable_since = 0;  // when charmd stopped answering (0 = it answers)
 bool hinted = false;
 bool discovering = false;  // no address saved: looking for charmd on the local network
@@ -140,10 +143,14 @@ std::string local_address(const char* hostname, uint16_t port) {
   return "http://" + std::string(hostname) + ".local:" + std::to_string(port);
 }
 
-std::string discover() {
+bool mdns_ready() {
   static bool started = false;
   if (!started) started = mdns_init() == ESP_OK;
-  if (!started) return "";
+  return started;
+}
+
+std::string discover() {
+  if (!mdns_ready()) return "";
   mdns_result_t* results = nullptr;
   if (mdns_query_ptr("_opencharm", "_tcp", 1500, 2, &results) != ESP_OK || !results) return "";
   std::string found;
@@ -164,6 +171,35 @@ std::string discover() {
 std::string host_of(const std::string& ws_url) {
   size_t from = ws_url.find("://") + 3;
   return ws_url.substr(from, ws_url.find('/', from) - from);
+}
+
+// Where to connect for a URL: a `.local` host asked of the local network with the mDNS component
+// (lwIP's own lookup doesn't answer `.local` names here), its IPv4 address put in the URL. The
+// saved address keeps the name, so the token stays bound to it and a new IP is found next time.
+// Not found: the URL as it is, which fails and is tried again. Only plain ws: over TLS (wss) the
+// certificate is checked against the name, so the name stays.
+std::string connect_url(const std::string& ws_url) {
+  if (ws_url.rfind("ws://", 0) != 0) return ws_url;
+  std::string authority = host_of(ws_url);
+  size_t colon = authority.rfind(':');
+  std::string name = authority.substr(0, colon);
+  if (!name.empty() && name.back() == '.') name.pop_back();  // "mac.local." is "mac.local"
+  const std::string suffix = ".local";
+  if (name.size() <= suffix.size() ||
+      strcasecmp(name.c_str() + name.size() - suffix.size(), suffix.c_str()) != 0 || !mdns_ready())
+    return ws_url;
+  esp_ip4_addr_t ip = {};
+  std::string label = name.substr(0, name.size() - suffix.size());
+  if (mdns_query_a(label.c_str(), 2000, &ip) != ESP_OK || ip.addr == 0) {
+    ESP_LOGW(kTag, "couldn't find %s on this network", name.c_str());
+    return ws_url;
+  }
+  char text[16];
+  snprintf(text, sizeof(text), IPSTR, IP2STR(&ip));
+  size_t from = ws_url.find("://") + 3;
+  return ws_url.substr(0, from) + text +
+         (colon == std::string::npos ? "" : authority.substr(colon)) +
+         ws_url.substr(from + authority.size());
 }
 
 void on_socket(void* arg, esp_event_base_t, int32_t id, void* data) {
@@ -265,8 +301,9 @@ void start_socket() {
   }
   headers = "Protocol-Version: 1\r\n";
   if (!token.empty()) headers += "Authorization: Bearer " + token + "\r\n";
+  target = connect_url(url);
   esp_websocket_client_config_t config = {};
-  config.uri = url.c_str();
+  config.uri = target.c_str();
   config.headers = headers.c_str();
   config.disable_auto_reconnect = true;  // the worker reconnects, with the token as it is then
   config.network_timeout_ms = 10000;
@@ -290,7 +327,7 @@ void start_socket() {
 void open_setup() {
   discovering = false;
   stop_socket();
-  offline_since = 0;
+  offline.online();
   unreachable_since = 0;
   WifiManager::GetInstance().StartConfigAp();
 }
@@ -302,7 +339,7 @@ void worker(void*) {
     if (xQueueReceive(commands, &p, pdMS_TO_TICKS(500)) == pdTRUE) {
       switch (p.command) {
         case Command::WifiUp:
-          offline_since = 0;
+          offline.online();
           unreachable_since = now_ms();
           hinted = false;
           retry_at = 0;
@@ -313,7 +350,7 @@ void worker(void*) {
           stop_socket();
           retry_at = 0;
           unreachable_since = 0;
-          if (offline_since == 0) offline_since = now_ms();
+          offline.offline(now_ms());
           break;
         case Command::Retry:
           if (p.generation == generation && retry_at == 0) retry_at = now_ms() + kRetryMs;
@@ -358,7 +395,7 @@ void worker(void*) {
       push(Event::Kind::Offline, "No charmd. Hold the key 5 s for setup.");
     }
     // No Wi-Fi for a minute (at boot, after setup, or later): open the setup hotspot.
-    if (offline_since != 0 && !wifi.IsConfigMode() && now - offline_since >= kNoWifiSetupMs) {
+    if (offline.due(now, wifi.IsConfigMode())) {
       ESP_LOGI(kTag, "no Wi-Fi for a minute; opening Wi-Fi setup");
       open_setup();
     }

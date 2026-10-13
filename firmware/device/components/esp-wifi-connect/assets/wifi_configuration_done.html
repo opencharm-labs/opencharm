@@ -1,0 +1,126 @@
+<!doctype html>
+<!-- OpenCharm's Wi-Fi setup, done (spec 009): says so, then asks the charm to close its hotspot
+     and join the network (POST /exit, as the upstream page does). DESIGN.md, no web fonts. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OpenCharm · Connected</title>
+    <style>
+      :root {
+        --bg: #f6f6f4;
+        --card: #ffffff;
+        --ink: #0a0a0a;
+        --ink2: #3a3a3a;
+        --mute: #6e6e6e;
+        --line: rgba(10, 10, 10, 0.22);
+        /* DESIGN.md tokens */
+        --glyph: #f4f3ee; /* identity-white-glyph */
+        --screen: #000000; /* charm-screen */
+        --grid-line: rgba(10, 10, 10, 0.03);
+        --grid-line-major: rgba(10, 10, 10, 0.07);
+        --hairline: rgba(0, 0, 0, 0.12);
+        --grid-minor: 20px;
+        --grid-major: 160px;
+        --gap: 14px;
+        --half: calc(var(--gap) / 2);
+        --gutter: 40px;
+        --r-tag: 3px;
+        --r-control: 10px;
+        --r-pill: 999px;
+        --sans:
+          Geist, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        --mono: "Geist Mono", ui-monospace, Menlo, Consolas, monospace;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background-color: var(--bg);
+        background-image:
+          linear-gradient(var(--grid-line-major) 1px, transparent 1px),
+          linear-gradient(90deg, var(--grid-line-major) 1px, transparent 1px),
+          linear-gradient(var(--grid-line) 1px, transparent 1px),
+          linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+        background-size:
+          var(--grid-major) var(--grid-major),
+          var(--grid-major) var(--grid-major),
+          var(--grid-minor) var(--grid-minor),
+          var(--grid-minor) var(--grid-minor);
+        color: var(--ink);
+        font: 400 15px/1.55 var(--sans);
+        display: grid;
+        place-items: center;
+        padding: var(--grid-minor) var(--gap);
+      }
+      .card {
+        width: 100%;
+        max-width: 480px;
+        background: var(--card);
+        border: 1.5px solid var(--ink);
+        padding: var(--grid-minor) var(--grid-minor);
+        text-align: center;
+      }
+      .face {
+        width: 120px;
+        height: 120px;
+        margin: 0 auto var(--grid-minor);
+        border-radius: 31%;
+        background: var(--screen);
+        color: var(--glyph);
+        display: grid;
+        place-items: center;
+        font: 800 34px/1 var(--mono);
+      }
+      .label {
+        color: var(--mute);
+        font: 400 12px/1.5 var(--mono);
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        margin: 0 0 var(--half);
+      }
+      h1 {
+        margin: 0 0 var(--half);
+        font: 600 22px/1.2 var(--sans);
+        letter-spacing: -0.01em;
+      }
+      p {
+        margin: 0 0 var(--half);
+        color: var(--ink2);
+      }
+      .note {
+        color: var(--mute);
+        font: 400 11px/1.7 var(--mono);
+        letter-spacing: 0.06em;
+        margin-top: var(--gap);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <div class="face" aria-hidden="true">^ ^</div>
+      <p class="label">OpenCharm · Wi-Fi</p>
+      <h1 id="title">Connected</h1>
+      <p id="line">Your charm is joining your Wi-Fi now.</p>
+      <p>
+        Its screen shows a 6-digit code once it finds charmd: type it in the
+        OpenCharm app.
+      </p>
+      <p class="note">
+        This hotspot closes now. Your phone goes back to its usual Wi-Fi.
+      </p>
+    </main>
+    <script>
+      "use strict";
+      const ssid = new URLSearchParams(location.search).get("ssid");
+      if (ssid)
+        document.getElementById("line").textContent =
+          "Your charm is joining " + ssid + " now.";
+      setTimeout(() => {
+        fetch("/exit", { method: "POST" }).catch(() => {});
+      }, 1500);
+    </script>
+  </body>
+</html>

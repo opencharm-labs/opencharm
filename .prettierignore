@@ -24,3 +24,5 @@ apps/desktop/src-tauri/gen/
 # ESP-IDF build output and downloaded components (ignored by firmware/device/.gitignore)
 firmware/device/build/
 firmware/device/managed_components/
+# Our copy of 78/esp-wifi-connect keeps its files as published (its two pages are ours, and formatted)
+firmware/device/components/esp-wifi-connect/idf_component.yml
