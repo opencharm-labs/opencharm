@@ -644,6 +644,22 @@ pub const VOICE_KEYS: [(&str, &str); 2] = [
     ("elevenlabs", "OPENCHARM_ELEVENLABS_API_KEY"),
 ];
 
+/// A voice whose key isn't in the keychain reads it from the usual variable (an `OPENAI_API_KEY` in
+/// your shell), as before the keychain names: `apiKeyEnv` stays only where that name has a key.
+pub fn keys_from(voice: &mut Value, env: &HashMap<String, String>) {
+    for side in ["listen", "speak"] {
+        let block = &mut voice[side];
+        let unset = block["apiKeyEnv"].as_str().is_some_and(|name| {
+            VOICE_KEYS.iter().any(|(_, n)| *n == name) && !env.contains_key(name)
+        });
+        if unset {
+            if let Some(block) = block.as_object_mut() {
+                block.remove("apiKeyEnv");
+            }
+        }
+    }
+}
+
 /// For an `opencharm` from before ElevenLabs: that side gets the default (Parakeet listening,
 /// Microsoft's voices speaking) instead of a config charmd would refuse.
 pub fn without_elevenlabs(voice: &mut Value) {
@@ -1790,6 +1806,26 @@ mod tests {
                 elevenlabs: false
             }
         );
+    }
+
+    #[test]
+    fn a_voice_key_not_in_the_keychain_is_read_from_the_usual_variable() {
+        let mut voice = json!({
+            "listen": { "provider": "openai", "apiKeyEnv": "OPENCHARM_OPENAI_API_KEY" },
+            "speak": { "provider": "elevenlabs", "apiKeyEnv": "OPENCHARM_ELEVENLABS_API_KEY" }
+        });
+        let env: HashMap<String, String> =
+            [("OPENCHARM_ELEVENLABS_API_KEY".to_string(), "k".to_string())].into();
+        keys_from(&mut voice, &env);
+        assert_eq!(voice["listen"], json!({ "provider": "openai" }));
+        assert_eq!(
+            voice["speak"],
+            json!({ "provider": "elevenlabs", "apiKeyEnv": "OPENCHARM_ELEVENLABS_API_KEY" })
+        );
+        // A workspace's own variable is its business.
+        let mut own = json!({ "speak": { "provider": "openai", "apiKeyEnv": "MY_KEY" } });
+        keys_from(&mut own, &HashMap::new());
+        assert_eq!(own["speak"]["apiKeyEnv"], "MY_KEY");
     }
 
     #[test]

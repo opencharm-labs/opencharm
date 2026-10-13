@@ -807,6 +807,7 @@ fn apply_managed(app: &AppHandle) {
             }
         }
         let (mut config, label) = managed::build_config(&settings, &folder, &managed.data);
+        managed::keys_from(&mut config["voice"], &env);
         let features = managed::cli_features(&cli, &env);
         // Settings charmd depends on may have changed while the CLI was asked: the newer apply
         // wins, this one stops. Spoken replies are read now, the latest value.
