@@ -31,6 +31,9 @@
         --r-tag: 3px;
         --r-control: 10px;
         --r-pill: 999px;
+        /* DESIGN.md components: button-primary and filter */
+        --pad-button: 16px 26px;
+        --pad-filter: 9px 14px;
         --sans:
           Geist, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
         --mono: "Geist Mono", ui-monospace, Menlo, Consolas, monospace;
@@ -178,7 +181,7 @@
         cursor: pointer;
         border-radius: var(--r-pill);
         font: 600 16px/1 var(--sans);
-        padding: 16px 26px;
+        padding: var(--pad-button);
         border: 1.5px solid var(--ink);
       }
       button:disabled {
@@ -196,7 +199,7 @@
         color: var(--ink);
       }
       .small {
-        padding: 9px 14px;
+        padding: var(--pad-filter);
         font: 600 12px/1.5 var(--mono);
         letter-spacing: 0.08em;
       }
