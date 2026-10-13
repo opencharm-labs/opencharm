@@ -67,6 +67,14 @@ const listenSchema = z.discriminatedUnion("provider", [
       model: z.string().optional(),
     })
     .strict(),
+  // Scribe, with the person's key (spec 003).
+  z
+    .object({
+      provider: z.literal("elevenlabs"),
+      ...secret,
+      model: z.string().min(1).optional(),
+    })
+    .strict(),
   z
     .object({ provider: z.literal("fake"), transcript: z.string().optional() })
     .strict(),
@@ -103,6 +111,15 @@ const speakSchema = z.discriminatedUnion("provider", [
       baseUrl: z.url().optional(),
       model: z.string().optional(),
       voice: z.string().optional(),
+    })
+    .strict(),
+  // With no voice: the first in the person's ElevenLabs account.
+  z
+    .object({
+      provider: z.literal("elevenlabs"),
+      ...secret,
+      voice: z.string().min(1).optional(),
+      model: z.string().min(1).optional(),
     })
     .strict(),
   z.object({ provider: z.literal("fake") }).strict(),

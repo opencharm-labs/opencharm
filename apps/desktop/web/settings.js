@@ -112,10 +112,16 @@ function fill() {
   $("server-row").hidden = settings.agent !== "server";
   $("key-row").hidden =
     settings.listen !== "openai" && settings.speak !== "openai";
+  $("elevenlabs-row").hidden =
+    settings.listen !== "elevenlabs" && settings.speak !== "elevenlabs";
+  $("elevenlabs-voice-row").hidden = settings.speak !== "elevenlabs";
+  $("elevenlabs-voice").value = settings.elevenlabsVoice ?? "";
   $("listen-note").textContent = {
     local:
       "Understood on this computer: your voice never leaves it. The first start downloads about 490 MB.",
     openai: "OpenAI hears what you say. The key stays in your keychain.",
+    elevenlabs:
+      "ElevenLabs hears what you say. The key stays in your keychain.",
     fake: "No microphone: the charm hears a test sentence. For trying.",
   }[settings.listen];
   $("speak-note").textContent = {
@@ -125,6 +131,8 @@ function fill() {
       "A voice on this computer: nothing leaves it, but it sounds less natural (about 130 MB the first time).",
     system: "The voice below, from macOS. Nothing leaves this Mac.",
     openai: "OpenAI's voices. The key stays in your keychain.",
+    elevenlabs:
+      "ElevenLabs' voices: the text of each spoken reply goes to ElevenLabs. Paste a voice ID from My Voices on elevenlabs.io. The key stays in your keychain.",
     fake: "No speaker: a soft tone stands in for speech. For trying.",
   }[settings.speak];
 
@@ -551,6 +559,25 @@ $("save-key").addEventListener("click", async () => {
     react("oops", 2200);
   }
 });
+
+if (await invoke("has_elevenlabs_key"))
+  $("elevenlabs-key").placeholder = "ElevenLabs key saved in your keychain";
+$("save-elevenlabs-key").addEventListener("click", async () => {
+  try {
+    await invoke("set_elevenlabs_key", { key: $("elevenlabs-key").value });
+    $("elevenlabs-key").value = "";
+    $("elevenlabs-key").placeholder = "ElevenLabs key saved in your keychain";
+    status.textContent = "KEY SAVED";
+    react("joy");
+  } catch (error) {
+    status.textContent = String(error).toUpperCase();
+    react("oops", 2200);
+  }
+});
+$("elevenlabs-voice").addEventListener(
+  "change",
+  (e) => void save({ elevenlabsVoice: e.target.value.trim() })
+);
 
 // A newer release found by the charm's daily check: download it from GitHub.
 const offered = await invoke("update_offered");

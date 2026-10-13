@@ -4,7 +4,7 @@ import { readOggOpus, writeOggOpus } from "./ogg-opus";
 
 const FRAME_MS = 60;
 
-// Only the fake and local voices need real encoding; the OpenAI path never decodes audio.
+// The fake, local and ElevenLabs voices need real encoding; the OpenAI path never decodes audio.
 function pcmToOggOpus(
   pcm: Buffer,
   sampleRate: 8000 | 12000 | 16000 | 24000 | 48000
@@ -41,4 +41,54 @@ function oggOpusToPcm(
   }
 }
 
-export { oggOpusToPcm, pcmToOggOpus };
+type OpusEncoder = {
+  // 16-bit mono PCM in any chunk size (an odd byte waits for its pair); whole frames come out.
+  push: (pcm: Buffer) => Buffer[];
+  // The rest, padded with silence to a frame; then the encoder is freed.
+  end: () => Buffer[];
+};
+
+// For speech that arrives as PCM in pieces (ElevenLabs): Opus packets as soon as a frame is full.
+function createOpusEncoder(
+  sampleRate: 8000 | 12000 | 16000 | 24000 | 48000
+): OpusEncoder {
+  const samples = (sampleRate * FRAME_MS) / 1000;
+  const frameBytes = samples * 2;
+  const encoder = new OpusScript(sampleRate, 1, OpusScript.Application.AUDIO);
+  let pending = Buffer.alloc(0);
+  let ended = false;
+  const frames = (): Buffer[] => {
+    const packets: Buffer[] = [];
+    while (pending.length >= frameBytes) {
+      packets.push(
+        Buffer.from(encoder.encode(pending.subarray(0, frameBytes), samples))
+      );
+      pending = pending.subarray(frameBytes);
+    }
+    return packets;
+  };
+  return {
+    push(pcm) {
+      if (ended) return [];
+      pending = Buffer.concat([pending, pcm]);
+      return frames();
+    },
+    end() {
+      if (ended) return [];
+      ended = true;
+      try {
+        const whole = pending.length - (pending.length % 2);
+        if (whole === 0) return [];
+        const last = Buffer.alloc(frameBytes);
+        pending.copy(last, 0, 0, whole);
+        pending = last;
+        return frames();
+      } finally {
+        encoder.delete();
+      }
+    },
+  };
+}
+
+export { createOpusEncoder, oggOpusToPcm, pcmToOggOpus };
+export type { OpusEncoder };

@@ -24,15 +24,27 @@ pub const DEFAULT_LANGUAGE: &str = "en";
 
 /// The agents charmd knows by name (ACP presets, `packages/charmd/src/agent/acp-agents.ts`).
 pub const PRESETS: [&str; 6] = ["claude", "codex", "gemini", "goose", "hermes", "openclaw"];
-const LISTENS: [&str; 3] = ["local", "openai", "fake"];
+const LISTENS: [&str; 4] = ["local", "openai", "elevenlabs", "fake"];
 /// "system" is macOS `say`, so only there.
-const SPEAKS: [&str; 5] = ["microsoft", "local", "system", "openai", "fake"];
+const SPEAKS: [&str; 6] = [
+    "microsoft",
+    "local",
+    "system",
+    "openai",
+    "elevenlabs",
+    "fake",
+];
 /// The languages charmd tells apart and has a Microsoft voice for (`packages/charmd/src/voice`).
 const LANGUAGES: [&str; 6] = ["en", "it", "es", "fr", "de", "pt"];
 /// The six identity colours (`packages/design/faces.json`); orange is never one of them. A colour of
 /// your own is `#RRGGBB`.
 pub const COLOURS: [&str; 6] = ["white", "cobalt", "lime", "lilac", "sun", "coal"];
 const MOTIONS: [&str; 2] = ["full", "calm"];
+
+/// An ElevenLabs voice ID as its site shows them: letters and digits (spec 003).
+fn elevenlabs_voice_ok(voice: &str) -> bool {
+    (1..=64).contains(&voice.len()) && voice.chars().all(|c| c.is_ascii_alphanumeric())
+}
 
 /// A Microsoft voice for a language Settings offers, named exactly as charmd's config takes it
 /// (packages/charmd/src/config/config.ts, /^[A-Za-z]{2,3}-[A-Za-z]{2,4}-\w+$/), or charmd won't start.
@@ -165,9 +177,11 @@ pub struct Settings {
     pub server_model: String,
     /// Off: the charm shows replies as text instead of speaking them (spec 003), from the next one.
     pub speak_replies: bool,
-    /// What listens: "local" (Parakeet), "openai" (its key in the keychain) or "fake" (for trying).
+    /// What listens: "local" (Parakeet), "openai" or "elevenlabs" (their keys in the keychain) or
+    /// "fake" (for trying).
     pub listen: String,
-    /// What speaks: "microsoft", "local" (Supertonic), "system" (macOS `say`), "openai" or "fake".
+    /// What speaks: "microsoft", "local" (Supertonic), "system" (macOS `say`), "openai",
+    /// "elevenlabs" or "fake".
     pub speak: String,
     /// The language to fall back on when what's said doesn't show one.
     pub language: String,
@@ -181,6 +195,8 @@ pub struct Settings {
     pub look: Look,
     /// The macOS voice for the local voice ("" = the system's) when the workspace can't hold it.
     pub say_voice: String,
+    /// The ElevenLabs voice's ID ("" = the first voice in the person's account).
+    pub elevenlabs_voice: String,
     /// The Microsoft voice for each language ("it" → "it-IT-DiegoNeural"), over the workspace's.
     pub microsoft_voices: BTreeMap<String, String>,
     /// The guided setup's progress: the highest step finished (0 = not started, 6 = done).
@@ -214,6 +230,7 @@ impl Default for Settings {
             cli_path: None,
             look: Look::default(),
             say_voice: String::new(),
+            elevenlabs_voice: String::new(),
             microsoft_voices: BTreeMap::new(),
             setup_step: 0,
             setup_location: None,
@@ -261,6 +278,9 @@ impl Settings {
         if !LANGUAGES.contains(&self.language.as_str()) {
             self.language = DEFAULT_LANGUAGE.into();
         }
+        if !self.elevenlabs_voice.is_empty() && !elevenlabs_voice_ok(&self.elevenlabs_voice) {
+            self.elevenlabs_voice.clear();
+        }
         // A hand-edited voice charmd would refuse is dropped: charmd keeps starting, saves work.
         self.microsoft_voices
             .retain(|language, voice| microsoft_voice_ok(language, voice));
@@ -294,6 +314,9 @@ impl Settings {
         }
         if self.key.trim().is_empty() {
             return Err("choose a talk key".into());
+        }
+        if !self.elevenlabs_voice.is_empty() && !elevenlabs_voice_ok(&self.elevenlabs_voice) {
+            return Err("an ElevenLabs voice ID is letters and digits".into());
         }
         if self.type_key.trim().is_empty() || self.type_key == self.key {
             return Err("choose a typing key other than the talk key".into());
@@ -552,6 +575,25 @@ mod tests {
         assert_eq!(s.look.sleep_after_minutes, 4);
         assert_eq!(s.look.volume, 85);
         assert_eq!(s.say_voice, "Alice");
+    }
+
+    #[test]
+    fn an_elevenlabs_voice_id_is_letters_and_digits() {
+        let with = |voice: &str| Settings {
+            elevenlabs_voice: voice.into(),
+            ..Settings::default()
+        };
+        assert!(with("").valid().is_ok());
+        assert!(with("AbC123xyz").valid().is_ok());
+        assert!(with("a/b").valid().is_err());
+        assert!(with("voice id").valid().is_err());
+        let dir = std::env::temp_dir().join(format!("oc-settings-el-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("settings.json");
+        std::fs::write(&path, r#"{"speak":"elevenlabs","elevenlabsVoice":"../x"}"#).unwrap();
+        let loaded = Settings::load(&path);
+        assert_eq!(loaded.speak, "elevenlabs");
+        assert_eq!(loaded.elevenlabs_voice, "");
     }
 
     #[test]
