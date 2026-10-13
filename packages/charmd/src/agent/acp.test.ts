@@ -448,6 +448,7 @@ describe("agentEnvironment", () => {
         OPENAI_API_KEY: "the agent's",
         OPENCHARM_OPENAI_API_KEY: "the voice's",
         OPENCHARM_ELEVENLABS_API_KEY: "the voice's",
+        Opencharm_ElevenLabs_Api_Key: "the voice's, on Windows",
         OPENCHARM_DATA: "/tmp/x",
       })
     ).toEqual({

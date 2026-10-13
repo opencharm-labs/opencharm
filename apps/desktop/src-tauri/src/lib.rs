@@ -825,6 +825,8 @@ fn apply_managed(app: &AppHandle) {
             }
         } else if !features.elevenlabs {
             managed::without_elevenlabs(&mut config["voice"]);
+            // A key it can't use isn't handed over at all.
+            env.remove("OPENCHARM_ELEVENLABS_API_KEY");
         }
         managed
             .volume_ok
