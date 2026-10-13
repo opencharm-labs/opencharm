@@ -62,6 +62,11 @@ const CLOSE_POLICY = 1008;
 const CLOSE_TOO_BIG = 1009;
 const CLOSE_REVOKED = 4001;
 
+// The name a charm's conversation goes by in the agent, the same for every connection of the charm.
+function sessionKeyOf(charmId: string): string {
+  return `opencharm-${charmId}`;
+}
+
 function newCharmId(): string {
   return `c_${randomBytes(6).toString("hex")}`;
 }
@@ -105,6 +110,12 @@ class Session {
     return this.#charmId;
   }
 
+  // A turn the agent may be at work on (thinking or answering, not just listening): its place in the
+  // order turns began, else undefined.
+  get answering(): number | undefined {
+    return this.#turn?.answering;
+  }
+
   #send(message: ServerMessage): void {
     if (this.#state !== "closed") this.#deps.outbound.send(message);
   }
@@ -117,7 +128,7 @@ class Session {
   #activeTurn(): TurnController | undefined {
     if (!this.#turn && this.#deps.createTurn && this.#charmId) {
       this.#turn = this.#deps.createTurn({
-        sessionKey: `opencharm-${this.#charmId}`,
+        sessionKey: sessionKeyOf(this.#charmId),
         send: (message) => this.#send(message),
         sendAudio: (packet) => {
           if (this.#state === "unlocked")
@@ -475,5 +486,5 @@ class Session {
   }
 }
 
-export { Session };
+export { Session, sessionKeyOf };
 export type { AskOptions, Outbound, SessionDeps, SessionState, TurnIo };

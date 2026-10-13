@@ -87,6 +87,19 @@ describe("openai-compatible agent", () => {
     });
   });
 
+  it("sends a new user after a new conversation, so OpenClaw starts a new session", async () => {
+    const { url, seen } = await stub(["data: [DONE]\n\n"]);
+    const agent = createOpenAiCompatibleAgent({ baseUrl: url, model: "m" });
+    await text(agent);
+    agent.reset?.("opencharm-c_1");
+    await text(agent);
+    await text(agent, "hello", "opencharm-c_2");
+    const users = seen.map((s) => s.body.user as string);
+    expect(users[0]).toBe("opencharm-c_1");
+    expect(users[1]).toMatch(/^opencharm-c_1-[0-9a-f]{8}$/);
+    expect(users[2]).toBe("opencharm-c_2");
+  });
+
   it("fails with the status when the agent refuses", async () => {
     const { url } = await stub([], 401);
     const agent = createOpenAiCompatibleAgent({
@@ -123,6 +136,30 @@ describe("hermes agent", () => {
         conversation: "opencharm-c_1",
       },
     });
+  });
+});
+
+describe("hermes agent, new conversation", () => {
+  it("moves to a new conversation and keeps the charm's long-term memory key", async () => {
+    const { url, seen } = await stub([
+      'data: {"type":"response.completed"}\n\n',
+    ]);
+    const agent = createHermesAgent({ baseUrl: url, model: "hermes-agent" });
+    await text(agent);
+    agent.reset?.("opencharm-c_1");
+    await text(agent);
+    agent.reset?.("opencharm-c_1");
+    await text(agent);
+    const conversations = seen.map((s) => s.body.conversation as string);
+    expect(conversations[0]).toBe("opencharm-c_1");
+    expect(conversations[1]).toMatch(/^opencharm-c_1-[0-9a-f]{8}$/);
+    expect(conversations[2]).toMatch(/^opencharm-c_1-[0-9a-f]{8}$/);
+    expect(conversations[2]).not.toBe(conversations[1]);
+    expect(seen.map((s) => s.headers["x-hermes-session-key"])).toEqual([
+      "opencharm-c_1",
+      "opencharm-c_1",
+      "opencharm-c_1",
+    ]);
   });
 });
 

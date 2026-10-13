@@ -49,7 +49,7 @@ A new spec is only for a new feature. If a change could be described as "the des
 | --- | --------------------------------------------------------------------- | ----------- |
 | 001 | [Protocol package](001-protocol/spec.md)                              | Approved    |
 | 002 | [charmd core (sessions, pairing, PIN, lock)](002-charmd-core/spec.md) | Approved    |
-| 003 | [Voice and agent turns](003-voice-turns/spec.md)                      | Done        |
+| 003 | [Voice and agent turns](003-voice-turns/spec.md)                      | Approved    |
 | 004 | [Workspace](004-workspace/spec.md)                                    | Done        |
 | 005 | [OpenCharm OS (firmware core)](005-opencharm-os/spec.md)              | Done        |
 | 006 | [Emulator](006-emulator/spec.md)                                      | Done        |
@@ -58,7 +58,7 @@ A new spec is only for a new feature. If a change could be described as "the des
 | 009 | [Firmware device (Waveshare 2.16)](009-firmware-device/spec.md)       | In progress |
 | 010 | [Agents over ACP](010-acp-agents/spec.md)                             | Done        |
 | 011 | [Ask on the charm](011-ask-on-charm/spec.md)                          | Done        |
-| 012 | [Charm tools for the agent (MCP)](012-charm-tools/spec.md)            | Done        |
+| 012 | [Charm tools for the agent (MCP)](012-charm-tools/spec.md)            | Approved    |
 | 013 | [The desktop charm](013-desktop-charm/spec.md)                        | In progress |
 | 014 | [Personalise your charm](014-personalise/spec.md)                     | In progress |
 | 015 | [Build identity](015-build-identity/spec.md)                          | Done        |

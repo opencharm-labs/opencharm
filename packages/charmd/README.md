@@ -8,19 +8,19 @@ charmd is the program between a charm and the agent you run. It is the charm's d
 
 ## Features
 
-| Folder          | Job                                                                                                                                                             |
-| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/config/`   | `opencharm.json` / `/etc/opencharm/charmd.json`, validated with zod; loopback-only unless `allowInsecureRemote`                                                 |
-| `src/auth/`     | tokens (32 random bytes, only SHA-256 stored), PINs (scrypt), pairing codes (6 digits, 300 s, in memory)                                                        |
-| `src/store/`    | one JSON state file, atomic writes, mode 0600                                                                                                                   |
-| `src/device/`   | the `Session` state machine per connection (unpaired → locked → unlocked), tokens from the WebSocket request, the `/ota/` answer                                |
-| `src/admin/`    | what the CLI can do (`pair`, `lock`, `unlock`, `revoke`, `status`, `look`) over a 0600 local socket                                                             |
-| `src/look.ts`   | the charm's identity (spec 014): the `charm` block and its defaults turned into the `charm:look` message, and live changes to it                                |
-| `src/daemon.ts` | the HTTP + WebSocket server (`/charm`, `/ota/`); wires it all together: `startDaemon(config)`                                                                   |
-| `src/audio/`    | Ogg Opus reader/writer (RFC 7845) and an Opus codec helper for the local and fake voices                                                                        |
-| `src/voice/`    | speech providers: `openai`, `local` (macOS `say` + whisper.cpp), `fake`                                                                                         |
-| `src/agent/`    | agent adapters: `acp` (any ACP agent over stdio; presets in `acp-agents.ts`), `openai-compatible` (and the `openclaw` preset), `hermes` (Responses API), `fake` |
-| `src/turn/`     | one voice turn: listen → speech-to-text → agent → sentence-by-sentence speech, with abort and timeout                                                           |
+| Folder          | Job                                                                                                                                                                                                            |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/config/`   | `opencharm.json` / `/etc/opencharm/charmd.json`, validated with zod; loopback-only unless `allowInsecureRemote`                                                                                                |
+| `src/auth/`     | tokens (32 random bytes, only SHA-256 stored), PINs (scrypt), pairing codes (6 digits, 300 s, in memory)                                                                                                       |
+| `src/store/`    | one JSON state file, atomic writes, mode 0600                                                                                                                                                                  |
+| `src/device/`   | the `Session` state machine per connection (unpaired → locked → unlocked), tokens from the WebSocket request, the `/ota/` answer                                                                               |
+| `src/admin/`    | what the CLI can do (`pair`, `lock`, `unlock`, `revoke`, `status`, `look`, `newConversation`) over a 0600 local socket                                                                                         |
+| `src/look.ts`   | the charm's identity (spec 014): the `charm` block and its defaults turned into the `charm:look` message, and live changes to it                                                                               |
+| `src/daemon.ts` | the HTTP + WebSocket server (`/charm`, `/ota/`); wires it all together: `startDaemon(config)`                                                                                                                  |
+| `src/audio/`    | Ogg Opus reader/writer (RFC 7845) and an Opus codec helper for the local and fake voices                                                                                                                       |
+| `src/voice/`    | speech providers: `openai`, `local` (macOS `say` + whisper.cpp), `fake`                                                                                                                                        |
+| `src/agent/`    | agent adapters: `acp` (any ACP agent over stdio; presets in `acp-agents.ts`), `openai-compatible` (and the `openclaw` preset), `hermes` (Responses API), `fake`; `conversations.ts` (when a charm starts over) |
+| `src/turn/`     | one voice turn: listen → speech-to-text → agent → sentence-by-sentence speech, with abort and timeout                                                                                                          |
 
 ## Config
 
@@ -37,6 +37,7 @@ charmd is the program between a charm and the agent you run. It is the charm's d
   },
   "agent": { "adapter": "acp", "agent": "claude", "cwd": "." },
   "turnTimeoutSeconds": 60,
+  "newConversationAfterMinutes": 120,
   "logTranscripts": false,
   "speakReplies": true,
   "charm": { "name": "Momo", "colour": "lilac" }
@@ -54,6 +55,8 @@ charmd is the program between a charm and the agent you run. It is the charm's d
 | `openai-compatible` | `baseUrl`, `model`, optional key                                                                                                                     |
 
 Keys: `apiKey` in the file, or `apiKeyEnv` naming an environment variable.
+
+`newConversationAfterMinutes` (default `120`; `0` = never, at most 43200): a charm whose last turn with the agent ended (answered, cancelled or failed) longer ago starts its next one in a new conversation with the agent (spec 003, "A new conversation" below).
 
 | `charm` (spec 014)   | Default                                                                                        |
 | -------------------- | ---------------------------------------------------------------------------------------------- |
@@ -76,7 +79,7 @@ charmd builds the look from the `charm` block at start and sends it as `charm:lo
 - It merges the change, checks it against the protocol's schema (the old look stays on any error), sends it to every unlocked charm, and answers with the whole look: `{"name", "colour", "glyph", "greeting", "sleepAfterMinutes", "motion", "connected"}` (`connected`: charms it was sent to).
 - `"source": "agent"` (the `set_look` tool) is refused when `agentCanChangeLook` is false. Nothing is written to `opencharm.json`: a change lasts until charmd restarts. From the shell: `opencharm look [--colour c] [--greeting "…"] [--motion full|calm]`.
 
-Use `acp` when charmd can start the agent on the same machine as you (Claude Code, Codex, Gemini CLI, a local Hermes or OpenClaw). Use an HTTP adapter when the agent runs behind a user boundary, like the droplet (`docs/deploy.md`): there charmd must not start the agent under its own user. Every ACP session also gets the charm's own tools, an MCP server (`opencharm mcp`: `say`, `show_face`, `ask`, `notify`, `set_look`; `"charmTools": false` turns it off). ACP permission requests become a question on the charm (hold = yes, press = no; silence for 30 s = no); answers are always "once".
+Use `acp` when charmd can start the agent on the same machine as you (Claude Code, Codex, Gemini CLI, a local Hermes or OpenClaw). Use an HTTP adapter when the agent runs behind a user boundary, like the droplet (`docs/deploy.md`): there charmd must not start the agent under its own user. Every ACP session also gets the charm's own tools, an MCP server (`opencharm mcp`: `say`, `show_face`, `ask`, `notify`, `set_look`, `new_conversation`; `"charmTools": false` turns it off). ACP permission requests become a question on the charm (hold = yes, press = no; silence for 30 s = no); answers are always "once".
 
 ## Agents (spec 010)
 
@@ -85,11 +88,12 @@ One rule, standards only. charmd talks to an agent over **ACP** (Agent Client Pr
 - `acp`: one agent process for charmd and one ACP session per charm, started as soon as the key is held and restarted after a crash. Replies stream into speech; text on either side of a tool call gets a line break; a key press sends `session/cancel`. charmd offers the agent no file or terminal access (it uses its own tools) and sends real folder paths (macOS `/tmp` is `/private/tmp`).
 - A permission request during a turn becomes a question on the charm ("Claude Code wants to write ../notes.md."; spec 011): yes → `allow_once`; no, silence (30 s), a cancelled turn or a lock → `reject_once`. Outside a turn nobody can answer, so it's refused and logged. Answers are always "once": a yes or a no never becomes a lasting rule inside the agent.
 - The `claude` preset (Claude Code through `@agentclientprotocol/claude-agent-acp`, on the user's own Claude login) loads only the workspace's settings (`settingSources: ["project", "local"]`, so none of the user's plugins, hooks or MCP servers) and asks for the `acceptEdits` mode explicitly: Claude Code ignores a folder's own escalating `defaultMode` until the user trusts the folder (and an `auto` one always). `"mode": "auto"` in the config asks for auto mode instead, as the starter does; on a model without it the adapter falls back to `acceptEdits`, and a refusal (plan or policy) is logged while the session keeps the agent's own mode. The workspace's deny rules still apply. It also turns off the user's claude.ai connectors (`ENABLE_CLAUDEAI_MCP_SERVERS=0`; Gmail, Drive and the like reached the voice agent otherwise).
-- Sessions stay in the agent: Hermes via `/v1/responses` with `conversation: "opencharm-<charm id>"`; OpenClaw (Gateway) via `user: "opencharm-<charm id>"`; ACP agents via one ACP session per charm, held in memory for as long as charmd and the agent process run (no `--resume`).
+- Sessions stay in the agent: Hermes via `/v1/responses` with `conversation: "opencharm-<charm id>"`; OpenClaw (Gateway) via `user: "opencharm-<charm id>"`; ACP agents via one ACP session per charm, held in memory for as long as charmd and the agent process run (no `--resume`), until a new conversation.
+- **A new conversation** (spec 003, 13 October 2026): when the person asks (the charm tool `new_conversation`, the admin command `newConversation`, `opencharm new [charm]`, the desktop app's menu) or after a pause longer than `newConversationAfterMinutes`, charmd lets go of the charm's session and its next turn starts fresh. ACP: the session is dropped (and closed with `session/close` when the agent offers it) and a new one opens in the same process. Hermes: a new `conversation` name, `opencharm-<charm id>-<8 hex>`, while `X-Hermes-Session-Key` stays the charm's, so Hermes' long-term memory carries on. OpenClaw and OpenAI-compatible: a new `user` of the same shape. Names are kept in memory only: after a restart a charm is back on `opencharm-<charm id>`. Asked during a turn, it applies when that turn ends; a turn cancelled or superseded by a new one doesn't count, so the new turn starts fresh. An ACP `session/close` left unanswered for 5 s is let go. The log has a `new-conversation` line with the reason (`asked` or `idle`).
 
 ## The charm's tools for the agent (spec 012)
 
-The charm is an **MCP server** for the agent, `opencharm mcp` (stdio, no dependencies, protocol versions 2025-06-18 / 2025-03-26 / 2024-11-05), forwarding to charmd's admin socket. Tools: `say` (speak now, unprompted), `show_face` (an agent state with an optional line), `ask` (a yes/no question on the charm; returns yes or no), `notify` (the orange "it needs you" with a line, until a press) and `set_look` (spec 014: colour, greeting or calm motion, never the name; a try-on until charmd restarts, off with `charm.agentCanChangeLook: false`). They act on the connected, unlocked charm (the newest if several).
+The charm is an **MCP server** for the agent, `opencharm mcp` (stdio, no dependencies, protocol versions 2025-06-18 / 2025-03-26 / 2024-11-05), forwarding to charmd's admin socket. Tools: `say` (speak now, unprompted), `show_face` (an agent state with an optional line), `ask` (a yes/no question on the charm; returns yes or no), `notify` (the orange "it needs you" with a line, until a press), `new_conversation` (spec 003: when the person asks to start over; only the charm whose turn the agent is answering starts fresh, once the reply ends; with none, nothing changes) and `set_look` (spec 014: colour, greeting or calm motion, never the name; a try-on until charmd restarts, off with `charm.agentCanChangeLook: false`). The others act on the connected, unlocked charm (the newest if several).
 
 - charmd adds the server to every ACP session (`mcpServers`, stdio; `"charmTools": false` turns it off). The `claude` preset lets Claude Code use it without asking (`allowedTools: ["mcp__charm"]`: Claude Code's allow rules in settings don't reach MCP tools through the ACP adapter).
 - Agents that run as the same user as charmd but outside ACP can add `opencharm mcp --config <file>` to their own MCP settings. Never across a user boundary (the droplet): `opencharm mcp` talks to the admin socket, which can also unlock a charm without its PIN; a tools-only socket comes before that.

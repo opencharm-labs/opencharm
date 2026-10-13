@@ -1,3 +1,4 @@
+import { createConversationKeys } from "./conversation-keys";
 import { postStream, sseJson } from "./http";
 import type { AgentAdapter } from "./types";
 
@@ -5,10 +6,13 @@ type HermesOptions = { baseUrl: string; apiKey?: string; model: string };
 type ResponseEvent = { type?: string; delta?: string };
 
 // Hermes' Responses API chains turns itself when given a stable `conversation`, so charmd stays
-// stateless; X-Hermes-Session-Key scopes Hermes' long-term memory to this charm.
+// stateless; X-Hermes-Session-Key scopes Hermes' long-term memory to this charm. A new conversation
+// changes only the `conversation`: the charm keeps its long-term memory.
 function createHermesAgent(options: HermesOptions): AgentAdapter {
+  const conversations = createConversationKeys();
   return {
     name: "hermes",
+    reset: conversations.reset,
     async *reply({ sessionKey, text, signal }) {
       const body = await postStream(
         `${options.baseUrl.replace(/\/$/, "")}/responses`,
@@ -22,7 +26,7 @@ function createHermesAgent(options: HermesOptions): AgentAdapter {
           model: options.model,
           stream: true,
           input: text,
-          conversation: sessionKey,
+          conversation: conversations.of(sessionKey),
           store: true,
         },
         signal

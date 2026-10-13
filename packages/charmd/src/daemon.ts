@@ -11,6 +11,7 @@ import { LIMITS, TIMEOUTS } from "@opencharm-labs/protocol/constants";
 import { WebSocketServer } from "ws";
 
 import { type AdminActions, createAdminActions } from "./admin/admin-actions";
+import { withConversations } from "./agent/conversations";
 import { startAdminServer } from "./admin/admin-server";
 import { PairingRegistry } from "./auth/pairing";
 import { type CharmdConfig, isLoopback } from "./config/config";
@@ -43,6 +44,8 @@ type DaemonOptions = {
   log?: (entry: Record<string, unknown>) => void;
   // How to start `opencharm mcp` (the charm's tools for ACP agents); the CLI passes itself.
   charmTools?: ToolsCommand;
+  // The clock for when a conversation starts over after a pause (newConversationAfterMinutes).
+  now?: () => number;
 };
 type Daemon = {
   url: string;
@@ -83,11 +86,19 @@ async function startDaemon(
           JSON.stringify({ time: new Date().toISOString(), ...entry })
         );
     });
-  const agent = createAgentFromConfig(
-    config,
-    (message) => log({ event: "agent", message }),
-    options.charmTools
+  const conversations = withConversations(
+    createAgentFromConfig(
+      config,
+      (message) => log({ event: "agent", message }),
+      options.charmTools
+    ),
+    {
+      afterMinutes: config.newConversationAfterMinutes,
+      log,
+      ...(options.now ? { now: options.now } : {}),
+    }
   );
+  const agent = conversations.agent;
   const { agentCanChangeLook, ...lookSettings } = config.charm;
   const look = new CharmLook(
     lookSettings,
@@ -102,6 +113,7 @@ async function startDaemon(
     identity: options.identity,
     starter: options.starter,
     replies,
+    newConversation: conversations.startNew,
     voice: () => {
       const downloading = (["parakeet", "supertonic"] as const).flatMap(
         (id) => {

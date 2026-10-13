@@ -155,7 +155,7 @@ const agentSchema = z.discriminatedUnion("adapter", [
       cwd: z.string().min(1).default("."),
       projects: z.array(z.string().min(1)).optional(),
       mode: z.string().min(1).optional(),
-      // The charm's tools (say, show_face, ask, notify, set_look) as an MCP server in every session.
+      // The charm's tools (say, show_face, ask, notify, set_look, new_conversation) as an MCP server in every session.
       charmTools: z.boolean().default(true),
     })
     .strict(),
@@ -205,6 +205,14 @@ const schema = z
     voice: voiceSchema.default({ provider: "fake" }),
     agent: agentSchema.default({ adapter: "fake" }),
     turnTimeoutSeconds: z.number().int().min(5).max(600).default(60),
+    // A charm whose last turn ended longer ago than this starts a new conversation with the agent
+    // (spec 003); 0 = never, only when the person asks.
+    newConversationAfterMinutes: z
+      .number()
+      .int()
+      .min(0)
+      .max(30 * 24 * 60)
+      .default(120),
     logTranscripts: z.boolean().default(false),
     // Off: the desktop charm shows replies as text instead of speaking them (spec 003); a charm
     // on a board always speaks. Changed while running with the admin command "replies".

@@ -412,3 +412,66 @@ describe("opencharm look", () => {
     process.exitCode = 0;
   });
 });
+
+describe("opencharm new", () => {
+  it("starts a new conversation for every charm when none is named", async () => {
+    const { ctx, out } = context();
+    const send = vi.fn().mockResolvedValue({ charms: ["pip", "desktop"] });
+    await runAdminCommand(ctx, "new", [], {
+      socket: SOCKET,
+      send,
+      prompt: vi.fn(),
+    });
+    expect(send).toHaveBeenCalledWith(SOCKET, { cmd: "newConversation" });
+    expect(out()).toContain("New conversation for pip, desktop");
+  });
+
+  it("starts a new conversation for the named charm only", async () => {
+    const { ctx, out } = context();
+    const send = vi.fn().mockResolvedValue({ charms: ["pip"] });
+    await runAdminCommand(ctx, "new", ["pip", "--config", "x.json"], {
+      socket: SOCKET,
+      send,
+      prompt: vi.fn(),
+    });
+    expect(send).toHaveBeenCalledWith(SOCKET, {
+      cmd: "newConversation",
+      charm: "pip",
+    });
+    expect(out()).toContain("New conversation for pip");
+  });
+
+  it("says so when no charm is paired yet", async () => {
+    const { ctx, out } = context();
+    const send = vi.fn().mockResolvedValue({ charms: [] });
+    await runAdminCommand(ctx, "new", [], {
+      socket: SOCKET,
+      send,
+      prompt: vi.fn(),
+    });
+    expect(out()).toContain("No charms paired yet");
+  });
+
+  it("shows the usage for more than one charm, and charmd's own errors", async () => {
+    const { ctx, err } = context();
+    const send = vi
+      .fn()
+      .mockRejectedValue(
+        new Error('No charm called "bob". See: opencharm status')
+      );
+    await runAdminCommand(ctx, "new", ["pip", "desk"], {
+      socket: SOCKET,
+      send,
+      prompt: vi.fn(),
+    });
+    expect(send).not.toHaveBeenCalled();
+    expect(err()).toContain("Usage: opencharm new [charm]");
+    await runAdminCommand(ctx, "new", ["bob"], {
+      socket: SOCKET,
+      send,
+      prompt: vi.fn(),
+    });
+    expect(err()).toContain('No charm called "bob"');
+    process.exitCode = 0;
+  });
+});
