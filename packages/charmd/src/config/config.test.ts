@@ -81,6 +81,45 @@ describe("loadConfig", () => {
 });
 
 describe("voice and agent config", () => {
+  it("takes ElevenLabs for listening and speaking, with its fields and nothing else", () => {
+    const config = parseConfig({
+      voice: {
+        listen: {
+          provider: "elevenlabs",
+          apiKeyEnv: "MY_KEY",
+          model: "scribe_v2",
+        },
+        speak: {
+          provider: "elevenlabs",
+          voice: "v1",
+          model: "eleven_flash_v2_5",
+        },
+      },
+    });
+    expect(config.voice.listen).toEqual({
+      provider: "elevenlabs",
+      apiKeyEnv: "MY_KEY",
+      model: "scribe_v2",
+    });
+    expect(config.voice.speak).toEqual({
+      provider: "elevenlabs",
+      voice: "v1",
+      model: "eleven_flash_v2_5",
+    });
+    expect(() =>
+      parseConfig({
+        voice: { listen: { provider: "elevenlabs", voice: "v1" } },
+      })
+    ).toThrow();
+    expect(() =>
+      parseConfig({
+        voice: {
+          speak: { provider: "elevenlabs", baseUrl: "https://x.example" },
+        },
+      })
+    ).toThrow();
+  });
+
   it("defaults to the fake voice and fake agent, so a fresh charmd runs with no keys", () => {
     const config = parseConfig({});
     expect(config.voice).toEqual({

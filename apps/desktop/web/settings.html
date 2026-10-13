@@ -78,6 +78,7 @@
           <select id="listen">
             <option value="local">On this computer</option>
             <option value="openai">OpenAI (your key)</option>
+            <option value="elevenlabs">ElevenLabs (your key)</option>
             <option value="fake">None, for trying</option>
           </select>
           <p class="note" id="listen-note"></p>
@@ -88,6 +89,7 @@
             <option value="local">On this computer (private)</option>
             <option value="system">A macOS voice</option>
             <option value="openai">OpenAI (your key)</option>
+            <option value="elevenlabs">ElevenLabs (your key)</option>
             <option value="fake">None, for trying</option>
           </select>
           <p class="note" id="speak-note"></p>
@@ -125,6 +127,26 @@
               placeholder="sk-…"
             />
             <button type="button" class="pill" id="save-key">Save</button>
+          </div>
+          <div class="row" id="elevenlabs-row" hidden>
+            <input
+              id="elevenlabs-key"
+              type="password"
+              spellcheck="false"
+              placeholder="ElevenLabs key"
+              aria-label="Your ElevenLabs key"
+            />
+            <button type="button" class="pill" id="save-elevenlabs-key">
+              Save
+            </button>
+          </div>
+          <div class="row" id="elevenlabs-voice-row" hidden>
+            <input
+              id="elevenlabs-voice"
+              spellcheck="false"
+              placeholder="Voice ID (empty: your first voice)"
+              aria-label="The ElevenLabs voice ID"
+            />
           </div>
           <p class="note" id="voice-note">
             It answers in the language you speak; this one is for when it can't

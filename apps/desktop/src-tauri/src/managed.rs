@@ -452,6 +452,9 @@ pub fn build_config(settings: &Settings, folder: &Folder, data: &Path) -> (Value
         }
         speak["voices"] = Value::Object(voices);
     }
+    if settings.speak == "elevenlabs" && !settings.elevenlabs_voice.is_empty() {
+        speak["voice"] = json!(settings.elevenlabs_voice);
+    }
     let (look, say_voice) = look_of(settings, Some(folder));
     if settings.speak == "system" && !say_voice.is_empty() {
         speak["voice"] = json!(say_voice);
@@ -1582,6 +1585,43 @@ mod tests {
         };
         let (config, _) = build_config(&openai, &repo, Path::new("/d"));
         assert_eq!(config["voice"]["speak"], json!({ "provider": "openai" }));
+    }
+
+    #[test]
+    fn elevenlabs_listens_and_speaks_with_the_voice_picked_in_settings() {
+        let repo = inspect_folder(&temp("config-elevenlabs").to_string_lossy());
+        let eleven = Settings {
+            listen: "elevenlabs".into(),
+            speak: "elevenlabs".into(),
+            elevenlabs_voice: "AbC123".into(),
+            ..Settings::default()
+        };
+        let (config, _) = build_config(&eleven, &repo, Path::new("/d"));
+        assert_eq!(
+            config["voice"]["listen"],
+            json!({ "provider": "elevenlabs" })
+        );
+        assert_eq!(
+            config["voice"]["speak"],
+            json!({ "provider": "elevenlabs", "voice": "AbC123" })
+        );
+        // No voice picked: charmd uses the account's first.
+        let first = Settings {
+            elevenlabs_voice: String::new(),
+            ..eleven.clone()
+        };
+        let (config, _) = build_config(&first, &repo, Path::new("/d"));
+        assert_eq!(
+            config["voice"]["speak"],
+            json!({ "provider": "elevenlabs" })
+        );
+        // The voice ID stays out of another voice's block.
+        let microsoft = Settings {
+            speak: "microsoft".into(),
+            ..eleven
+        };
+        let (config, _) = build_config(&microsoft, &repo, Path::new("/d"));
+        assert!(config["voice"]["speak"].get("voice").is_none());
     }
 
     #[test]

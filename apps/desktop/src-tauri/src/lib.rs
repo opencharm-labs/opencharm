@@ -86,6 +86,7 @@ type CharmdFields = (
     String,
     String,
     String,
+    String,
     Option<String>,
     bool,
 );
@@ -101,6 +102,7 @@ fn charmd_fields(s: &Settings) -> CharmdFields {
         s.listen.clone(),
         s.speak.clone(),
         s.language.clone(),
+        s.elevenlabs_voice.clone(),
         s.cli_path.clone(),
         s.network,
     )
@@ -477,6 +479,19 @@ fn set_openai_key(app: AppHandle, key: String) -> Result<(), String> {
     Ok(())
 }
 
+/// The ElevenLabs key for the voice, kept in the keychain like OpenAI's.
+#[tauri::command]
+fn has_elevenlabs_key() -> Result<bool, String> {
+    Ok(pairing::secret("elevenlabs")?.is_some())
+}
+
+#[tauri::command]
+fn set_elevenlabs_key(app: AppHandle, key: String) -> Result<(), String> {
+    pairing::set_secret("elevenlabs", key.trim())?;
+    apply_managed(&app);
+    Ok(())
+}
+
 /// A new workspace in an empty folder: `opencharm init`, which clones the starter. charmd starts
 /// again, so it reads the workspace's opencharm.json (the folder's path may not have changed).
 #[tauri::command]
@@ -786,6 +801,11 @@ fn apply_managed(app: &AppHandle) {
         if settings.listen == "openai" || settings.speak == "openai" {
             if let Ok(Some(key)) = pairing::secret("openai") {
                 env.insert("OPENAI_API_KEY".into(), key);
+            }
+        }
+        if settings.listen == "elevenlabs" || settings.speak == "elevenlabs" {
+            if let Ok(Some(key)) = pairing::secret("elevenlabs") {
+                env.insert("ELEVENLABS_API_KEY".into(), key);
             }
         }
         let (mut config, label) = managed::build_config(&settings, &folder, &managed.data);
@@ -1185,6 +1205,8 @@ pub fn run() {
             voice_progress,
             has_openai_key,
             set_openai_key,
+            has_elevenlabs_key,
+            set_elevenlabs_key,
             create_workspace,
             setup_state,
             setup_step_done,

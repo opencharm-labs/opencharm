@@ -49,9 +49,19 @@ charmd keeps one agent session per charm; until now only a charmd restart starte
 - **From the computer:** the admin command `newConversation` (`charm` names one; none = every paired charm), `opencharm new [charm]`, and the desktop app's menu item "New conversation" (spec 013).
 - Each new conversation is a line in charmd's log (`new-conversation`, with the reason: `asked` or `idle`). No new gesture and no change on the charm.
 
+### ElevenLabs (approved by the maintainer, 13 October 2026)
+
+ElevenLabs is the voice platform people ask for by name, and its API isn't OpenAI's (its own paths and `xi-api-key` header), so the `openai` option can't reach it. It becomes an option of its own for listening and for speaking, with the person's key. It replaces the 5 October decision for ElevenLabs only; Azure stays out.
+
+- **Listening:** `voice.listen` `{ "provider": "elevenlabs", "model"?: … }`: Scribe (`POST /v1/speech-to-text`, default model `scribe_v2`), the charm's Ogg Opus sent as is, sound tags off, so the agent gets words only.
+- **Speaking:** `voice.speak` `{ "provider": "elevenlabs", "voice"?: …, "model"?: … }`: streamed (`POST /v1/text-to-speech/<voice>/stream`, 24 kHz PCM, encoded to Opus as it arrives), so a sentence starts playing before it's synthesized; default model `eleven_v4_turbo` (low latency, 90+ languages per ElevenLabs' model page, unverified here), with each sentence's language sent along. With no voice set, charmd uses the first voice in the person's ElevenLabs account (`GET /v1/voices`), so nothing is hard-coded that ElevenLabs may retire.
+- **The key:** `apiKey` or `apiKeyEnv` like the `openai` voice, default `ELEVENLABS_API_KEY`; the desktop app keeps it in the system keychain. Each side can be ElevenLabs alone.
+- **When it fails:** like any paid voice, speaking falls back to the macOS voice only (no model download you didn't ask for). Speech and the reply's text go to ElevenLabs; Settings says so.
+- **Settings** (spec 013): ElevenLabs in LISTENING and SPEAKING, its key, and a voice ID field (empty: your first voice). The CLI config takes the same fields.
+
 ## Not in scope
 
-MCP charm tools (012), the permissions engine and questions on the charm (011), notifications. In the voice update: ElevenLabs and Azure as their own options (the `openai` voice takes any OpenAI-compatible service), follow-up listening, wake words, speech-to-speech models, voice cloning.
+MCP charm tools (012), the permissions engine and questions on the charm (011), notifications. In the voice update: Azure as its own option (the `openai` voice takes any OpenAI-compatible service), follow-up listening, wake words, speech-to-speech models, voice cloning.
 
 ## Acceptance
 
@@ -84,7 +94,7 @@ A new conversation:
 
 Not approved. Decided against (maintainer, 5 October 2026; the charm stays lean and works with any agent):
 
-- **ElevenLabs and Azure as their own options:** any speech service that speaks the OpenAI API already works through the `openai` voice with its key, `baseUrl` and `model`.
+- **Azure as its own option:** any speech service that speaks the OpenAI API already works through the `openai` voice with its key, `baseUrl` and `model`. (ElevenLabs doesn't, so it's in Scope since 13 October 2026.)
 - **A follow-up window after an answer:** the mic is on only while the key is held.
 - **Memory across restarts:** it belongs to the agent (its own files and memory); charmd keeps one agent session per charm while it runs (until a new conversation, above) and adds none of its own.
 
@@ -107,3 +117,9 @@ Proposals:
 - Recognition: a bigger or multilingual whisper model; a vocabulary hint from the workspace; confirm before acting on a misheard command.
 - Quality: a per-turn record (heard, interrupted, length, time to first word) without transcripts by default, and scripted conversations to replay in tests (fake voice, real agent).
 - Wake words stay out: the mic opens only while the key is held, by design.
+
+ElevenLabs:
+
+- [ ] Unit tests against a local server: the config (both sides, key from the file or the environment, strict fields); Scribe gets the Ogg, the model and sound tags off, with the key header; speaking streams PCM into Opus packets (an odd byte split across chunks kept), sends the model, the language and the voice, picks the first account voice when none is set and asks once; an HTTP error names the status, never the key.
+- [ ] The desktop app: both options, the key saved to and read from the keychain into `ELEVENLABS_API_KEY`, the voice field written to the config (Rust tests).
+- [ ] By hand with a real key on the maintainer's charm: a spoken question in English and Italian heard by Scribe and answered with an ElevenLabs voice, with the timing line recorded.

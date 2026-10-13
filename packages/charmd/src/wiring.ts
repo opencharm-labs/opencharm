@@ -6,6 +6,10 @@ import { createHermesAgent } from "./agent/hermes";
 import { createOpenAiCompatibleAgent } from "./agent/openai-compatible";
 import type { AgentAdapter } from "./agent/types";
 import type { CharmdConfig, ListenConfig, SpeakConfig } from "./config/config";
+import {
+  createElevenLabsListener,
+  createElevenLabsSpeaker,
+} from "./voice/elevenlabs";
 import { createFakeVoice } from "./voice/fake";
 import { createLocalVoice } from "./voice/local";
 import { createMicrosoftSpeaker } from "./voice/microsoft";
@@ -42,6 +46,11 @@ function createListener(config: ListenConfig): Listener {
         apiKey: key(config, "OPENAI_API_KEY"),
         ...(config.model ? { sttModel: config.model } : {}),
       });
+    case "elevenlabs":
+      return createElevenLabsListener({
+        apiKey: key(config, "ELEVENLABS_API_KEY"),
+        ...(config.model ? { model: config.model } : {}),
+      });
   }
 }
 
@@ -68,6 +77,12 @@ function createSpeaker(config: SpeakConfig): Speaker {
         ...config,
         apiKey: key(config, "OPENAI_API_KEY"),
         ...(config.model ? { ttsModel: config.model } : {}),
+      });
+    case "elevenlabs":
+      return createElevenLabsSpeaker({
+        apiKey: key(config, "ELEVENLABS_API_KEY"),
+        ...(config.voice ? { voice: config.voice } : {}),
+        ...(config.model ? { model: config.model } : {}),
       });
   }
 }
