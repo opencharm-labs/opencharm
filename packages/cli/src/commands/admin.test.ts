@@ -338,6 +338,7 @@ describe("opencharm look", () => {
     greeting: "Hi! I'm Momo.",
     sleepAfterMinutes: 4,
     motion: "calm",
+    volume: 85,
   };
 
   it("shows the current look when given no flags", async () => {
@@ -352,6 +353,7 @@ describe("opencharm look", () => {
     expect(out()).toContain("Momo");
     expect(out()).toContain("cobalt");
     expect(out()).toContain("sleeps after 4 min");
+    expect(out()).toContain("volume 85%");
     expect(out()).toContain('"Hi! I\'m Momo."');
   });
 
@@ -373,6 +375,32 @@ describe("opencharm look", () => {
     expect(out()).toContain("Sent to 1 charm");
     expect(out()).toContain("until charmd restarts");
   });
+
+  it("sends the volume as a number", async () => {
+    const { ctx } = context();
+    const send = vi.fn().mockResolvedValue({ ...LOOK, connected: 1 });
+    await runAdminCommand(ctx, "look", ["--volume", "40"], {
+      socket: SOCKET,
+      send,
+      prompt: vi.fn(),
+    });
+    expect(send).toHaveBeenCalledWith(SOCKET, { cmd: "look", volume: 40 });
+  });
+
+  it.each(["loud", "-5", "4.5", ""])(
+    "refuses --volume %j before asking charmd",
+    async (volume) => {
+      const { ctx, err } = context();
+      const send = vi.fn();
+      await runAdminCommand(ctx, "look", ["--volume", volume], {
+        socket: SOCKET,
+        send,
+        prompt: vi.fn(),
+      });
+      expect(send).not.toHaveBeenCalled();
+      expect(err()).toContain("0 to 100");
+    }
+  );
 
   it("prints charmd's reason when it refuses", async () => {
     const { ctx, err } = context();

@@ -133,7 +133,7 @@ const TOOLS: Tool[] = [
   {
     name: "set_look",
     description:
-      'Change how the charm looks when the person asks (e.g. "make yourself blue"): its glyph colour, its greeting after unlock, or calm motion. Lasts until charmd restarts.',
+      'Change how the charm looks when the person asks (e.g. "make yourself blue"): its glyph colour, its greeting after unlock, calm motion, or how loud it speaks. Lasts until charmd restarts.',
     inputSchema: {
       type: "object",
       properties: {
@@ -152,6 +152,12 @@ const TOOLS: Tool[] = [
           enum: ["full", "calm"],
           description: "calm: no glances or bounces, for less movement.",
         },
+        volume: {
+          type: "integer",
+          minimum: 0,
+          maximum: 100,
+          description: "The speaker's volume in percent; 0 is silent.",
+        },
       },
     },
     // Strict: the name and the switch that allows this tool are the person's, not the agent's.
@@ -160,6 +166,7 @@ const TOOLS: Tool[] = [
         colour: z.string().regex(new RegExp(COLOUR)).optional(),
         greeting: z.string().max(40).optional(),
         motion: z.enum(["full", "calm"]).optional(),
+        volume: z.number().int().min(0).max(100).optional(),
       })
       .strict(),
     run: async (args, send) => {
@@ -167,8 +174,13 @@ const TOOLS: Tool[] = [
         cmd: "look",
         ...args,
         source: "agent",
-      })) as { colour: string; motion: string; greeting: string };
-      return `The charm is now ${look.colour}, ${look.motion} motion, greeting "${look.greeting}".`;
+      })) as {
+        colour: string;
+        motion: string;
+        greeting: string;
+        volume: number;
+      };
+      return `The charm is now ${look.colour}, ${look.motion} motion, volume ${look.volume}%, greeting "${look.greeting}".`;
     },
   },
 ];

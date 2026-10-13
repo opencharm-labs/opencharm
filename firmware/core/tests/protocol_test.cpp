@@ -175,6 +175,22 @@ TEST_CASE("a look carries the charm's name, glyph colour, greeting, sleep delay 
   CHECK(m.look.calm);
 }
 
+TEST_CASE("a look may carry the speaker's volume, a whole 0..100") {
+  charm::ServerMessage m;
+  const std::string base =
+      R"({"type":"charm","op":"look","name":"Momo","glyph":"#9DB6FF","greeting":"","sleep_ms":0,"motion":"full")";
+  REQUIRE(charm::parse_server_message(base + "}", m));
+  CHECK(m.look.volume == -1);  // an older charmd: the charm keeps its own
+  for (int volume : {0, 85, 100}) {
+    REQUIRE(charm::parse_server_message(base + R"(,"volume":)" + std::to_string(volume) + "}", m));
+    CHECK(m.look.volume == volume);
+  }
+  for (const char* bad : {"-1", "101", "42.5", R"("85")", "null", "true"}) {
+    CAPTURE(bad);
+    CHECK_FALSE(charm::parse_server_message(base + R"(,"volume":)" + bad + "}", m));
+  }
+}
+
 TEST_CASE("a look outside the limits is refused") {
   charm::ServerMessage m;
   auto look = [](const std::string& name, const std::string& glyph, const std::string& greeting,

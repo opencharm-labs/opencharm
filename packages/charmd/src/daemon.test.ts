@@ -238,6 +238,7 @@ describe("the charm's look", () => {
       greeting: "Hi! I'm Momo.",
       sleep_ms: 240_000,
       motion: "full",
+      volume: 85,
     });
     charm.ws.close();
 
@@ -266,7 +267,11 @@ describe("the charm's look", () => {
     const { daemon: d } = await start();
     const { charm, token } = await pair(d);
     await unlock(charm);
-    const result = await d.admin.look({ colour: "lime", motion: "calm" });
+    const result = await d.admin.look({
+      colour: "lime",
+      motion: "calm",
+      volume: 40,
+    });
     expect(result).toEqual({
       name: "Charm",
       colour: "lime",
@@ -274,12 +279,14 @@ describe("the charm's look", () => {
       greeting: "Hi! I'm Charm.",
       sleepAfterMinutes: 4,
       motion: "calm",
+      volume: 40,
       connected: 1,
     });
     await charm.next(isOp("look")); // the one sent with the unlock
     expect(await charm.next(isOp("look"))).toMatchObject({
       glyph: "#D6F78A",
       motion: "calm",
+      volume: 40,
     });
     charm.ws.close();
     const again = await connectFakeCharm(d.url, token);

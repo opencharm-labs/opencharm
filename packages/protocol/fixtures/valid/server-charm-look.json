@@ -7,6 +7,7 @@
     "glyph": "#9DB6FF",
     "greeting": "Hi! I'm Momo.",
     "sleep_ms": 240000,
-    "motion": "full"
+    "motion": "full",
+    "volume": 85
   }
 }

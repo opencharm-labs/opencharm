@@ -54,6 +54,7 @@ type LookRow = {
   greeting: string;
   sleepAfterMinutes: number;
   motion: string;
+  volume: number;
   connected: number;
 };
 
@@ -178,10 +179,17 @@ async function look(
   args: readonly string[],
   deps: AdminDeps
 ): Promise<void> {
+  const volume = flagValue(args, "--volume");
+  if (volume !== undefined && !/^\d{1,3}$/.test(volume)) {
+    fail(ctx, "--volume is a whole number from 0 to 100. Nothing was changed.");
+    return;
+  }
   const flags = {
     colour: flagValue(args, "--colour") ?? flagValue(args, "--color"),
     greeting: flagValue(args, "--greeting"),
     motion: flagValue(args, "--motion"),
+    // A number on the wire; charmd checks the range.
+    volume: volume === undefined ? undefined : Number(volume),
   };
   const update = Object.fromEntries(
     Object.entries(flags).filter(([, value]) => value !== undefined)
@@ -195,7 +203,7 @@ async function look(
       ? "never sleeps"
       : `sleeps after ${result.sleepAfterMinutes} min`;
   ctx.out.write(
-    `${result.name}  ${result.colour}  ${result.motion} motion  ${sleep}\n` +
+    `${result.name}  ${result.colour}  ${result.motion} motion  volume ${result.volume}%  ${sleep}\n` +
       `${result.greeting ? JSON.stringify(result.greeting) : "(no greeting)"}\n`
   );
   if (Object.keys(update).length === 0) return;

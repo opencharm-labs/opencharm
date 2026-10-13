@@ -26,6 +26,9 @@ void play(const uint8_t* data, size_t size);
 // Drop what's queued; the speaker falls silent within about 150 ms (the packet being written and
 // the I2S buffers play out).
 void stop();
+// The speaker's volume (0..100, from the look, spec 014); 85 until charmd sends one. Takes effect
+// with the next packet, even mid-reply.
+void set_volume(int percent);
 
 // Bench only (CONFIG_OPENCHARM_AUDIO_SELFTEST): plays a tone and logs how loud the echo reference,
 // the microphone and the echo-cancelled signal were, so the speaker, the mic and echo cancellation

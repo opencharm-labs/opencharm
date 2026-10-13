@@ -973,6 +973,7 @@ async fn save_look(app: AppHandle, look: Look, say_voice: String) -> Result<(), 
                 "colour": look.colour,
                 "sleepAfterMinutes": look.sleep_after_minutes,
                 "motion": look.motion,
+                "volume": look.volume,
             });
             // An empty name or greeting is charmd's default: send only what's known.
             if !look.name.is_empty() {

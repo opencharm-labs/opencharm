@@ -240,7 +240,7 @@ describe("admin actions", () => {
 
 describe("the charm's look", () => {
   const look = new CharmLook(
-    { colour: "cobalt", sleepAfterMinutes: 4, motion: "full" },
+    { colour: "cobalt", sleepAfterMinutes: 4, motion: "full", volume: 85 },
     "Momo"
   );
   const lookNow = () => look.message();

@@ -662,6 +662,7 @@ fn charm_block(look: &Look, mut block: serde_json::Map<String, Value>) -> Value 
     block.insert("colour".into(), json!(look.colour));
     block.insert("sleepAfterMinutes".into(), json!(look.sleep_after_minutes));
     block.insert("motion".into(), json!(look.motion));
+    block.insert("volume".into(), json!(look.volume));
     block.insert(
         "agentCanChangeLook".into(),
         json!(look.agent_can_change_look),
@@ -1427,6 +1428,7 @@ mod tests {
         assert_eq!(look.colour, "lilac");
         assert_eq!(look.motion, "calm");
         assert_eq!(look.sleep_after_minutes, 4);
+        assert_eq!(look.volume, 85);
         // Not a workspace: the app's own.
         let repo = inspect_folder(&temp("look-repo").to_string_lossy());
         assert_eq!(
@@ -1443,6 +1445,7 @@ mod tests {
             name: "Momo".into(),
             colour: "cobalt".into(),
             sleep_after_minutes: 10,
+            volume: 40,
             ..Look::default()
         };
         save_workspace_look(&dir, &look, "Alice").unwrap();
@@ -1461,7 +1464,7 @@ mod tests {
         assert_eq!(
             saved["charm"],
             json!({ "name": "Momo", "colour": "cobalt", "sleepAfterMinutes": 10,
-                    "motion": "full", "agentCanChangeLook": true })
+                    "motion": "full", "volume": 40, "agentCanChangeLook": true })
         );
         let folder = inspect_folder(&dir.to_string_lossy());
         assert_eq!(
@@ -1550,6 +1553,7 @@ mod tests {
         let (config, _) = build_config(&mine, &repo, Path::new("/d"));
         assert_eq!(config["charm"]["name"], "Pip");
         assert_eq!(config["charm"]["motion"], "calm");
+        assert_eq!(config["charm"]["volume"], 85);
         assert_eq!(config["voice"]["speak"]["voice"], "Daniel");
         let openai = Settings {
             speak: "openai".into(),

@@ -20,6 +20,7 @@ constexpr size_t kMaxNameChars = 12;
 constexpr size_t kMaxNameBytes = 24;
 constexpr size_t kMaxGreetingBytes = 40;
 constexpr double kMaxSleepMs = 86400000;
+constexpr double kMaxVolume = 100;
 
 // Owns a cJSON tree for the length of one parse.
 struct Json {
@@ -143,6 +144,14 @@ bool parse_look(const cJSON* root, Look& out) {
     out.calm = false;
   else
     return false;
+  // Optional (an older charmd doesn't send it), but when present it must be a whole 0..100.
+  const cJSON* volume = cJSON_GetObjectItemCaseSensitive(root, "volume");
+  if (volume) {
+    if (!cJSON_IsNumber(volume)) return false;
+    double v = volume->valuedouble;
+    if (v < 0 || v > kMaxVolume || v != double(int(v))) return false;
+    out.volume = int(v);
+  }
   out.name = name;
   out.greeting = greeting;
   out.sleep_ms = uint32_t(ms);

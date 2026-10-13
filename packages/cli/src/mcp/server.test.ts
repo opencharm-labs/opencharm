@@ -117,7 +117,7 @@ describe("the charm's MCP server", () => {
     ]);
   });
 
-  it("set_look changes the colour, greeting or motion, as the agent", async () => {
+  it("set_look changes the colour, greeting, motion or volume, as the agent", async () => {
     const { call, calls } = setup(() => ({
       name: "Pip",
       colour: "cobalt",
@@ -125,20 +125,28 @@ describe("the charm's MCP server", () => {
       greeting: "Hi! I'm Pip.",
       sleepAfterMinutes: 4,
       motion: "calm",
+      volume: 60,
       connected: 1,
     }));
     const { result } = await call("set_look", {
       colour: "cobalt",
       motion: "calm",
+      volume: 60,
     });
     expect(calls).toEqual([
-      { cmd: "look", colour: "cobalt", motion: "calm", source: "agent" },
+      {
+        cmd: "look",
+        colour: "cobalt",
+        motion: "calm",
+        volume: 60,
+        source: "agent",
+      },
     ]);
     expect(result).toEqual({
       content: [
         {
           type: "text",
-          text: 'The charm is now cobalt, calm motion, greeting "Hi! I\'m Pip.".',
+          text: 'The charm is now cobalt, calm motion, volume 60%, greeting "Hi! I\'m Pip.".',
         },
       ],
     });
@@ -166,6 +174,8 @@ describe("the charm's MCP server", () => {
       -32602
     );
     expect((await call("set_look", { name: "Bob" })).error?.code).toBe(-32602);
+    expect((await call("set_look", { volume: 101 })).error?.code).toBe(-32602);
+    expect((await call("set_look", { volume: 42.5 })).error?.code).toBe(-32602);
     expect(calls).toEqual([]);
   });
 
