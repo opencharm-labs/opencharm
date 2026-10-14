@@ -188,16 +188,20 @@ void WifiConfigurationAp::StartAccessPoint()
     wifi_config.ap.ssid_len = ssid.length();
     wifi_config.ap.max_connection = 4;
     // OpenCharm: not open. Anyone in range could otherwise see the saved networks' names and point
-    // the charm elsewhere, so only someone who can read the charm's screen joins. Eight random
-    // digits, new each time; WPA3 where the phone has it, so a captured handshake can't be guessed
-    // offline, WPA2 for older phones.
+    // the charm elsewhere, so only someone who can read the charm's screen joins. Ten random
+    // letters and digits (none that look alike), new each time: about 50 bits, so even a WPA2 join
+    // caught in the air, or one lured to a look-alike hotspot, can't be guessed offline in the
+    // minutes setup is open. WPA3 where the phone has it, WPA2 for older phones.
+    static const char kAlphabet[] = "abcdefghjkmnpqrstuvwxyz23456789";
+    constexpr uint32_t kSize = sizeof(kAlphabet) - 1;  // 31
+    constexpr uint32_t kFair = UINT32_MAX - (UINT32_MAX % kSize) - 1;  // a multiple of 31, minus one
     password_.clear();
-    for (int i = 0; i < 8; i++) {
+    for (int i = 0; i < 10; i++) {
         uint32_t r;
         do {
             r = esp_random();
-        } while (r >= 4294967290u);  // the top of the range would favour 0–5
-        password_ += char('0' + r % 10);
+        } while (r > kFair);  // the top of the range would favour the first letters
+        password_ += kAlphabet[r % kSize];
     }
     ESP_ERROR_CHECK(esp_wifi_stop());
     memcpy(wifi_config.ap.password, password_.data(), password_.size());

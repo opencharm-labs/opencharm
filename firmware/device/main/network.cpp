@@ -291,9 +291,9 @@ void start_socket() {
     host = to;
     origin = at;
   }
-  // The token goes only to the charmd that issued it. The setup hotspot is open and comes back when
-  // the saved network can't be found, so anyone nearby could change the address: a charm pointed
-  // somewhere new pairs again instead of handing its token over.
+  // The token goes only to the charmd that issued it. Whoever can read the charm's screen can join
+  // its setup hotspot and change the address: a charm pointed somewhere new pairs again instead of
+  // handing its token over.
   std::string token = token_of ? token_of() : "";
   if (!token.empty() && token_origin() != at) {
     ESP_LOGW(kTag, "the saved pairing belongs to another charmd; pairing again here");
