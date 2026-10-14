@@ -79,7 +79,7 @@ The battery line repeats on every change and every 10 s; `key down` / `key up` o
 
 ## 5. Bench check (the person looks, the log confirms)
 
-With no saved Wi-Fi the board opens its setup hotspot: the screen says "Join Wi-Fi OpenCharm-XXXX" and the log shows `screen: Join Wi-Fi OpenCharm-…`. Don't write MAC-derived hotspot names into the repo. To check the face without a network, build with `CONFIG_OPENCHARM_BENCH_FACE=y` (`idf.py menuconfig` → OpenCharm); never ship that.
+With no saved Wi-Fi the board opens its setup hotspot: the screen shows `OpenCharm-XXXX` and its password, and the log shows `screen: OpenCharm-…`. Tell the person to read the password from the screen. Don't write MAC-derived hotspot names or passwords into the repo. To check the face without a network, build with `CONFIG_OPENCHARM_BENCH_FACE=y` (`idf.py menuconfig` → OpenCharm); never ship that.
 
 1. The face blinks and glances; picture upright.
 2. `+/KEY` (the end button labelled so on the back, not the middle PWR): the face squishes and the battery level shows at the top for 3 s, and stays while on USB. Log: `key down`, `key up`.

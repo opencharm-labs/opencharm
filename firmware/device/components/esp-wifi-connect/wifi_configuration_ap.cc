@@ -8,6 +8,7 @@
 #include <esp_wifi.h>
 #include <esp_log.h>
 #include <esp_mac.h>
+#include <esp_random.h>
 #include <esp_netif.h>
 #include <lwip/ip_addr.h>
 #include <nvs.h>
@@ -175,12 +176,34 @@ void WifiConfigurationAp::StartAccessPoint()
     // Get the SSID
     std::string ssid = GetSsid();
 
+    // OpenCharm: the radio on first, as a station with no network (nothing is broadcast), because
+    // the chip's random numbers are only truly random while the radio runs. It stops again before
+    // the hotspot starts, so the hotspot never runs with an earlier configuration, even briefly.
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+    ESP_ERROR_CHECK(esp_wifi_start());
+
     // Set the WiFi configuration
     wifi_config_t wifi_config = {};
     strcpy((char *)wifi_config.ap.ssid, ssid.c_str());
     wifi_config.ap.ssid_len = ssid.length();
     wifi_config.ap.max_connection = 4;
-    wifi_config.ap.authmode = WIFI_AUTH_OPEN;
+    // OpenCharm: not open. Anyone in range could otherwise see the saved networks' names and point
+    // the charm elsewhere, so only someone who can read the charm's screen joins. Eight random
+    // digits, new each time; WPA3 where the phone has it, so a captured handshake can't be guessed
+    // offline, WPA2 for older phones.
+    password_.clear();
+    for (int i = 0; i < 8; i++) {
+        uint32_t r;
+        do {
+            r = esp_random();
+        } while (r >= 4294967290u);  // the top of the range would favour 0–5
+        password_ += char('0' + r % 10);
+    }
+    ESP_ERROR_CHECK(esp_wifi_stop());
+    memcpy(wifi_config.ap.password, password_.data(), password_.size());
+    wifi_config.ap.authmode = WIFI_AUTH_WPA2_WPA3_PSK;
+    wifi_config.ap.pmf_cfg.capable = true;
+    wifi_config.ap.sae_pwe_h2e = WPA3_SAE_PWE_BOTH;
 
     // Start the WiFi Access Point
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));

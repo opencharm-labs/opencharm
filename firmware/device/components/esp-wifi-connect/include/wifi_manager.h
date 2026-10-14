@@ -96,6 +96,7 @@ public:
     
     bool IsConfigMode() const;
     std::string GetApSsid() const;
+    std::string GetApPassword() const;
     std::string GetApWebUrl() const;
 
     // ==================== Power ====================

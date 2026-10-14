@@ -953,7 +953,7 @@ TEST_CASE("the battery level over the decision and speech layouts, on both shape
 TEST_CASE("Wi-Fi setup and no Wi-Fi read on the connecting screen, on both shapes") {
   for (auto [size, round] : {std::pair{480, false}, std::pair{466, true}}) {
     Screen s(size, size, round);
-    s.app.on_offline("Join Wi-Fi OpenCharm-7F3A", s.now);
+    s.app.on_offline("OpenCharm-7F3A\nPassword 48213997", s.now);
     s.at(s.now + 400);
     s.screen.save_png(round ? "join-wifi-466" : "join-wifi-480");
     s.app.on_offline("No charmd. Hold the key 5 s for setup.", s.now);

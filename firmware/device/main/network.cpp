@@ -414,7 +414,8 @@ void on_wifi(WifiEvent event, const std::string&) {
       break;
     case WifiEvent::ConfigModeEnter:
       post(Command::WifiDown);
-      push(Event::Kind::Offline, "Join Wi-Fi " + wifi.GetApSsid());
+      // The password is new each time: only someone who can read this screen joins.
+      push(Event::Kind::Offline, wifi.GetApSsid() + "\nPassword " + wifi.GetApPassword());
       break;
     case WifiEvent::ConfigModeExit:
       if (!wifi.IsConnected()) {
