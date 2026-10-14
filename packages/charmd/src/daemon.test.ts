@@ -463,6 +463,9 @@ describe("dev commands", () => {
     await expect(d.admin.devFace({ charm: "pip" })).rejects.toThrow(
       /state or a feeling/
     );
+    await expect(
+      d.admin.devFace({ charm: "pip", state: "needs_you", feeling: "happy" })
+    ).rejects.toThrow(/idle state only/);
   });
 
   it("refuse an unknown face state", async () => {

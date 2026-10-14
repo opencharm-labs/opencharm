@@ -108,6 +108,9 @@ const devFaceInput = anyCharmInput
   })
   .refine((input) => input.state ?? input.feeling, {
     error: "a face state or a feeling",
+  })
+  .refine((input) => !input.feeling || (input.state ?? "idle") === "idle", {
+    error: "a feeling goes over the idle state only",
   });
 const devSayInput = anyCharmInput.extend({ text: z.string().min(1).max(500) });
 // Strict, so a request can't slip in agentCanChangeLook or anything else that isn't the look.

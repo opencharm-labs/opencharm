@@ -125,7 +125,7 @@ TEST_CASE("a question carries its id, text and labels, with ALLOW / NO by defaul
   CHECK(m.id == "q2");
 }
 
-TEST_CASE("a face may carry a feeling, but never the orange one") {
+TEST_CASE("a face may carry a feeling over idle, but never the orange one") {
   charm::ServerMessage m;
   REQUIRE(charm::parse_server_message(
       R"({"type":"charm","op":"face","state":"idle","feeling":"loved"})", m));
@@ -137,13 +137,18 @@ TEST_CASE("a face may carry a feeling, but never the orange one") {
   REQUIRE(charm::parse_server_message(R"({"type":"charm","op":"face","state":"done"})", plain));
   CHECK(plain.feeling.empty());
 
-  charm::ServerMessage bad;
-  CHECK_FALSE(charm::parse_server_message(
-      R"({"type":"charm","op":"face","state":"idle","feeling":"ask"})", bad));
-  CHECK_FALSE(charm::parse_server_message(
-      R"({"type":"charm","op":"face","state":"idle","feeling":"furious"})", bad));
-  CHECK_FALSE(charm::parse_server_message(
-      R"({"type":"charm","op":"face","state":"idle","feeling":3})", bad));
+  // One it doesn't know, the orange one, or one over another state: dropped, and the state shows.
+  for (const char* raw :
+       {R"({"type":"charm","op":"face","state":"idle","feeling":"ask"})",
+        R"({"type":"charm","op":"face","state":"idle","feeling":"furious"})",
+        R"({"type":"charm","op":"face","state":"idle","feeling":3})",
+        R"({"type":"charm","op":"face","state":"needs_you","feeling":"happy"})"}) {
+    CAPTURE(raw);
+    charm::ServerMessage dropped;
+    REQUIRE(charm::parse_server_message(raw, dropped));
+    CHECK(dropped.kind == charm::ServerKind::Face);
+    CHECK(dropped.feeling.empty());
+  }
 }
 
 TEST_CASE("client messages match the shared fixtures") {

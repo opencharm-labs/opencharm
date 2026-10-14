@@ -153,15 +153,24 @@ const revoked = z.object({
   type: z.literal("charm"),
   op: z.literal("revoked"),
 });
-const face = z.object({
-  type: z.literal("charm"),
-  op: z.literal("face"),
-  state: z.enum(FACE_STATES as [string, ...string[]]),
-  // A feeling drawn instead of the state's own face; a charm that doesn't know it shows the state.
-  feeling: z.enum(FACE_FEELINGS as [string, ...string[]]).optional(),
-  // A short line shown without speech, e.g. "Can't reach Hermes".
-  text: shownText(0, 200).optional(),
-});
+const face = z
+  .object({
+    type: z.literal("charm"),
+    op: z.literal("face"),
+    state: z.enum(FACE_STATES as [string, ...string[]]),
+    // A mood drawn over the idle state. One the charm doesn't know, or over another state, is
+    // dropped and the state shows: a newer charmd never leaves an older charm on a stale face.
+    feeling: z.unknown().optional(),
+    // A short line shown without speech, e.g. "Can't reach Hermes".
+    text: shownText(0, 200).optional(),
+  })
+  .transform(({ feeling, ...message }) =>
+    message.state === "idle" &&
+    typeof feeling === "string" &&
+    FACE_FEELINGS.includes(feeling)
+      ? { ...message, feeling }
+      : message
+  );
 
 // The charm's identity (spec 014): sent after every unlock and when it changes. Orange is never an
 // identity colour: on the screen it only means "it needs you".

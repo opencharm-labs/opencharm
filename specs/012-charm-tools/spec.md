@@ -32,7 +32,7 @@ Readable signals (picked up, battery…), MCP over HTTP (charmd behind Caddy mus
 - [x] `npm run check` green; docs in sync (SPEC, charmd and CLI READMEs, skills, starter).
 - [x] `new_conversation`: listed with a description that says when to use it, `tools/call` sends `newConversation` with `source: "agent"`, a charm name is refused; the admin command picks only the charm with the newest agent turn, never one just listening, and nothing when no agent turn runs (13 October 2026).
 - [ ] Real Claude Code over ACP calls `new_conversation` when asked to start over, and the next turn doesn't know the last one.
-- [x] Feelings (14 October 2026): `show_face` lists the states then the other faces; a feeling goes out as `face` `{state: "idle", feeling}` (protocol fixtures for both sides), `ask` is refused as a feeling everywhere, and a turn keeps a feeling a tool showed. A charm from before draws the idle face instead.
+- [x] Feelings (14 October 2026): `show_face` lists the states then the other faces; a feeling goes out as `face` `{state: "idle", feeling}` (protocol fixture for both sides) and a turn keeps one a tool showed. charmd refuses the needs_you state's face (orange) as a feeling, and a feeling next to any state but idle. A charm drops a feeling it doesn't know (or the orange one, or one over another state) and shows the state, so it's never stuck on a stale face; a charm from before draws the idle face.
 
 ## Notes (1 October 2026)
 

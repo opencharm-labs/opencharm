@@ -80,17 +80,19 @@ bool is_face_state(const char* s) {
   return false;
 }
 
-// Any face but the orange one, which only comes with the needs_you state.
-bool optional_feeling(const cJSON* obj, std::string& out) {
+// A mood over the idle state: any face but the needs_you state's own (orange comes only with
+// that state). One it doesn't know, or over another state, is dropped and the state shows, so a
+// newer charmd never leaves it on a stale face.
+std::string feeling_over(const cJSON* obj, const char* state) {
   const cJSON* item = cJSON_GetObjectItemCaseSensitive(obj, "feeling");
-  if (!item) return true;
-  if (!cJSON_IsString(item) || std::strcmp(item->valuestring, "ask") == 0) return false;
+  if (!cJSON_IsString(item) || std::strcmp(state, "idle") != 0) return "";
+  const char* needs_you_face = "";
+  for (const auto& s : design::kStates)
+    if (std::strcmp(s.id, "needs_you") == 0) needs_you_face = s.face;
+  if (std::strcmp(item->valuestring, needs_you_face) == 0) return "";
   for (const auto& face : design::kFaces)
-    if (std::strcmp(face.id, item->valuestring) == 0) {
-      out = face.id;
-      return true;
-    }
-  return false;
+    if (std::strcmp(face.id, item->valuestring) == 0) return face.id;
+  return "";
 }
 
 bool optional_text(const cJSON* obj, const char* key, size_t max, std::string& out) {
@@ -244,9 +246,8 @@ bool parse_charm(const cJSON* root, ServerMessage& out) {
   }
   if (is(op, "face")) {
     const char* state = str(root, "state");
-    if (!is_face_state(state) || !optional_feeling(root, out.feeling) ||
-        !optional_text(root, "text", kMaxFaceLine, out.text))
-      return false;
+    if (!is_face_state(state) || !optional_text(root, "text", kMaxFaceLine, out.text)) return false;
+    out.feeling = feeling_over(root, state);
     out.kind = ServerKind::Face;
     out.state = state;
     return true;
