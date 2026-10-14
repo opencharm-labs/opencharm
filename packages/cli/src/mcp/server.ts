@@ -1,4 +1,5 @@
 import { facesData } from "@opencharm-labs/design/faces";
+import { FACE_FEELINGS, FACE_STATES } from "@opencharm-labs/protocol/constants";
 import { z } from "zod";
 
 type Send = (request: Record<string, unknown>) => Promise<unknown>;
@@ -19,10 +20,11 @@ type Tool = {
 
 // Newest first; the first one is offered when the client asks for one we don't know.
 const VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"];
-const FACES = facesData.states.map((state) => state.id) as [
-  string,
-  ...string[],
-];
+// One list for the agent: its states, then the feelings that aren't also a state's name.
+const FACES = [
+  ...FACE_STATES,
+  ...FACE_FEELINGS.filter((feeling) => !FACE_STATES.includes(feeling)),
+] as [string, ...string[]];
 const COLOURS = facesData.colours.map((colour) => colour.id);
 // The six by name, or one of the person's own; charmd refuses one too dark or too orange.
 const COLOUR = `^(${COLOURS.join("|")}|#[0-9A-Fa-f]{6})$`;
@@ -54,7 +56,7 @@ const TOOLS: Tool[] = [
   {
     name: "show_face",
     description:
-      "Show a face on the charm's screen, with an optional short line under it. Faces are agent states: done, thinking, working, stuck, learned, noted, asleep and more (see the enum).",
+      'Show a face on the charm\'s screen, with an optional short line under it: an agent state (done, thinking, working, stuck, learned, noted, asleep…) or a feeling (happy, loved, wink, curious, surprised, sad, oops, dizzy…), see the enum. For "it needs you" use notify.',
     inputSchema: {
       type: "object",
       properties: {
@@ -68,9 +70,10 @@ const TOOLS: Tool[] = [
     },
     args: z.object({ face: z.enum(FACES), line: line.optional() }),
     run: async (args, send) => {
+      const face = String(args.face);
       await send({
         cmd: "devFace",
-        state: args.face,
+        ...(FACE_STATES.includes(face) ? { state: face } : { feeling: face }),
         ...(args.line ? { text: args.line } : {}),
       });
       return `Showing ${String(args.face)}.`;

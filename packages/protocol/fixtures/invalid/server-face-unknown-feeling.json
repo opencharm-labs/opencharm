@@ -1,0 +1,10 @@
+{
+  "direction": "server",
+  "message": {
+    "type": "charm",
+    "op": "face",
+    "state": "idle",
+    "feeling": "furious"
+  },
+  "error": "invalid_fields"
+}

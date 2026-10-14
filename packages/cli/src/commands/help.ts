@@ -27,7 +27,7 @@ function runHelp(ctx: CliContext): void {
     opencharm new [charm]           a new conversation with your agent (every charm when none is named)
     opencharm replies on|off        the desktop charm speaks its replies, or shows them as text
     opencharm look                  show or change the charm's look until charmd restarts   [--colour <c|#RRGGBB>] [--greeting <text>] [--motion full|calm] [--volume <0-100>]
-    opencharm dev face <charm> <state> [text]   show a face (testing)
+    opencharm dev face <charm> <state|feeling> [text]   show a face (testing)
     opencharm dev say <charm> <text>            speak through it (testing)
     opencharm dev ask <charm> <question>        ask it; hold = yes, press = no (testing)
     opencharm mcp                    the charm's tools for an agent (MCP over stdio) [--config <file>]

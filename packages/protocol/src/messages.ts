@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { FACE_STATES, SIGNAL_COLOUR } from "./constants";
+import { FACE_FEELINGS, FACE_STATES, SIGNAL_COLOUR } from "./constants";
 import { utf8Length } from "./text";
 
 type Kinded = { type: string; op?: string };
@@ -157,6 +157,8 @@ const face = z.object({
   type: z.literal("charm"),
   op: z.literal("face"),
   state: z.enum(FACE_STATES as [string, ...string[]]),
+  // A feeling drawn instead of the state's own face; a charm that doesn't know it shows the state.
+  feeling: z.enum(FACE_FEELINGS as [string, ...string[]]).optional(),
   // A short line shown without speech, e.g. "Can't reach Hermes".
   text: shownText(0, 200).optional(),
 });

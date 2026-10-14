@@ -436,6 +436,35 @@ describe("dev commands", () => {
     ).toMatchObject({ text: "Hello from charmd." });
   });
 
+  it("push a feeling, drawn over the idle state", async () => {
+    const { daemon: d } = await start();
+    const { charm } = await pair(d);
+    await charm.next(isOp("locked"));
+    charm.send({ type: "charm", op: "unlock", pin: "482913" });
+    await charm.next(isOp("unlocked"));
+    await d.admin.devFace({ charm: "pip", feeling: "wink" });
+    expect(await charm.next(isOp("face"))).toEqual({
+      type: "charm",
+      op: "face",
+      state: "idle",
+      feeling: "wink",
+    });
+  });
+
+  it("refuse the orange face as a feeling, an unknown one, or no face at all", async () => {
+    const { daemon: d } = await start();
+    await pair(d);
+    await expect(
+      d.admin.devFace({ charm: "pip", feeling: "ask" })
+    ).rejects.toThrow(/feeling/);
+    await expect(
+      d.admin.devFace({ charm: "pip", feeling: "furious" })
+    ).rejects.toThrow(/feeling/);
+    await expect(d.admin.devFace({ charm: "pip" })).rejects.toThrow(
+      /state or a feeling/
+    );
+  });
+
   it("refuse an unknown face state", async () => {
     const { daemon: d } = await start();
     await pair(d);

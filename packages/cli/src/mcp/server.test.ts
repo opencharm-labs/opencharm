@@ -98,6 +98,16 @@ describe("the charm's MCP server", () => {
     expect(calls).toEqual([{ cmd: "devFace", state: "done", text: "Done!" }]);
   });
 
+  it("show_face shows a feeling, but never the orange face", async () => {
+    const { call, calls } = setup();
+    await call("show_face", { face: "loved", line: "Thank you!" });
+    expect(calls).toEqual([
+      { cmd: "devFace", feeling: "loved", text: "Thank you!" },
+    ]);
+    expect((await call("show_face", { face: "ask" })).error?.code).toBe(-32602);
+    expect(calls).toHaveLength(1);
+  });
+
   it("ask returns the person's answer", async () => {
     const { call, calls } = setup(() => ({ answer: "yes" }));
     const { result } = await call("ask", {

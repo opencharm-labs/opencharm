@@ -80,6 +80,19 @@ bool is_face_state(const char* s) {
   return false;
 }
 
+// Any face but the orange one, which only comes with the needs_you state.
+bool optional_feeling(const cJSON* obj, std::string& out) {
+  const cJSON* item = cJSON_GetObjectItemCaseSensitive(obj, "feeling");
+  if (!item) return true;
+  if (!cJSON_IsString(item) || std::strcmp(item->valuestring, "ask") == 0) return false;
+  for (const auto& face : design::kFaces)
+    if (std::strcmp(face.id, item->valuestring) == 0) {
+      out = face.id;
+      return true;
+    }
+  return false;
+}
+
 bool optional_text(const cJSON* obj, const char* key, size_t max, std::string& out) {
   const cJSON* item = cJSON_GetObjectItemCaseSensitive(obj, key);
   if (!item) return true;
@@ -231,7 +244,9 @@ bool parse_charm(const cJSON* root, ServerMessage& out) {
   }
   if (is(op, "face")) {
     const char* state = str(root, "state");
-    if (!is_face_state(state) || !optional_text(root, "text", kMaxFaceLine, out.text)) return false;
+    if (!is_face_state(state) || !optional_feeling(root, out.feeling) ||
+        !optional_text(root, "text", kMaxFaceLine, out.text))
+      return false;
     out.kind = ServerKind::Face;
     out.state = state;
     return true;

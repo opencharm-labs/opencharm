@@ -125,6 +125,27 @@ TEST_CASE("a question carries its id, text and labels, with ALLOW / NO by defaul
   CHECK(m.id == "q2");
 }
 
+TEST_CASE("a face may carry a feeling, but never the orange one") {
+  charm::ServerMessage m;
+  REQUIRE(charm::parse_server_message(
+      R"({"type":"charm","op":"face","state":"idle","feeling":"loved"})", m));
+  CHECK(m.kind == charm::ServerKind::Face);
+  CHECK(m.state == "idle");
+  CHECK(m.feeling == "loved");
+
+  charm::ServerMessage plain;
+  REQUIRE(charm::parse_server_message(R"({"type":"charm","op":"face","state":"done"})", plain));
+  CHECK(plain.feeling.empty());
+
+  charm::ServerMessage bad;
+  CHECK_FALSE(charm::parse_server_message(
+      R"({"type":"charm","op":"face","state":"idle","feeling":"ask"})", bad));
+  CHECK_FALSE(charm::parse_server_message(
+      R"({"type":"charm","op":"face","state":"idle","feeling":"furious"})", bad));
+  CHECK_FALSE(charm::parse_server_message(
+      R"({"type":"charm","op":"face","state":"idle","feeling":3})", bad));
+}
+
 TEST_CASE("client messages match the shared fixtures") {
   for (const auto& f : load("valid")) {
     if (f.direction != "client") continue;

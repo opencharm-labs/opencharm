@@ -1,3 +1,4 @@
+import { FACE_STATES } from "@opencharm-labs/protocol/constants";
 import { charmBuild } from "@opencharm-labs/protocol/messages";
 import { z } from "zod";
 
@@ -132,7 +133,7 @@ async function pair(
 }
 
 const DEV_USAGE =
-  "Usage: opencharm dev face <charm> <state> [text]   |   opencharm dev say <charm> <text>   |   opencharm dev ask <charm> <question>";
+  "Usage: opencharm dev face <charm> <state|feeling> [text]   |   opencharm dev say <charm> <text>   |   opencharm dev ask <charm> <question>";
 
 function positionals(args: readonly string[]): string[] {
   return args.filter(
@@ -148,14 +149,15 @@ async function dev(
   const [sub, charm, ...words] = positionals(args);
   const text = words.join(" ");
   if (sub === "face" && charm && words[0]) {
-    const [state, ...line] = words;
+    const [face, ...line] = words;
     await deps.send(deps.socket, {
       cmd: "devFace",
       charm,
-      state,
+      // A state by its name, else a feeling; charmd refuses anything else.
+      ...(FACE_STATES.includes(face) ? { state: face } : { feeling: face }),
       ...(line.length ? { text: line.join(" ") } : {}),
     });
-    ctx.out.write(`Face ${state} sent to ${charm}.\n`);
+    ctx.out.write(`Face ${face} sent to ${charm}.\n`);
     return;
   }
   if (sub === "ask" && charm && text) {
