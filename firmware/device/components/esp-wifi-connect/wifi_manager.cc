@@ -291,6 +291,12 @@ std::string WifiManager::GetApSsid() const {
     return config_ap_->GetSsid();
 }
 
+std::string WifiManager::GetApPassword() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (!config_mode_active_ || !config_ap_) return "";
+    return config_ap_->GetPassword();
+}
+
 std::string WifiManager::GetApWebUrl() const {
     std::lock_guard<std::mutex> lock(mutex_);
     if (!config_mode_active_ || !config_ap_) return "";

@@ -46,6 +46,8 @@ public:
     void Save(const std::string &ssid, const std::string &password);
     std::vector<wifi_ap_record_t> GetAccessPoints();
     std::string GetSsid();
+    // OpenCharm: the hotspot's password, new each time it starts, shown on the charm's screen.
+    std::string GetPassword() const { return password_; }
     std::string GetWebServerUrl();
 
     /**
@@ -60,6 +62,7 @@ private:
     httpd_handle_t server_ = NULL;
     EventGroupHandle_t event_group_;
     std::string ssid_prefix_;
+    std::string password_;
     std::string language_;
     esp_event_handler_instance_t instance_any_id_;
     esp_event_handler_instance_t instance_got_ip_;

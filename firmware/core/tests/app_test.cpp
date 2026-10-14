@@ -1025,17 +1025,17 @@ TEST_CASE("offline lines: Wi-Fi setup and no Wi-Fi show on the connecting screen
   CHECK_FALSE(r.app.talking());
   CHECK(r.app.screen() == charm::Screen::Connecting);
   CHECK(r.view.last() == "connecting No Wi-Fi");
-  r.app.on_offline("Join Wi-Fi OpenCharm-7F3A", r.now);
-  CHECK(r.view.last() == "connecting Join Wi-Fi OpenCharm-7F3A");
+  r.app.on_offline("OpenCharm-7F3A\nPassword k7m2p9x4q3", r.now);
+  CHECK(r.view.last() == "connecting OpenCharm-7F3A\nPassword k7m2p9x4q3");
 }
 
 TEST_CASE("an offline line during boot waits for the boot face to finish") {
   Rig r;
   r.app.start(0);
-  r.app.on_offline("Join Wi-Fi OpenCharm-7F3A", 100);
+  r.app.on_offline("OpenCharm-7F3A\nPassword k7m2p9x4q3", 100);
   CHECK(r.view.last() == "boot");
   r.at(1300);
-  CHECK(r.view.last() == "connecting Join Wi-Fi OpenCharm-7F3A");
+  CHECK(r.view.last() == "connecting OpenCharm-7F3A\nPassword k7m2p9x4q3");
 }
 
 TEST_CASE("holding the key 5 s while not connected opens Wi-Fi setup; a shorter hold doesn't") {
