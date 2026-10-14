@@ -40,12 +40,21 @@ const TIMEOUTS = {
 } as const;
 
 const FACE_STATES = facesData.states.map((state) => state.id);
+// Feelings the agent may show besides its states: every face but the needs_you state's own (the
+// orange "it needs you"), which only ever comes with that state.
+const NEEDS_YOU_FACE = facesData.states.find(
+  (state) => state.id === "needs_you"
+)?.face;
+const FACE_FEELINGS = facesData.faces
+  .map((face) => face.id)
+  .filter((id) => id !== NEEDS_YOU_FACE);
 // Orange on the screen means only "it needs you" (OPENCHARM.md, the face), so no identity uses it.
 const SIGNAL_COLOUR = "#FF5A1F";
 
 export {
   AUDIO_DOWN,
   AUDIO_UP,
+  FACE_FEELINGS,
   FACE_STATES,
   LIMITS,
   OPENCHARM_FEATURE,

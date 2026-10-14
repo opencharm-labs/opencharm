@@ -324,6 +324,14 @@ TEST_CASE("the needs-you face lights the orange ring, others turn it off") {
   CHECK(r.view.calls[r.view.calls.size() - 2] == "ring off");
 }
 
+TEST_CASE("a feeling from the agent is drawn at once, without the orange ring") {
+  Rig r;
+  r.unlocked();
+  r.server(R"({"type":"charm","op":"face","state":"idle","feeling":"loved","text":"Thank you!"})");
+  CHECK(r.view.last() == "face loved | Thank you!");
+  for (const auto& call : r.view.calls) CHECK(call != "ring on");
+}
+
 TEST_CASE("a failure line is dismissed with a press") {
   Rig r;
   r.unlocked();

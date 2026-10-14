@@ -125,6 +125,32 @@ TEST_CASE("a question carries its id, text and labels, with ALLOW / NO by defaul
   CHECK(m.id == "q2");
 }
 
+TEST_CASE("a face may carry a feeling over idle, but never the orange one") {
+  charm::ServerMessage m;
+  REQUIRE(charm::parse_server_message(
+      R"({"type":"charm","op":"face","state":"idle","feeling":"loved"})", m));
+  CHECK(m.kind == charm::ServerKind::Face);
+  CHECK(m.state == "idle");
+  CHECK(m.feeling == "loved");
+
+  charm::ServerMessage plain;
+  REQUIRE(charm::parse_server_message(R"({"type":"charm","op":"face","state":"done"})", plain));
+  CHECK(plain.feeling.empty());
+
+  // One it doesn't know, the orange one, or one over another state: dropped, and the state shows.
+  for (const char* raw :
+       {R"({"type":"charm","op":"face","state":"idle","feeling":"ask"})",
+        R"({"type":"charm","op":"face","state":"idle","feeling":"furious"})",
+        R"({"type":"charm","op":"face","state":"idle","feeling":3})",
+        R"({"type":"charm","op":"face","state":"needs_you","feeling":"happy"})"}) {
+    CAPTURE(raw);
+    charm::ServerMessage dropped;
+    REQUIRE(charm::parse_server_message(raw, dropped));
+    CHECK(dropped.kind == charm::ServerKind::Face);
+    CHECK(dropped.feeling.empty());
+  }
+}
+
 TEST_CASE("client messages match the shared fixtures") {
   for (const auto& f : load("valid")) {
     if (f.direction != "client") continue;

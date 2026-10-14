@@ -438,18 +438,23 @@ class Session {
 
   // The dev commands, and the agent's charm tools (opencharm mcp). During a turn they go through the
   // turn: a face is kept when it ends, a question pauses its clock, speaking over it is refused.
-  devFace(state: string, text?: string): void {
+  devFace(state: string, text?: string, feeling?: string): void {
     if (this.#state !== "unlocked")
       throw new Error("The charm must be unlocked first.");
     const line = text ? fitUtf8(text, MAX_ASK_TEXT) : undefined;
     if (this.#turn?.busy) {
-      this.#turn.showFace(state, line);
+      this.#turn.showFace({
+        state,
+        ...(feeling ? { feeling } : {}),
+        ...(line ? { text: line } : {}),
+      });
       return;
     }
     this.#send({
       type: "charm",
       op: "face",
       state,
+      ...(feeling ? { feeling } : {}),
       ...(line ? { text: line } : {}),
     });
   }

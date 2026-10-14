@@ -46,6 +46,28 @@ describe("invalid fixtures", () => {
   });
 });
 
+describe("a face's feeling", () => {
+  const face = (extra: object) =>
+    parseServerMessage(
+      JSON.stringify({ type: "charm", op: "face", state: "idle", ...extra })
+    );
+
+  it("is dropped, not refused, when the charm doesn't know it, so the state still shows", () => {
+    for (const feeling of ["furious", "ask", 7])
+      expect(face({ feeling })).toEqual({
+        ok: true,
+        message: { type: "charm", op: "face", state: "idle" },
+      });
+  });
+
+  it("only goes over the idle state, never next to needs_you or another state", () => {
+    expect(face({ state: "needs_you", feeling: "happy" })).toEqual({
+      ok: true,
+      message: { type: "charm", op: "face", state: "needs_you" },
+    });
+  });
+});
+
 describe("size limit", () => {
   it("rejects text frames over the JSON limit before parsing them", () => {
     const big = JSON.stringify({

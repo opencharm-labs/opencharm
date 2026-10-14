@@ -290,14 +290,14 @@ void App::handle(const ServerMessage& m, uint32_t now) {
     case ServerKind::Face:
       if (screen_ != Screen::Face) break;
       activity(now);
-      face_ = face_for(m.state);
+      face_ = m.feeling.empty() ? face_for(m.state) : m.feeling;
       line_ = m.text;
       if (asking_) break;  // the question stays on screen; the face comes back after it
       asleep_ = false;
       set_needs_you(m.state == "needs_you");
-      // A real agent state (thinking, a failure, "needs you") shows at once; only the plain idle
-      // face waits for a reaction (a greeting, a poke, being pleased) to finish.
-      if (m.state != "idle") stop_reacting();
+      // A real agent state (thinking, a failure, "needs you") or a feeling shows at once; only the
+      // plain idle face waits for a reaction (a greeting, a poke, being pleased) to finish.
+      if (m.state != "idle" || !m.feeling.empty()) stop_reacting();
       // "It needs you" outranks the status screen: the ring comes with the face that says why.
       if (m.state == "needs_you") status_open_ = false;
       if (!speaking_ && !key_down_ && react_until_ == 0 && !status_open_)

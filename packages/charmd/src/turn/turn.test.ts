@@ -405,7 +405,7 @@ describe("the charm's tools during a turn", () => {
     const holder: { turn?: TurnController } = {};
     const { turn, out } = setup({
       agent: toolUser((t) => {
-        t.showFace("needs_you", "The build failed.");
+        t.showFace({ state: "needs_you", text: "The build failed." });
         return Promise.resolve();
       }, holder),
     });
@@ -416,6 +416,24 @@ describe("the charm's tools during a turn", () => {
       op: "face",
       state: "needs_you",
       text: "The build failed.",
+    });
+  });
+
+  it("keeps a feeling shown by a tool when the turn ends", async () => {
+    const holder: { turn?: TurnController } = {};
+    const { turn, out } = setup({
+      agent: toolUser((t) => {
+        t.showFace({ state: "idle", feeling: "loved" });
+        return Promise.resolve();
+      }, holder),
+    });
+    holder.turn = turn;
+    await speak(turn);
+    expect(out.at(-1)).toEqual({
+      type: "charm",
+      op: "face",
+      state: "idle",
+      feeling: "loved",
     });
   });
 

@@ -174,7 +174,7 @@ You pick the charm's colour when you name it; the shell and the glyphs share it.
 | Asleep    | sleepy    | Face-down or quiet hours   | IMU / schedule                         |
 | Idle      | neutral   | Nothing going on           | no events                              |
 
-The mapping is data (`packages/design/faces.json` → `states`), so users can change it.
+The mapping is data (`packages/design/faces.json` → `states`), so users can change it. Besides its states, the agent may show any face but `ask` as a **feeling** (`show_face` with `loved`, `curious`, `sad`…; spec 012), a mood over the idle state; orange still comes only with needs_you. When to show one is the agent's choice; OpenCharm only draws it.
 
 ## 6. Hardware and enclosure
 
@@ -224,7 +224,7 @@ We speak xiaozhi-esp32's WebSocket protocol and add one namespaced message type,
 - **Connection:** `wss://<host>/charm` with `Authorization: Bearer <token>` (none before pairing). The board connects straight to the address typed at Wi-Fi setup (spec 009) and sends its token only to the origin that issued it; charmd still serves XiaoZhi's config check at `/ota/` for stock XiaoZhi devices.
 - **Kept from XiaoZhi:** `hello`, `listen` (key held / released), `abort`, binary Opus (up 16 kHz mono 60 ms frames, down 24 kHz), `stt`, `tts` (start, sentence, stop) and `llm` `emotion` for stock devices. Ours include `charm text`, typed text from the desktop charm, offered to the desktop charm in charmd's hello (`features.text`).
 - **What the charm runs:** its `hello` may carry `build: { kind, version, commit }` (`emulator`, `desktop` or `board`; spec 015). It's optional, so stock XiaoZhi firmware still connects, and never a reason to refuse a charm; `opencharm status` shows it.
-- **Ours:** pairing (`pair_code`, `paired`), the lock (`unlock`, `unlocked`, `locked`, `revoked`), `face` (an agent state id from section 5.4, with an optional short line) questions (`ask`, `ask_end`, `answer`), the charm's identity (`look`, sent right before every `unlocked`) and its battery (`battery`, from a charm that has one, to a charmd whose hello offers `features.battery`; spec 009). Later: `notify`, `signal`, `permissions`.
+- **Ours:** pairing (`pair_code`, `paired`), the lock (`unlock`, `unlocked`, `locked`, `revoked`), `face` (an agent state id from section 5.4, with an optional feeling and short line) questions (`ask`, `ask_end`, `answer`), the charm's identity (`look`, sent right before every `unlocked`) and its battery (`battery`, from a charm that has one, to a charmd whose hello offers `features.battery`; spec 009). Later: `notify`, `signal`, `permissions`.
 - "Speaking" is not a face: the charm shows its speech layout between `tts start` and `tts stop`. Until `unlocked`, charmd ignores `listen` and audio and answers `locked`.
 
 ## 9. Security and permissions

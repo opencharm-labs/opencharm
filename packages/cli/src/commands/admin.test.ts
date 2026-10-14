@@ -288,6 +288,21 @@ describe("opencharm dev", () => {
     });
   });
 
+  it("face sends a feeling when it isn't a state's name", async () => {
+    const { ctx } = context();
+    const send = vi.fn().mockResolvedValue({ connected: 1 });
+    await runAdminCommand(ctx, "dev", ["face", "pip", "wink"], {
+      socket: SOCKET,
+      send,
+      prompt: vi.fn(),
+    });
+    expect(send).toHaveBeenCalledWith(SOCKET, {
+      cmd: "devFace",
+      charm: "pip",
+      feeling: "wink",
+    });
+  });
+
   it("say sends the words", async () => {
     const { ctx } = context();
     const send = vi.fn().mockResolvedValue({ connected: 1 });
@@ -326,7 +341,9 @@ describe("opencharm dev", () => {
       send: vi.fn(),
       prompt: vi.fn(),
     });
-    expect(err()).toContain("opencharm dev face <charm> <state> [text]");
+    expect(err()).toContain(
+      "opencharm dev face <charm> <state|feeling> [text]"
+    );
   });
 });
 

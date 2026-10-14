@@ -26,6 +26,7 @@ type Trace = {
     type: string;
     op?: string;
     state?: string;
+    feeling?: string;
     text?: string;
     code?: string;
     id?: string;

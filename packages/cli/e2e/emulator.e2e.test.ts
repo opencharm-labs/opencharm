@@ -91,6 +91,18 @@ describe("the emulator against a real charmd", () => {
     );
   }, 60_000);
 
+  it("draws a feeling the agent shows (spec 012)", async () => {
+    const { page, daemon } = emulator;
+    await daemon.admin.devFace({ feeling: "loved", text: "Thank you!" });
+    await waitFor(
+      page,
+      (t) => t.messages.some((m) => m.op === "face" && m.feeling === "loved"),
+      "the loved face"
+    );
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: join(SHOTS, "4b-feeling.png") });
+  }, 30_000);
+
   it("reconnects with its stored token after a reload and asks for the PIN, not a new pairing", async () => {
     const { page } = emulator;
     await page.reload();

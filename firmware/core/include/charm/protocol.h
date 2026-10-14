@@ -43,13 +43,14 @@ struct Look {
 struct ServerMessage {
   ServerKind kind = ServerKind::Unknown;
   std::string session_id;
-  std::string text;   // stt, tts sentence, face line
-  std::string code;   // pair_code
-  std::string token;  // paired
-  std::string state;  // face
-  std::string id;     // ask, ask_end
-  std::string yes;    // ask: the hold label (default ALLOW)
-  std::string no;     // ask: the press label (default NO)
+  std::string text;     // stt, tts sentence, face line
+  std::string code;     // pair_code
+  std::string token;    // paired
+  std::string state;    // face
+  std::string feeling;  // face: drawn instead of the state's own face, when sent
+  std::string id;       // ask, ask_end
+  std::string yes;      // ask: the hold label (default ALLOW)
+  std::string no;       // ask: the press label (default NO)
   int expires_in = 0;
   int tries_left = -1;  // -1 when absent
   LockReason reason = LockReason::Boot;

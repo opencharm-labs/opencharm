@@ -1,4 +1,4 @@
-import { FACE_STATES } from "@opencharm-labs/protocol/constants";
+import { FACE_FEELINGS, FACE_STATES } from "@opencharm-labs/protocol/constants";
 import { z } from "zod";
 
 import type { PairingRegistry } from "../auth/pairing";
@@ -91,12 +91,27 @@ const pairInput = z.object({
 const charmInput = z.object({ charm: z.string().min(1) });
 // The charm tools (opencharm mcp) don't name a charm: the connected, unlocked one answers.
 const anyCharmInput = z.object({ charm: z.string().min(1).optional() });
-const devFaceInput = anyCharmInput.extend({
-  state: z.enum(FACE_STATES as [string, ...string[]], {
-    error: "unknown face state",
-  }),
-  text: z.string().max(200).optional(),
-});
+// A feeling alone is drawn over the idle state: it's a mood, not something the agent is doing.
+const devFaceInput = anyCharmInput
+  .extend({
+    state: z
+      .enum(FACE_STATES as [string, ...string[]], {
+        error: "unknown face state",
+      })
+      .optional(),
+    feeling: z
+      .enum(FACE_FEELINGS as [string, ...string[]], {
+        error: "unknown feeling",
+      })
+      .optional(),
+    text: z.string().max(200).optional(),
+  })
+  .refine((input) => input.state ?? input.feeling, {
+    error: "a face state or a feeling",
+  })
+  .refine((input) => !input.feeling || (input.state ?? "idle") === "idle", {
+    error: "a feeling goes over the idle state only",
+  });
 const devSayInput = anyCharmInput.extend({ text: z.string().min(1).max(500) });
 // Strict, so a request can't slip in agentCanChangeLook or anything else that isn't the look.
 const lookInput = z
@@ -217,9 +232,14 @@ function createAdminActions({
     },
     devFace(input) {
       return settled(() => {
-        const { charm: ref, state, text } = parseInput(devFaceInput, input);
+        const {
+          charm: ref,
+          state = "idle",
+          feeling,
+          text,
+        } = parseInput(devFaceInput, input);
         const live = requireLive(ref);
-        for (const session of live) session.devFace(state, text);
+        for (const session of live) session.devFace(state, text, feeling);
         return { connected: live.length };
       });
     },

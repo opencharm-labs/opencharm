@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   AUDIO_DOWN,
   AUDIO_UP,
+  FACE_FEELINGS,
   FACE_STATES,
   LIMITS,
   TIMEOUTS,
@@ -12,6 +13,12 @@ import {
 describe("protocol constants", () => {
   it("uses exactly the agent state ids from the design package as face states", () => {
     expect([...FACE_STATES]).toEqual(facesData.states.map((s) => s.id));
+  });
+
+  it("offers every face as a feeling except the orange one, which only means it needs you", () => {
+    expect(FACE_FEELINGS).not.toContain("ask");
+    expect(FACE_FEELINGS).toContain("loved");
+    expect(FACE_FEELINGS).toHaveLength(facesData.faces.length - 1);
   });
 
   it("sends 16 kHz mono Opus in 60 ms frames and plays 24 kHz back", () => {

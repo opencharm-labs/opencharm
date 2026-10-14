@@ -11,7 +11,7 @@ So far the agent can only answer when spoken to. With tools it can use the charm
 
 - **`opencharm mcp`**: an MCP server over stdio (no dependencies; protocol versions 2025-06-18, 2025-03-26, 2024-11-05) that forwards to the running charmd through its admin socket. Tools:
   - `say(text)`: speak on the charm now, e.g. a reminder; normal replies are spoken already
-  - `show_face(face, line?)`: one of the agent states (`done`, `thinking`, `stuck`, `asleep`…), with an optional short line
+  - `show_face(face, line?)`: one of the agent states (`done`, `thinking`, `stuck`, `asleep`…) or a feeling (any other face: `loved`, `wink`, `curious`, `sad`…; never `ask`, the orange one, which stays `notify`'s), with an optional short line
   - `ask(question, yes?, no?)`: a yes/no question on the charm (hold = yes, press = no, 30 s silence = no); returns `yes` or `no`
   - `notify(text)`: the orange "it needs you" face with a short line, until the person presses the key
   - `new_conversation()` (approved by the maintainer, 13 October 2026; spec 003): when the person asks to start over ("let's start over", "new conversation"), never on the agent's own initiative. The reply finishes first; once it ends, the next turn starts a fresh agent session. It acts only on the charm whose turn the agent is answering (thinking or speaking, not a charm just listening; the newest turn if several) and names no other; with no such turn it changes nothing and answers "No conversation is running on a charm right now: nothing was changed."
@@ -32,6 +32,7 @@ Readable signals (picked up, battery…), MCP over HTTP (charmd behind Caddy mus
 - [x] `npm run check` green; docs in sync (SPEC, charmd and CLI READMEs, skills, starter).
 - [x] `new_conversation`: listed with a description that says when to use it, `tools/call` sends `newConversation` with `source: "agent"`, a charm name is refused; the admin command picks only the charm with the newest agent turn, never one just listening, and nothing when no agent turn runs (13 October 2026).
 - [ ] Real Claude Code over ACP calls `new_conversation` when asked to start over, and the next turn doesn't know the last one.
+- [x] Feelings (14 October 2026): `show_face` lists the states then the other faces; a feeling goes out as `face` `{state: "idle", feeling}` (protocol fixture for both sides) and a turn keeps one a tool showed. charmd refuses the needs_you state's face (orange) as a feeling, and a feeling next to any state but idle. A charm drops a feeling it doesn't know (or the orange one, or one over another state) and shows the state, so it's never stuck on a stale face; a charm from before draws the idle face.
 
 ## Notes (1 October 2026)
 

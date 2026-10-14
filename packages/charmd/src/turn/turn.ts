@@ -27,6 +27,8 @@ type TurnDeps = {
   speakAloud?: () => boolean;
 };
 type Stage = "stt" | "agent" | "tts";
+// A face from the agent's tools: an agent state, maybe drawn as a feeling, maybe with a line.
+type ShownFace = { state: string; feeling?: string; text?: string };
 type AskOptions = { yes?: string; no?: string; signal?: AbortSignal };
 
 // A minute of speech at 60 ms per packet; longer holds are cut, not buffered forever.
@@ -99,7 +101,7 @@ class TurnController {
   // While a turn runs: how a question pauses its clock; and a face a tool asked to keep after it.
   #asking:
     ((text: string, options: AskOptions) => Promise<boolean>) | undefined;
-  #endFace: { state: string; text?: string } | undefined;
+  #endFace: ShownFace | undefined;
   // When this charm's current turn began, in turnsStarted's order; undefined between turns.
   #runOrder: number | undefined;
   readonly #deps: TurnDeps;
@@ -112,11 +114,12 @@ class TurnController {
     return this.#state;
   }
 
-  #face(state: string, text?: string): void {
+  #face(state: string, text?: string, feeling?: string): void {
     this.#deps.send({
       type: "charm",
       op: "face",
       state,
+      ...(feeling ? { feeling } : {}),
       ...(text ? { text } : {}),
     });
   }
@@ -134,9 +137,9 @@ class TurnController {
   }
 
   // A face from the agent's tools: shown now and, during a turn, kept when the turn ends.
-  showFace(state: string, text?: string): void {
-    this.#face(state, text);
-    if (this.busy) this.#endFace = { state, ...(text ? { text } : {}) };
+  showFace(face: ShownFace): void {
+    this.#face(face.state, face.text, face.feeling);
+    if (this.busy) this.#endFace = face;
   }
 
   // A question from the agent's tools: during a turn it pauses the turn's clock and is cancelled
@@ -376,7 +379,7 @@ class TurnController {
       this.#state = "idle";
       const end = this.#endFace ?? { state: "idle" };
       this.#endFace = undefined;
-      this.#face(end.state, end.text);
+      this.#face(end.state, end.text, end.feeling);
     } catch (error) {
       // Whichever half failed (the agent or the voice), the other stops too.
       if (!signal.aborted) controller.abort(error);
@@ -702,4 +705,4 @@ class TurnController {
 }
 
 export { TurnController };
-export type { TurnDeps, TurnState };
+export type { ShownFace, TurnDeps, TurnState };
