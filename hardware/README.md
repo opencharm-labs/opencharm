@@ -48,7 +48,7 @@ It's a finished device: screen, microphones, speaker, battery and a case. The MV
 | Case                    | 46 × 46 × 22.5 mm, official 2D drawing available                                                                                                                                                                                                                  |
 | Software                | **OpenCharm OS runs on it** (spec 009, stages 1–3: face, key, touch, battery, status screen, Wi-Fi, charmd, voice). Supported upstream in xiaozhi-esp32 (v2.5.2 ships a prebuilt image; on-device echo cancellation on in its build); factory firmware restorable |
 
-Why it wins: the biggest, sharpest true-black face canvas of the options (the face is the product), two mics with a hardware echo reference (talking over it should work once echo cancellation is enabled, see below), official drawings (the printed shell is based on real numbers), $32 fully assembled.
+Why it wins: the biggest, sharpest true-black face canvas of the options (the face is the product), two mics with a hardware echo reference (echo cancellation is on; talking over a reply is still to be tried by a person, see below), official drawings (the printed shell is based on real numbers), $32 fully assembled.
 
 Weak spots: no plug-in expansion (solder pads only), no vibration motor, 22.5 mm thick, no camera.
 

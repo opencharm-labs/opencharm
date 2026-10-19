@@ -44,7 +44,7 @@ Principles (apply to every choice below):
 
 A body for the agent you already run: eyes, a voice, a key you can find without looking. Your agent keeps its memory, skills and model. The charm is desk-first and pocket-friendly.
 
-The charm listens to your agent's events and shows them as faces, so you know whether it's thinking, working, stuck, done or learned something new without opening a screen. **What people get** (maintainer, 6 October 2026): the desktop charm by the Mac's notch, today, and the board you build, next. The emulator is a tool for developing OpenCharm OS and the board, not a way to use OpenCharm: user-facing copy (the site, the README, link previews, launch material) never offers the browser as a product path.
+The charm listens to your agent's events and shows them as faces, so you know whether it's thinking, working, stuck, done or learned something new without opening a screen. **What people get** (maintainer, 6 October 2026): the desktop charm by the Mac's notch, and the board you build. The emulator is a tool for developing OpenCharm OS and the board, not a way to use OpenCharm: user-facing copy (the site, the README, link previews, launch material) never offers the browser as a product path.
 
 ### 3.2 Why an object and not an app
 
@@ -259,17 +259,17 @@ We speak xiaozhi-esp32's WebSocket protocol and add one namespaced message type,
 
 ## 10. Roadmap
 
-| Milestone                    | Outcome                                                                                                                                                                                    |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **M0 Emulator + charmd**     | Audio spike; charmd MVP; `firmware/core` running in the emulator against charmd with Hermes on the droplet (specs 001–006 done; 007, the droplet, in progress)                             |
-| **M0.5 Bench**               | Reference board arrived and backed up (12 October 2026); key, speaker and buttons answered; OpenCharm OS stage 1 runs on it; inside, battery and battery life still to measure             |
-| **M1 Firmware**              | `firmware/device` implements the HAL (code from XiaoZhi); the same core runs on the 2.16 with echo cancellation on; MVP definition of done met on the device                               |
-| **M2 Agent tools**           | MCP charm tools and needs-you approvals done (specs 011, 012); next: permissions engine, Hermes charm skill, notifications                                                                 |
-| **M3 OpenClaw**              | Verified with the OpenClaw preset and charm skill; optional esp-openclaw-node                                                                                                              |
-| **M4 Enclosure**             | Printed back for the Waveshare case, then shell v0.2 from real measurements                                                                                                                |
-| **M5 Flash-and-print guide** | Browser flasher, docs, face packs; "buy this board, flash in your browser, print your back"                                                                                                |
-| DIY charm                    | Compact parts (for example Seeed XIAO ESP32S3, INMP441, MAX98357A, small screen, flat LiPo), chosen once the firmware runs on the bench; a "DIY" variant in `gen.py`; a step-by-step guide |
-| Later                        | Our own open board with motor and Qwiic                                                                                                                                                    |
+| Milestone                    | Outcome                                                                                                                                                                                                                   |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **M0 Emulator + charmd**     | Audio spike; charmd MVP; `firmware/core` running in the emulator against charmd with Hermes on the droplet (specs 001–006 done; 007, the droplet, in progress)                                                            |
+| **M0.5 Bench**               | Reference board arrived and backed up (12 October 2026); key, speaker and buttons answered; OpenCharm OS stages 1–3 run on it (voice used by hand, 13–19 October 2026); inside, battery and battery life still to measure |
+| **M1 Firmware**              | `firmware/device` implements the HAL (code from XiaoZhi); the same core runs on the 2.16 with echo cancellation on; MVP definition of done met on the device                                                              |
+| **M2 Agent tools**           | MCP charm tools and needs-you approvals done (specs 011, 012); next: permissions engine, Hermes charm skill, notifications                                                                                                |
+| **M3 OpenClaw**              | Verified with the OpenClaw preset and charm skill; optional esp-openclaw-node                                                                                                                                             |
+| **M4 Enclosure**             | Printed back for the Waveshare case, then shell v0.2 from real measurements                                                                                                                                               |
+| **M5 Flash-and-print guide** | Browser flasher, docs, face packs; "buy this board, flash in your browser, print your back"                                                                                                                               |
+| DIY charm                    | Compact parts (for example Seeed XIAO ESP32S3, INMP441, MAX98357A, small screen, flat LiPo), chosen once the firmware runs on the bench; a "DIY" variant in `gen.py`; a step-by-step guide                                |
+| Later                        | Our own open board with motor and Qwiic                                                                                                                                                                                   |
 
 Not in the MVP (next, in order): permissions engine; the Hermes/OpenClaw charm skill; "I have something" and handoff; IMU signals and pocket/desk modes with the 4.1 V charge limit; auto-lock by inactivity; local-PC mode docs; browser flasher; the 1.75 board; printed shell fitting; the DIY guide. Build order and status of each spec: [specs/README.md](specs/README.md).
 
@@ -299,7 +299,7 @@ The rows from Anthropic's buddy down were checked on 1 October 2026 (sources in 
 | Meta Muse Charm                                                | Keychain screen with an avatar, press to talk, 5G                                  | Meta's own agent and cloud                                                                    |
 | Claude Code /voice                                             | Built-in hold-to-talk in the terminal (March 2026)                                 | Cloud speech-to-text, no device                                                               |
 
-Each piece exists somewhere. What we found nowhere else is the combination: agent-agnostic over ACP; one key both to talk and to approve; MCP tools for the agent to drive its body; fully local with no vendor cloud; the same firmware core on your desktop and, next, on the board; memory and persona as plain files; a printable case, and nothing sold.
+Each piece exists somewhere. What we found nowhere else is the combination: agent-agnostic over ACP; one key both to talk and to approve; MCP tools for the agent to drive its body; fully local with no vendor cloud; the same firmware core on your desktop and on the board; memory and persona as plain files; a printable case, and nothing sold.
 
 Safe to say: "an open-source body for the agent you already run", "one key to talk and to approve", "runs on your computer, no cloud of ours", "the desktop charm runs the same OpenCharm OS as the board". Don't say "the first" anything: Anthropic's buddy already approves on a device, and several projects already talk to Claude Code by voice.
 

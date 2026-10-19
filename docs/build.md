@@ -2,7 +2,7 @@
 
 What to buy, what to check when it arrives, and how to flash it. The design decisions behind it are in [OPENCHARM.md](../OPENCHARM.md); this page is the practical guide.
 
-Status: **charmd (the charm daemon), the [desktop charm](../apps/desktop/README.md) and OpenCharm OS on the board work today (spec 009, stages 1–3 of 4).** Flashing, Wi-Fi setup, pairing, the PIN and spoken turns, ElevenLabs voices included, were checked by hand on the reference board (13–19 October 2026). Still to check on it: talking over a reply, the time to the first word and a phone hotspot. The steps marked _later_ land with the last stage.
+Status: **charmd (the charm daemon), the [desktop charm](../apps/desktop/README.md) and OpenCharm OS on the board work today (spec 009, stages 1–3 of 4).** Flashing, Wi-Fi setup (before it had a password), pairing, the PIN and spoken turns, ElevenLabs voices included, were checked by hand on the reference board (13–19 October 2026). Still to check on it: the setup password, talking over a reply, the time to the first word and a phone's hotspot.
 
 **No warranty: you build and use this at your own risk**, especially the lithium battery. Read the [disclaimer](../README.md#no-warranty) first.
 

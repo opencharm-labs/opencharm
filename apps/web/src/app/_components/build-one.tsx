@@ -15,7 +15,7 @@ const STEPS = [
     n: "02",
     time: "10 MIN",
     t: "Back it up, then flash",
-    d: "Save the board’s own firmware, then write OpenCharm OS with esptool. Waveshare’s factory firmware can always be restored.",
+    d: "Save the board’s own firmware, then flash OpenCharm OS over USB. Waveshare’s factory firmware can always be restored.",
   },
   {
     n: "03",
