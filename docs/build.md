@@ -2,7 +2,7 @@
 
 What to buy, what to check when it arrives, and how to flash it. The design decisions behind it are in [OPENCHARM.md](../OPENCHARM.md); this page is the practical guide.
 
-Status: **charmd (the charm daemon) and the [desktop charm](../apps/desktop/README.md) work today. OpenCharm OS runs on the board as stage 1 of 4 (spec 009): the face, the key, touch, the battery and the status screen, without Wi-Fi or voice yet.** Until stage 2 connects it to charmd, use the desktop charm with your agent. The steps marked _later_ land with the next stages.
+Status: **charmd (the charm daemon), the [desktop charm](../apps/desktop/README.md) and OpenCharm OS on the board work today (spec 009, stages 1–3 of 4).** Flashing, Wi-Fi setup, pairing, the PIN and spoken turns, ElevenLabs voices included, were checked by hand on the reference board (13–19 October 2026). Still to check on it: talking over a reply, the time to the first word and a phone hotspot. The steps marked _later_ land with the last stage.
 
 **No warranty: you build and use this at your own risk**, especially the lithium battery. Read the [disclaimer](../README.md#no-warranty) first.
 
@@ -125,7 +125,7 @@ STL files are in [`hardware/stl/print`](../hardware/stl/print); settings and ass
 
 OpenCharm OS takes its board support from [xiaozhi-esp32](https://github.com/78/xiaozhi-esp32), which keeps every board's wiring in its own folder (`main/boards/<board>/`). So:
 
-1. **Reference charm:** the Waveshare 2.16 above. Planned (spec 009); the printed shell fits it.
+1. **Reference charm:** the Waveshare 2.16 above. OpenCharm OS runs on it (spec 009); the printed shell is drawn for it.
 2. **Easy to find: Waveshare ESP32-S3-Touch-AMOLED-1.75** ([product page](https://www.waveshare.com/esp32-s3-touch-amoled-1.75.htm)). On Amazon in several countries and at resellers such as The Pi Hut. Speaker built in, two mics with echo reference, round 466×466 AMOLED. **Battery not included**: add a 3.7 V LiPo with an MX1.25 plug and check the polarity (section 3). The BOOT button is the key. Planned for OpenCharm OS (spec 009) alongside the reference board.
 3. **Other XiaoZhi-supported boards** (for example M5Stack CoreS3, Espressif ESP-VoCat, Waveshare's round AMOLED boards): build OpenCharm OS for that board. The glyph face scales to any screen size and shape. Community-supported.
 4. **Breadboard DIY** (roughly $20–25, estimate): ESP32-S3 dev board with PSRAM, I2S microphone (INMP441), I2S amplifier (MAX98357A) + small speaker, an SPI screen, one push button. Start from XiaoZhi's breadboard board configs (`bread-compact-*`).
@@ -133,7 +133,7 @@ OpenCharm OS takes its board support from [xiaozhi-esp32](https://github.com/78/
 
 ## 9. Breadboard wiring (reference for the DIY path)
 
-Not supported yet: development runs on the emulator (`npx opencharm sim`) until OpenCharm OS runs on a board (spec 009). This wiring is kept as the starting point for the "Build it" path ([hardware/README.md](../hardware/README.md), "Three ways to get a charm"): a real device from common parts, with no battery and usually no soldering. It follows XiaoZhi's official breadboard board, [`bread-compact-wifi`](https://github.com/78/xiaozhi-esp32/tree/main/main/boards/bread-compact-wifi) (pins from its `config.h`, checked 29 September 2026).
+Not supported yet: OpenCharm OS runs only on the reference board (spec 009). This wiring is kept as the starting point for the "Build it" path ([hardware/README.md](../hardware/README.md), "Three ways to get a charm"): a real device from common parts, with no battery and usually no soldering. It follows XiaoZhi's official breadboard board, [`bread-compact-wifi`](https://github.com/78/xiaozhi-esp32/tree/main/main/boards/bread-compact-wifi) (pins from its `config.h`, checked 29 September 2026).
 
 **Parts** (roughly €25–35 in total, estimate; pick listings with pins already soldered if you don't want to solder):
 

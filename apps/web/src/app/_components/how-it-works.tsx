@@ -32,8 +32,8 @@ const PIECES = [
   {
     name: "OpenCharm OS",
     where: "firmware/core, C++",
-    what: "Glyph faces, the key, the PIN pad, questions on the charm. Runs in the desktop charm today; the board port is next.",
-    status: "DESKTOP",
+    what: "Glyph faces, the key, the PIN pad, questions on the charm. Runs in the desktop charm and on the Waveshare board.",
+    status: "DESKTOP · BOARD",
   },
   {
     name: "Desktop charm",
@@ -44,7 +44,7 @@ const PIECES = [
   {
     name: "charmd",
     where: "the charm daemon",
-    what: "Pairing and PIN, speech on your machine or with your OpenAI key, questions, the charm’s own tools for your agent.",
+    what: "Pairing and PIN, speech on your machine or with your OpenAI or ElevenLabs key, questions, the charm’s own tools for your agent.",
     status: "BUILT",
   },
   {
@@ -100,8 +100,8 @@ function HowItWorks() {
           <h3 className={NODE_TITLE}>Face, voice, one key</h3>
           <BodyText className="max-w-[34ch]">
             One OS for every body: the desktop charm on your Mac or Windows PC
-            today, the board you build next. Hold the key to talk; the mic is
-            open only while you hold it.
+            and on the board you build yourself. Hold the key to talk; the mic
+            is open only while you hold it.
           </BodyText>
         </div>
         <div className={NODE}>

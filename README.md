@@ -13,13 +13,13 @@ Site: [opencharm.dev](https://opencharm.dev) · Product spec: [OPENCHARM.md](OPE
 
 ## Status
 
-Early. Tested end to end on macOS (3 October 2026): `opencharm init`, charmd (the charm daemon), the emulator and Claude Code, from pairing to a spoken answer through a real microphone. The desktop charm runs on macOS; its Windows build is untested on a real machine. charmd also has presets for Codex, Gemini CLI, goose, Hermes and OpenClaw, and adapters for OpenAI-compatible agents: covered by tests with a stand-in agent, not yet each tried for real. Firmware for the real board (spec 009) is next. Work is specified spec by spec ([specs/](specs/README.md)).
+Early. Tested end to end on macOS (3 October 2026): `opencharm init`, charmd (the charm daemon), the emulator and Claude Code, from pairing to a spoken answer through a real microphone. The desktop charm runs on macOS; its Windows build is untested on a real machine. charmd also has presets for Codex, Gemini CLI, goose, Hermes and OpenClaw, and adapters for OpenAI-compatible agents: covered by tests with a stand-in agent, not yet each tried for real. OpenCharm OS also runs on the reference board (spec 009, checked by hand on 13–19 October 2026): flashed from this repo, Wi-Fi setup from a phone, pairing, the PIN and spoken answers from Claude Code, with ElevenLabs voices too. Talking over a reply, the time to the first word and a phone hotspot are still to be checked on it. Work is specified spec by spec ([specs/](specs/README.md)).
 
 ## Get it
 
 **The desktop charm (macOS).** Download it from the [latest release](https://github.com/opencharm-labs/opencharm/releases/latest) ([how](apps/desktop/README.md)). In Settings, choose your agent's folder, then hold **⌥ Space** and talk. The Windows build is untested on a real machine.
 
-**The board** is next: what to buy and print is in [docs/build.md](docs/build.md) (`npx opencharm hardware` lists it too), and OpenCharm goes onto it with the device port (spec 009).
+**The board.** What to buy, how to flash OpenCharm OS onto it and how to add it from the desktop charm are in [docs/build.md](docs/build.md) (`npx opencharm hardware` lists the parts too).
 
 ## Develop
 

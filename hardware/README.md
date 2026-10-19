@@ -36,17 +36,17 @@ The 2.16 and 1.75 are sister boards (same maker, ESP32-S3R8, ES8311 + ES7210 aud
 
 It's a finished device: screen, microphones, speaker, battery and a case. The MVP needs no hardware work; it's firmware and software.
 
-|                         |                                                                                                                                                                                                                                          |
-| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Price (Waveshare store) | $29.99 without battery, **$31.99 with battery** (buy this one)                                                                                                                                                                           |
-| SoC                     | ESP32-S3R8, 8 MB PSRAM, 16 MB flash, Wi-Fi 2.4 GHz, BLE 5                                                                                                                                                                                |
-| Screen                  | 2.16″ AMOLED, 480 × 480, CO5300 driver, CST9220 touch                                                                                                                                                                                    |
-| Audio                   | ES8311 codec, ES7210 ADC, two mics with hardware echo reference; NS4150B amp (enable GPIO46); **speaker built in**, soldered behind the grille (bench, 12 October 2026)                                                                  |
-| Sensors                 | QMI8658 IMU, PCF85063 RTC                                                                                                                                                                                                                |
-| Power                   | AXP2101 PMIC; battery version ships a 3.7 V **1000 mAh** battery (MX1.25)                                                                                                                                                                |
-| Buttons                 | three, labelled on the back `+/KEY`, `PWR`, `BOOT/-` (in that order, PWR in the middle). `+/KEY` is GPIO18 (10 kΩ pull-up, low while pressed) and is the key; PWR also reaches GPIO16 through an inverter; BOOT is GPIO0 (schematic)     |
-| Case                    | 46 × 46 × 22.5 mm, official 2D drawing available                                                                                                                                                                                         |
-| Software                | **OpenCharm OS runs on it** (spec 009, stage 1: face, key, touch, battery, status screen). Supported upstream in xiaozhi-esp32 (v2.5.2 ships a prebuilt image; on-device echo cancellation on in its build); factory firmware restorable |
+|                         |                                                                                                                                                                                                                                                                   |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Price (Waveshare store) | $29.99 without battery, **$31.99 with battery** (buy this one)                                                                                                                                                                                                    |
+| SoC                     | ESP32-S3R8, 8 MB PSRAM, 16 MB flash, Wi-Fi 2.4 GHz, BLE 5                                                                                                                                                                                                         |
+| Screen                  | 2.16″ AMOLED, 480 × 480, CO5300 driver, CST9220 touch                                                                                                                                                                                                             |
+| Audio                   | ES8311 codec, ES7210 ADC, two mics with hardware echo reference; NS4150B amp (enable GPIO46); **speaker built in**, soldered behind the grille (bench, 12 October 2026)                                                                                           |
+| Sensors                 | QMI8658 IMU, PCF85063 RTC                                                                                                                                                                                                                                         |
+| Power                   | AXP2101 PMIC; battery version ships a 3.7 V **1000 mAh** battery (MX1.25)                                                                                                                                                                                         |
+| Buttons                 | three, labelled on the back `+/KEY`, `PWR`, `BOOT/-` (in that order, PWR in the middle). `+/KEY` is GPIO18 (10 kΩ pull-up, low while pressed) and is the key; PWR also reaches GPIO16 through an inverter; BOOT is GPIO0 (schematic)                              |
+| Case                    | 46 × 46 × 22.5 mm, official 2D drawing available                                                                                                                                                                                                                  |
+| Software                | **OpenCharm OS runs on it** (spec 009, stages 1–3: face, key, touch, battery, status screen, Wi-Fi, charmd, voice). Supported upstream in xiaozhi-esp32 (v2.5.2 ships a prebuilt image; on-device echo cancellation on in its build); factory firmware restorable |
 
 Why it wins: the biggest, sharpest true-black face canvas of the options (the face is the product), two mics with a hardware echo reference (talking over it should work once echo cancellation is enabled, see below), official drawings (the printed shell is based on real numbers), $32 fully assembled.
 
@@ -72,9 +72,9 @@ Flashing: `esptool` on any system, backup first ([docs/build.md](../docs/build.m
 
 Power banks work, but many switch off below about 50–100 mA, which an idle charm can drop under. With the battery fitted that doesn't matter (the bank charges it, the battery takes over); without one, use a bank with a low-current (trickle) mode.
 
-### Not confirmed until a board is on the bench
+### Not yet confirmed on the bench
 
-- **Echo cancellation**: XiaoZhi v2.5.2's build for this board turns on-device echo cancellation on with the hardware echo reference; it's confirmed by the talk-over-playback test in OpenCharm OS stage 3 (spec 009).
+- **Echo cancellation**: OpenCharm OS stage 3 runs on-device echo cancellation with the hardware echo reference; the bench self-test cuts a test tone's echo by 33.5 dB, and talking over a reply is still to be tried by a person (spec 009).
 - Buy the **ESP32-S3** version: an ESP32-C6 board with the same screen exists and can't run the voice pipeline.
 
 What to check when it arrives: [docs/build.md](../docs/build.md) section 4. Write the answers into this file (board facts here, enclosure checks under "Before the first print").

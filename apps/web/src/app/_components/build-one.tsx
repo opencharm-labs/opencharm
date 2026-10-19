@@ -13,15 +13,15 @@ const STEPS = [
   },
   {
     n: "02",
-    time: "5 MIN",
-    t: "Use it first, then flash",
-    d: "The charm runs today on your computer as the desktop charm. Flashing the board comes with the device port; Waveshare’s factory firmware can always be restored.",
+    time: "10 MIN",
+    t: "Back it up, then flash",
+    d: "Save the board’s own firmware, then write OpenCharm OS with esptool. Waveshare’s factory firmware can always be restored.",
   },
   {
     n: "03",
     time: "5 MIN",
     t: "Pair with your agent",
-    d: "opencharm init, then opencharm serve next to Claude Code, Codex, Hermes or another agent, and say hi.",
+    d: "In the desktop charm, Add a charm: Wi-Fi from your phone, the code on its screen, your PIN. Then hold the key and say hi.",
   },
   {
     n: "04",
@@ -65,9 +65,9 @@ function BuildOne() {
       <SectionHead ix="10" label="BUILD ONE" />
       <SectionIntro title="One board, one evening.">
         The hardware is a ready-made board that already has the screen,
-        microphones, speaker amp, battery and a case. OpenCharm goes onto it
-        once the device port is done; until then it runs on your computer as the
-        desktop charm. Printing your own shell is optional.
+        microphones, speaker amp, battery and a case. OpenCharm OS goes onto it
+        over USB; no board yet? It runs on your computer as the desktop charm.
+        Printing your own shell is optional.
       </SectionIntro>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {STEPS.map((s) => (

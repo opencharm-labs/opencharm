@@ -1,6 +1,6 @@
 # firmware/ — the charm (ESP32-S3)
 
-Status: `core/` **built** (spec 005), `sim/` **built** (spec 006: the emulator, `opencharm sim`), `device/` **stages 1–3 of 4** (spec 009: face, key, touch, battery, status screen on the board; Wi-Fi setup and the connection to charmd, and the voice with echo cancellation, built and self-tested on the board; the checks that need a person wait for the maintainer).
+Status: `core/` **built** (spec 005), `sim/` **built** (spec 006: the emulator, `opencharm sim`), `device/` **stages 1–3 of 4** (spec 009: face, key, touch, battery, status screen on the board; Wi-Fi setup and the connection to charmd, and the voice with echo cancellation, built and used on the board by hand on 13–19 October 2026: Wi-Fi setup, pairing, the PIN and spoken turns, ElevenLabs voices included; talking over a reply, the time to the first word and a phone hotspot still to check).
 
 ## Decision
 
@@ -97,7 +97,7 @@ C++17 without exceptions or RTTI, LVGL 9.6, cJSON.
 1. **firmware/core** (done, spec 005): HAL, state machine, protocol, glyph face and screens, host tests and snapshots (`npm run firmware:test`).
 1. **emulator** (done, spec 006): the core in WebAssembly, `opencharm sim`, tested end to end in headless Chrome.
 1. **Bench check** (done, 12 October 2026): the board backed up and identified, the key found on the schematic (`+/KEY`, GPIO18), the speaker built in ([hardware/README.md](../hardware/README.md)).
-1. **firmware/device**, spec 009 in four stages: (1) the face on the board, key, touch, battery and status screen (done, checked on the board); (2) Wi-Fi and charmd; (3) voice with echo cancellation; (4) dimming, CI build, docs. Its plan is `specs/009-firmware-device/plan.md`.
+1. **firmware/device**, spec 009 in four stages: (1) the face on the board, key, touch, battery and status screen (done, checked on the board); (2) Wi-Fi and charmd; (3) voice with echo cancellation (both built and used by hand on the board); (4) dimming, CI build, docs. Its plan is `specs/009-firmware-device/plan.md`.
 1. **Input on the board**: the key is GPIO18 (`+/KEY`). IMU (post-MVP): pick-up, face-down, shake.
 1. **Post-MVP**: pocket and desk power modes (desk charges to 4.1 V), the 1.75 board, a browser flasher (ESP Web Tools / Web Serial).
 
