@@ -1,6 +1,6 @@
 # firmware/ — the charm (ESP32-S3)
 
-Status: `core/` **built** (spec 005), `sim/` **built** (spec 006: the emulator, `opencharm sim`), `device/` **stages 1–3 of 4** (spec 009: face, key, touch, battery, status screen on the board; Wi-Fi setup and the connection to charmd, and the voice with echo cancellation, built and self-tested on the board; the checks that need a person wait for the maintainer).
+Status: `core/` **built** (spec 005), `sim/` **built** (spec 006: the emulator, `opencharm sim`), `device/` **stages 1–3 of 4** (spec 009: face, key, touch, battery, status screen on the board; Wi-Fi setup and the connection to charmd, and the voice with echo cancellation, built and used on the board by hand on 13–19 October 2026: Wi-Fi setup (before it had a password), pairing, the PIN and spoken turns, ElevenLabs voices included; the setup password, talking over a reply, the time to the first word and a phone's hotspot still to check).
 
 ## Decision
 
@@ -82,7 +82,7 @@ C++17 without exceptions or RTTI, LVGL 9.6, cJSON.
 
 ## Emulator (spec 006, built)
 
-`firmware/sim` compiles `firmware/core` and libopus 1.6.1 to WebAssembly (Emscripten 6.0.10). `opencharm sim` serves it on `http://127.0.0.1:5174` and opens it in any browser (macOS, Windows, Linux); `npm run firmware:sim` builds it into `packages/cli/sim/`, which ships in the npm package and isn't committed. It connects to charmd at `ws://127.0.0.1:8787/charm` by default (`--url` for a `wss://` one); `opencharm dev ...` pushes faces, lines and locks to it. Space = the key; mouse = tap and PIN pad. Used for all work until the board arrives, and for UI work after.
+`firmware/sim` compiles `firmware/core` and libopus 1.6.1 to WebAssembly (Emscripten 6.0.10). `opencharm sim` serves it on `http://127.0.0.1:5174` and opens it in any browser (macOS, Windows, Linux); `npm run firmware:sim` builds it into `packages/cli/sim/`, which ships in the npm package and isn't committed. It connects to charmd at `ws://127.0.0.1:8787/charm` by default (`--url` for a `wss://` one); `opencharm dev ...` pushes faces, lines and locks to it. Space = the key; mouse = tap and PIN pad. Used for UI work and for anything that doesn't need the board.
 
 - **No SDL.** LVGL renders into a framebuffer that the page copies to a canvas, and input goes straight into exported functions. Fewer parts than the SDL route first planned, with the same outcome.
 - **Cheap at rest:** LVGL renders in direct mode, so only the areas that changed are drawn, and the page copies only their bounding box. The loop ticks at 60 Hz while something animates or the key is held, and at 10 Hz at rest; input and messages wake it at once. The speaker's AudioContext is suspended 2 s after the last sound.
@@ -97,7 +97,7 @@ C++17 without exceptions or RTTI, LVGL 9.6, cJSON.
 1. **firmware/core** (done, spec 005): HAL, state machine, protocol, glyph face and screens, host tests and snapshots (`npm run firmware:test`).
 1. **emulator** (done, spec 006): the core in WebAssembly, `opencharm sim`, tested end to end in headless Chrome.
 1. **Bench check** (done, 12 October 2026): the board backed up and identified, the key found on the schematic (`+/KEY`, GPIO18), the speaker built in ([hardware/README.md](../hardware/README.md)).
-1. **firmware/device**, spec 009 in four stages: (1) the face on the board, key, touch, battery and status screen (done, checked on the board); (2) Wi-Fi and charmd; (3) voice with echo cancellation; (4) dimming, CI build, docs. Its plan is `specs/009-firmware-device/plan.md`.
+1. **firmware/device**, spec 009 in four stages: (1) the face on the board, key, touch, battery and status screen (done, checked on the board); (2) Wi-Fi and charmd; (3) voice with echo cancellation (both built and used by hand on the board); (4) dimming, CI build, docs. Its plan is `specs/009-firmware-device/plan.md`.
 1. **Input on the board**: the key is GPIO18 (`+/KEY`). IMU (post-MVP): pick-up, face-down, shake.
 1. **Post-MVP**: pocket and desk power modes (desk charges to 4.1 V), the 1.75 board, a browser flasher (ESP Web Tools / Web Serial).
 

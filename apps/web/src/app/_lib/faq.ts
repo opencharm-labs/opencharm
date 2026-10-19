@@ -6,7 +6,7 @@ type Faq = { q: string; a: string };
 export const FAQ: Faq[] = [
   {
     q: "What is OpenCharm?",
-    a: "OpenCharm is an open-source body for the AI agent you already run: a face made of typed glyphs, a voice and one key. Today it lives at the top of your computer’s screen as the desktop charm (macOS and Windows); next, on a small ESP32-S3 board you build yourself. One agent at a time.",
+    a: "OpenCharm is an open-source body for the AI agent you already run: a face made of typed glyphs, a voice and one key. It lives at the top of your computer’s screen as the desktop charm (macOS and Windows), or on a small ESP32-S3 board you build yourself. One agent at a time.",
   },
   {
     q: "Which agents does it work with?",
@@ -14,11 +14,11 @@ export const FAQ: Faq[] = [
   },
   {
     q: "Do I need the hardware?",
-    a: "No. The desktop charm runs the same OpenCharm OS on your Mac or Windows PC, with a talk key that works in any app. Download it from GitHub Releases or build it from the code. The board comes next, for when you want it on your desk.",
+    a: "No. The desktop charm runs the same OpenCharm OS on your Mac or Windows PC, with a talk key that works in any app. Download it from GitHub Releases or build it from the code. The board is for when you want it on your desk or in your pocket.",
   },
   {
     q: "Is it always listening?",
-    a: "No. The microphone opens only while you hold the key, in the desktop charm, and so it will on the board; let go and it closes. There is no wake word. The rule lives in OpenCharm OS itself, so your agent can’t open the microphone on its own.",
+    a: "No. The microphone opens only while you hold the key, in the desktop charm and on the board; let go and it closes. There is no wake word. The rule lives in OpenCharm OS itself, so your agent can’t open the microphone on its own.",
   },
   {
     q: "Where do my data and keys live?",
