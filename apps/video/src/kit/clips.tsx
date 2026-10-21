@@ -20,7 +20,7 @@ export const CLIPS: [number, number, string, string, string][] = [
     "ANY AGENT",
     "Bring the agent you already run.",
   ],
-  [CUTS.body, CUTS.finale, "06", "OPEN HARDWARE", "Next: a body you can hold."],
+  [CUTS.body, CUTS.finale, "06", "OPEN HARDWARE", "A body you can hold."],
   [CUTS.finale - 0.5, BEATS, "07", "OPENCHARM.DEV", "Your agent. Its face."],
 ];
 

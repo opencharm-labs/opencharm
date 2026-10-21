@@ -17,7 +17,7 @@ function Blur({ children }: { children: ReactNode }) {
   );
 }
 
-// The whole film: the notch (what people can get now), the agents, a glimpse of the body to come,
+// The whole film: the notch (what people can get now), the agents, the printed charm you can build,
 // and back to the face, which ends it.
 export function Film() {
   return (

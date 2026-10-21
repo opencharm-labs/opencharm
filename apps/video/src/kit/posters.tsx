@@ -260,7 +260,7 @@ function BodyPoster() {
   return (
     <>
       <Head
-        title="Next, a body you can hold."
+        title="A body you can hold."
         sub="Print the shell and build your own charm."
       />
       <Card>

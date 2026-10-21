@@ -269,7 +269,7 @@ function Body() {
       <Head
         n="06"
         label="OPEN HARDWARE"
-        title="Next: a body you can hold."
+        title="A body you can hold."
         sub="Print the shell, build the charm yourself. 46.8 mm, one key, a 480 × 480 screen."
         style={{ left: 150, top: 380 }}
         size={88}
