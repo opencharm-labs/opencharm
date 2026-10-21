@@ -23,7 +23,7 @@ function MakeItYours() {
           <FacePicker />
           <p className="mt-1 max-w-[62ch] text-[14px]/[1.55] text-mute">
             Set the same in the desktop charm’s Settings, or in your workspace’s
-            opencharm.json: the notch follows it, and so will the board, with
+            opencharm.json: the notch follows it, and so does the board, with
             its greeting, voice and how calm it moves. On the board you print
             the shell in one of the six, or in any colour you like. On a real
             charm, your agent’s state picks the face, and your agent can try on

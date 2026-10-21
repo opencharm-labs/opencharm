@@ -4,7 +4,7 @@
 
 It works with any agent over ACP (Claude Code, Codex, Gemini CLI, goose, Hermes Agent, OpenClaw) or an OpenAI-compatible API; Claude Code is tested end to end. charmd, the charm daemon, runs next to the agent and handles pairing, the PIN and voice. The project sells and ships nothing and comes with no warranty.
 
-Status: the desktop charm (macOS; Windows untested) and charmd work today, and the CLI is on npm (`opencharm`); OpenCharm OS runs on the reference board, flashed from the repo (checked by hand in October 2026).
+Status: the desktop charm (macOS; Windows untested) and charmd work today, and the CLI is on npm (`opencharm`); OpenCharm OS runs on the reference board, flashed from the repo (checked by hand in October 2026; some checks still open, spec 009).
 
 ## Docs
 
