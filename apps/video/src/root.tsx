@@ -9,6 +9,7 @@ import { Film } from "./film";
 import { fontsReady } from "./fonts";
 import { CLIP, CLIPS, Clip, clipFrames } from "./kit/clips";
 import { AVATAR, AVATARS, Avatar } from "./kit/avatars";
+import { BANNER, Banner } from "./kit/banner";
 import { IconAnimated } from "./kit/icon-animated";
 import { POSTER, POSTER_COUNT, Poster } from "./kit/posters";
 import { STILL, STILL_COUNT, Still } from "./kit/stills";
@@ -37,6 +38,14 @@ export function Root() {
           fps={30}
           width={480}
           height={480}
+        />
+        <Composition
+          id="banner-animated"
+          component={Banner}
+          durationInFrames={BANNER.seconds * 30}
+          fps={30}
+          width={BANNER.width}
+          height={BANNER.height}
         />
         {Array.from({ length: STILL_COUNT }, (_, i) => (
           <StillComposition

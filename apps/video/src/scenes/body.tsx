@@ -251,7 +251,7 @@ export function Body() {
 
       <Kinetic
         frame={frame}
-        words={wordsFrom("Next: a body you can hold.", B(70.25), 5)}
+        words={wordsFrom("A body you can hold.", B(70.25), 5)}
         leave={B(73.6)}
         size={76}
         align="center"
