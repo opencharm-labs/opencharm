@@ -2,7 +2,7 @@
 
 # OpenCharm
 
-**Give your agent a body.** OpenCharm is a small open-source companion that becomes the face and voice of the AI agent you already run: Claude Code, Codex, Gemini CLI, Hermes Agent, OpenClaw, any ACP agent or anything OpenAI-compatible. Today it lives by your Mac's notch as the desktop charm; next, it's a small board you build that sits by your laptop or hangs from your keys. Hold its one key to talk; glance at its face to see what your agent is doing.
+**Give your agent a body.** OpenCharm is a small open-source companion that becomes the face and voice of the AI agent you already run: Claude Code, Codex, Gemini CLI, Hermes Agent, OpenClaw, any ACP agent or anything OpenAI-compatible. It lives by your Mac's notch as the desktop charm, or on a small board you build that sits by your laptop or hangs from your keys. Hold its one key to talk; glance at its face to see what your agent is doing.
 
 - **One agent at a time.** The charm is the body of an agent that already works. It doesn't replace your agent, your phone or your apps.
 - **A face you can type.** Two characters for eyes and one for a mouth (`^ ^`, `o O`, `> <`), in its own colour on true black.
